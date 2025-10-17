@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set your cluster name and region
-CLUSTER_NAME="medisupply-cluster-1"
+CLUSTER_NAME="medisupply-cluster"
 REGION="us-east-2"
 
 # Delete EKS cluster (this also deletes nodegroups and related resources)

@@ -4,20 +4,26 @@ metadata:
   name: medisupply-ingress
   namespace: medisupply
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$1
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
     nginx.ingress.kubernetes.io/enable-cors: "true"
     nginx.ingress.kubernetes.io/cors-allow-origin: "*"
     nginx.ingress.kubernetes.io/cors-allow-methods: "PUT, GET, POST, OPTIONS, DELETE"
     nginx.ingress.kubernetes.io/cors-allow-headers: "Origin,Content-Type,Accept,Authorization"
 spec:
-  ingressClassName: nginx
   rules:
-  - http:
-      paths:
-      - path: /web/(.*)
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: mediador-web-service
-            port:
-              number: 5002
+    - http:
+        paths:
+          - path: /web(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: mediador-web-service
+                port:
+                  number: 80
+          - path: /web/producto(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: producto-inventario-service
+                port:
+                  number: 80
