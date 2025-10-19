@@ -34,3 +34,14 @@ kubectl apply -f kubernetes/proveedores/service.yaml
 kubectl apply -f kubernetes/vendedores/deployment.yaml
 kubectl apply -f kubernetes/vendedores/service.yaml
 kubectl apply -f kubernetes/ingress.yaml
+
+# Agrega el repo de ingress-nginx
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+
+# Instala el controlador en el namespace kube-system (o crea uno dedicado)
+helm install nginx-ingress ingress-nginx/ingress-nginx \
+  --namespace kube-system \
+  --set controller.publishService.enabled=true
+
+  kubectl get svc -n kube-system | grep nginx-ingress

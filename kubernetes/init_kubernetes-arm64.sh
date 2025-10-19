@@ -5,11 +5,11 @@ aws ecr get-login-password --region us-east-2 | docker login --username AWS --pa
 
 # Build and push images (arm64)
 docker buildx build --platform linux/amd64 -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/auth-usuario:latest --push ./auth-usuario
-docker buildx build --platform linux/amd64 -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/mediador-web:latest --push ./mediador-web
+docker buildx build --no-cache --platform linux/amd64 -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/mediador-web:latest --push ./mediador-web
 docker buildx build --no-cache --platform linux/amd64 -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/producto-inventario-web:latest --push ./producto-inventario-web
-docker buildx build --platform linux/amd64 -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/productos:latest --push ./productos_microservice
-docker buildx build --platform linux/amd64 -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/vendedores:latest --push ./vendedores_microservice
-docker buildx build --platform linux/amd64 -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/proveedores:latest --push ./proveedores_microservice
+docker buildx build --no-cache --platform linux/amd64 -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/productos:latest --push ./productos_microservice
+docker buildx build --no-cache --platform linux/amd64 -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/vendedores:latest --push ./vendedores_microservice
+docker buildx build --no-cache --platform linux/amd64 -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/proveedores:latest --push ./proveedores_microservice
 
 # Create EKS cluster
 eksctl create cluster --name medisupply-cluster-1 --region us-east-2 --nodes 9 --node-type t3.micro
@@ -36,3 +36,14 @@ kubectl apply -f kubernetes/proveedores/service.yaml
 kubectl apply -f kubernetes/vendedores/deployment.yaml
 kubectl apply -f kubernetes/vendedores/service.yaml
 kubectl apply -f kubernetes/ingress.yaml
+
+# Agrega el repo de ingress-nginx
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+
+# Instala el controlador en el namespace kube-system (o crea uno dedicado)
+helm install nginx-ingress ingress-nginx/ingress-nginx \
+  --namespace kube-system \
+  --set controller.publishService.enabled=true
+
+  kubectl get svc -n kube-system | grep nginx-ingress
