@@ -1,3 +1,5 @@
+permissions:
+  contents: write
 name: Release Manual
 
 on:
@@ -51,10 +53,11 @@ jobs:
       - name: Push main y tag
         env:
           VERSION: ${{ github.event.inputs.version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git push origin main
+          git push https://x-access-token:${GITHUB_TOKEN}@github.com/ProyectoUniandes16/MediSupply-backend.git main
           git tag -a "v$VERSION" -m "Release $VERSION"
-          git push origin "v$VERSION"
+          git push https://x-access-token:${GITHUB_TOKEN}@github.com/ProyectoUniandes16/MediSupply-backend.git "v$VERSION"
 
       - name: Crear Release en GitHub
         uses: actions/create-release@v1
