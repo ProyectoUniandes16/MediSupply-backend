@@ -229,3 +229,71 @@ def test_enviar_batch_productos_failure(monkeypatch, fake_config):
         with pytest.raises(ProductoServiceError) as e:
             enviar_batch_productos(f, 'u')
     assert e.value.status_code == 502
+
+
+def test_consultar_productos_externo_success(monkeypatch, fake_config):
+    """La función debe retornar el JSON cuando el microservicio responde 200."""
+    from src.services.productos import consultar_productos_externo
+
+    class R:
+        status_code = 200
+        def json(self):
+            return {'items': [{'id': 1}], 'total': 1}
+        def raise_for_status(self):
+            return None
+
+    monkeypatch.setattr('src.services.productos.requests.get', lambda *a, **kw: R())
+
+    from flask import Flask
+    app = Flask(__name__)
+    with app.app_context():
+        res = consultar_productos_externo({'q': 'x'})
+    assert isinstance(res, dict)
+    assert res['total'] == 1
+
+
+def test_consultar_productos_externo_backend_error(monkeypatch, fake_config):
+    """Si el backend responde con status != 200 y body JSON, debe levantarse ProductoServiceError con ese body y status."""
+    from src.services.productos import consultar_productos_externo
+
+    class R:
+        status_code = 400
+        def json(self):
+            return {'error': 'bad', 'codigo': 'ERR'}
+        def raise_for_status(self):
+            # Simular que raise_for_status no lanza excepción para permitir que la función maneje el status
+            return None
+        text = 'Bad Request'
+
+    monkeypatch.setattr('src.services.productos.requests.get', lambda *a, **kw: R())
+
+    from flask import Flask
+    app = Flask(__name__)
+    with app.app_context():
+        with pytest.raises(ProductoServiceError) as exc:
+            consultar_productos_externo({'page': 1})
+
+    assert exc.value.status_code == 400
+    assert isinstance(exc.value.message, dict)
+    assert exc.value.message['codigo'] == 'ERR'
+
+
+def test_consultar_productos_externo_connection_error(monkeypatch, fake_config):
+    """Si ocurre una excepción de requests (p. ej. RequestException), debe levantarse ProductoServiceError con codigo ERROR_CONEXION y status 503."""
+    from src.services.productos import consultar_productos_externo
+    import requests
+
+    def raise_req(*a, **kw):
+        raise requests.exceptions.RequestException('network')
+
+    monkeypatch.setattr('src.services.productos.requests.get', raise_req)
+
+    from flask import Flask
+    app = Flask(__name__)
+    with app.app_context():
+        with pytest.raises(ProductoServiceError) as exc:
+            consultar_productos_externo()
+
+    assert exc.value.status_code == 503
+    assert isinstance(exc.value.message, dict)
+    assert exc.value.message.get('codigo') == 'ERROR_CONEXION'

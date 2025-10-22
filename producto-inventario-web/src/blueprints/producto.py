@@ -2,8 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 import json
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.services.productos import ProductoServiceError
-from src.services.productos import crear_producto_externo
-from src.services.productos import procesar_producto_batch, enviar_batch_productos, procesar_y_enviar_producto_batch
+from src.services.productos import crear_producto_externo, procesar_y_enviar_producto_batch, consultar_productos_externo
 
 # Crear el blueprint para producto
 producto_bp = Blueprint('producto', __name__)
@@ -73,3 +72,17 @@ def producto_batch():
     except Exception as e:
         current_app.logger.error(f"Error en producto-batch: {str(e)}")
         return jsonify({'error': 'Error interno', 'codigo': 'ERROR_INESPERADO'}), 500
+
+@producto_bp.route('/producto', methods=['GET'])
+@jwt_required()
+def consultar_productos():
+    try:
+        # Lógica para consultar productos (a implementar)
+        productos = consultar_productos_externo(request.args)
+        return jsonify({'data': productos}), 200
+    except ProductoServiceError as e:
+        # Retornar contenido y código del error personalizado
+        return jsonify(e.message), e.status_code
+    except Exception:
+        # Retornar error genérico como JSON con status 500
+        return jsonify({'error': 'Error interno del servidor', 'codigo': 'ERROR_INESPERADO'}), 500
