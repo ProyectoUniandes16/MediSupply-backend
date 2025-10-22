@@ -295,5 +295,52 @@ def procesar_y_enviar_producto_batch(file_storage, user_id):
         )
         return {'ok': False, 'status': 400, 'payload': mensaje}
 
+def consultar_productos_externo(params=None):
+    """
+    Consulta productos desde el microservicio externo.
 
+    Args:
+        params (dict, optional): Parámetros de consulta.
 
+    Returns:
+        dict: Datos de los productos consultados.
+
+    Raises:
+        ProductoServiceError: Si ocurre un error de conexión o del microservicio.
+    """
+    url_producto = config.PRODUCTO_URL + '/api/productos/'
+
+    try:
+        response = requests.get(
+            url_producto,
+            params=params
+        )
+
+        # raise_for_status normalmente lanzaría HTTPError para 4xx/5xx.
+        # Si eso ocurre será capturado por la excepción de requests y convertido
+        # en un ProductoServiceError con código de conexión. Si por alguna razón
+        # raise_for_status no lanza, comprobamos el status y levantamos
+        # ProductoServiceError con el body y status del backend.
+        response.raise_for_status()
+        if response.status_code != 200:
+            current_app.logger.error(f"Error del microservicio de productos: {response.text}")
+            raise ProductoServiceError(response.json(), response.status_code)
+        return response.json()
+    except ProductoServiceError:
+        # Si ya estamos lanzando un ProductoServiceError (por ejemplo porque el
+        # backend devolvió un body con detalles) lo re-lanzamos tal cual para
+        # que el caller pueda manejarlo (no lo convertimos en ERROR_CONEXION).
+        raise
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"Error de conexión con microservicio de productos: {str(e)}")
+        raise ProductoServiceError({
+            'error': 'Error de conexión con el microservicio de productos',
+            'codigo': 'ERROR_CONEXION'
+        }, 503)
+    except Exception as e:
+        # Capturar cualquier otro error inesperado y exponer un error de conexión genérico.
+        current_app.logger.error(f"Error inesperado consultando microservicio de productos: {str(e)}")
+        raise ProductoServiceError({
+            'error': 'Error de conexión con el microservicio de productos',
+            'codigo': 'ERROR_CONEXION'
+        }, 503)
