@@ -20,7 +20,8 @@ def test_find_by_email_mock(app):
             email="test@example.com",
             password="password123",
             nombre="Test",
-            apellido="User"
+            apellido="User",
+            rol='cliente'
         )
         with patch('src.models.user.User.query') as mock_query:
             mock_query.filter_by.return_value.first.return_value = mock_user
@@ -57,7 +58,7 @@ def test_to_dict_contains_keys(app):
         user.is_active = True
         user.created_at = user.updated_at = None
         user_dict = user.to_dict()
-        expected_keys = ['id', 'email', 'nombre', 'apellido', 'is_active', 'created_at', 'updated_at']
+        expected_keys = ['id', 'email', 'nombre', 'apellido', 'rol', 'is_active', 'created_at', 'updated_at']
         for key in expected_keys:
             assert key in user_dict
 

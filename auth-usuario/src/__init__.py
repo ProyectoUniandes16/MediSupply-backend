@@ -27,6 +27,10 @@ def create_app(config_class=Config):
     
     # Crear tablas de la base de datos
     with app.app_context():
-        db.create_all()
+        try:
+            db.create_all()
+        except Exception as e:
+            # No queremos que la app falle en entornos donde la DB no está disponible
+            app.logger.warning(f"No se pudieron crear las tablas de la base de datos: {e}")
     
     return app
