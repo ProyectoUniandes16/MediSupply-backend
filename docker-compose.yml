@@ -81,6 +81,36 @@ services:
       retries: 3
       start_period: 40s
 
+  mediador-movil:
+    build:
+      context: ./mediador-movil
+      dockerfile: Dockerfile
+    container_name: medisupply-mediador-movil
+    ports:
+      - "5004:5004"
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=production
+      - PORT=5004
+      - AUTH_URL=http://auth-usuario:5001
+      - PROVEEDORES_URL=http://proveedores:5006
+      - VENDEDORES_URL=http://vendedores:5007
+      - DEBUG=True
+    depends_on:
+      auth-usuario:
+        condition: service_healthy
+      proveedores:
+        condition: service_healthy
+    networks:
+      - medisupply-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   proveedores:
     build:
       context: ./proveedores_microservice
