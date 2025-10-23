@@ -1,3 +1,4 @@
+name: Test Mediador Movil on Develop
 on:
   pull_request:
     branches:
@@ -27,8 +28,10 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov coverage
 
-      - name: Ejecutar tests y medir cobertura
+      - name: Ejecutar tests y medir cobertura (solo mediador-movil)
         run: |
-          coverage run -m pytest
+          # Ejecutar pytest sobre la carpeta de tests pero medir cobertura solo para el paquete `src`
+          # --source=src limita la medición de cobertura a los módulos bajo `src`
+          coverage run --source=src -m pytest ./test
           coverage xml
           coverage report --fail-under=80
