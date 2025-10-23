@@ -14,6 +14,8 @@ class Config:
     
     # Configuración de microservicios
     AUTH_URL = os.environ.get('AUTH_URL', 'http://localhost:5001')
+    CLIENTES_URL = os.environ.get('CLIENTES_URL', 'http://localhost:5010')
+    VENDEDORES_URL = os.environ.get('VENDEDORES_URL', 'http://localhost:5007')
     
     # Configuración de JWT (debe coincidir con auth-usuario)
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-key-change-in-production'

@@ -5,6 +5,7 @@ from app.models import db
 from app.models.vendedor import Vendedor
 from app.utils.validators import require, is_valid_email, is_valid_phone, length_between
 from . import NotFoundError, ConflictError, ValidationError
+from app.models.vendedor_clientes import VendedorClientes
 
 def _to_dict(v: Vendedor) -> Dict[str, Any]:
     """Convierte un vendedor a diccionario para la respuesta JSON."""
@@ -179,3 +180,17 @@ def listar_vendedores(
         "size": size,
         "total": total,
     }
+
+def asociar_cliente_a_vendedor(vendedor_email: str, cliente_id: str) -> Dict[str, Any]:
+    """Asocia un cliente a un vendedor."""
+    vendedor = Vendedor.query.filter_by(correo=vendedor_email).first()
+    if not vendedor:
+        raise NotFoundError("vendedor no encontrado")
+
+    asociacion = VendedorClientes(
+        vendedor_id=vendedor.id,
+        cliente_id=cliente_id
+    )
+    db.session.add(asociacion)
+    db.session.commit()
+    return asociacion.to_dict()

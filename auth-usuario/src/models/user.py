@@ -14,7 +14,7 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     nombre = db.Column(db.String(100), nullable=False)
-    apellido = db.Column(db.String(100), nullable=False)
+    apellido = db.Column(db.String(100), nullable=False, default='')
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     # rol del usuario: 'vendedor', 'gerente' o 'cliente'
     rol = db.Column(db.String(20), default='cliente', nullable=False)

@@ -17,7 +17,7 @@ def register_user(data):
     if data is None:
         raise AuthServiceError({'error': 'No se proporcionaron datos'}, 400)
 
-    required_fields = ['email', 'password', 'nombre', 'apellido']
+    required_fields = ['email', 'password', 'nombre']
     missing_fields = [field for field in required_fields if not data.get(field)]
     if missing_fields:
         raise AuthServiceError({'error': f"Campos faltantes: {', '.join(missing_fields)}"}, 400)
