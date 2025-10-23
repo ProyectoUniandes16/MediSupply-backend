@@ -10,6 +10,7 @@ docker buildx build --no-cache --platform linux/amd64 -t 012146976167.dkr.ecr.us
 docker buildx build --no-cache --platform linux/amd64 -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/productos:latest --push ./productos_microservice
 docker buildx build --no-cache --platform linux/amd64 -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/vendedores:latest --push ./vendedores_microservice
 docker buildx build --no-cache --platform linux/amd64 -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/proveedores:latest --push ./proveedores_microservice
+docker buildx build --no-cache --platform linux/amd64 -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/clientes:latest --push ./clientes_microservice
 
 # Create EKS cluster
 eksctl create cluster --name medisupply-cluster-1 --region us-east-2 --nodes 9 --node-type t3.micro
@@ -35,6 +36,8 @@ kubectl apply -f kubernetes/proveedores/deployment.yaml
 kubectl apply -f kubernetes/proveedores/service.yaml
 kubectl apply -f kubernetes/vendedores/deployment.yaml
 kubectl apply -f kubernetes/vendedores/service.yaml
+kubectl apply -f kubernetes/clientes/deployment.yaml
+kubectl apply -f kubernetes/clientes/service.yaml
 kubectl apply -f kubernetes/ingress.yaml
 
 # Agrega el repo de ingress-nginx
