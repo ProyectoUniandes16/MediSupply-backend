@@ -10,7 +10,7 @@ class Config:
     
     # Configuración del servidor
     HOST = os.environ.get('HOST', '0.0.0.0')
-    PORT = int(os.environ.get('PORT', 5005))
+    PORT = int(os.environ.get('PORT', 5004))
     
     # Configuración de microservicios
     AUTH_URL = os.environ.get('AUTH_URL', 'http://localhost:5001')
