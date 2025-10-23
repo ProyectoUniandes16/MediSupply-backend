@@ -1,0 +1,47 @@
+name: Deploy to AWS EKS - mediador-movil
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'mediador-movil/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCOUNT_ID_JOSE: ${{ secrets.AWS_ACCOUNT_ID_JOSE }}
+      ECR_REPO: mediador-movil
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_JOSE }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_JOSE }}
+          aws-region: us-east-2
+
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID_JOSE.dkr.ecr.us-east-2.amazonaws.com
+
+      - name: Build and push Docker image (mediador-web)
+        run: |
+          docker build -t $AWS_ACCOUNT_ID_JOSE.dkr.ecr.us-east-2.amazonaws.com/$ECR_REPO:latest ./mediador-web
+          docker push $AWS_ACCOUNT_ID_JOSE.dkr.ecr.us-east-2.amazonaws.com/$ECR_REPO:latest
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region us-east-2 --name medisupply-cluster-1
+
+      - name: Deploy to EKS
+        run: |
+          kubectl apply -f kubernetes/mediador-movil/deployment.yaml
+          kubectl apply -f kubernetes/mediador-movil/service.yaml
+
+      - name: Restart mediador-movil deployment
+        run: |
+          kubectl rollout restart deployment mediador-movil-deployment -n medisupply

@@ -1,23 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mediador-movil-deployment
+  name: mediador-web-deployment
   namespace: medisupply
   labels:
-    app: mediador-movil
+    app: mediador-web
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: mediador-movil
+      app: mediador-web
   template:
     metadata:
       labels:
-        app: mediador-movil
+        app: mediador-web
     spec:
       containers:
-      - name: mediador-movil
-        image: 012146976167.dkr.ecr.us-east-2.amazonaws.com/mediador-movil:latest
+      - name: mediador-web
+        image: 012146976167.dkr.ecr.us-east-2.amazonaws.com/mediador-web:latest
         ports:
         - containerPort: 5002
         envFrom:
