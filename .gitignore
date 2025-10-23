@@ -227,3 +227,4 @@ __marimo__/
 # Pytest cache
 */.pytest_cache/
 **/.pytest_cache/
+.idx/
