@@ -37,13 +37,10 @@ kubectl apply -f kubernetes/proveedores/deployment.yaml
 kubectl apply -f kubernetes/proveedores/service.yaml
 kubectl apply -f kubernetes/vendedores/deployment.yaml
 kubectl apply -f kubernetes/vendedores/service.yaml
-<<<<<<< HEAD
 kubectl apply -f kubernetes/clientes/deployment.yaml
 kubectl apply -f kubernetes/clientes/service.yaml
-=======
 kubectl apply -f kubernetes/mediador-movil/deployment.yaml
 kubectl apply -f kubernetes/mediador-movil/service.yaml
->>>>>>> 7364dc5 (- Se agrega configuración, cd y ci)
 kubectl apply -f kubernetes/ingress.yaml
 
 # Agrega el repo de ingress-nginx

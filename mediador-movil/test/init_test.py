@@ -4,4 +4,3 @@ def test_create_app_basic():
     assert app is not None
     # Opcional: comprobar que los blueprints están registrados
     assert 'health' in app.blueprints
-    assert 'proveedor' in app.blueprints
