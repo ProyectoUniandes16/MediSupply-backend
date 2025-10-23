@@ -1,6 +1,7 @@
 import os
 import requests
 from flask import current_app
+from src.services.auth import register_user, AuthServiceError
 
 class VendedorServiceError(Exception):
     """Excepción personalizada para errores en la capa de servicio de vendedores."""
@@ -34,7 +35,6 @@ def crear_vendedor_externo(datos_vendedor):
     # --- Fin de la validación ---
 
     vendedores_url = os.environ.get('VENDEDORES_URL', 'http://localhost:5007')
-
     try:
         response = requests.post(
             f"{vendedores_url}/v1/vendedores",
@@ -44,7 +44,23 @@ def crear_vendedor_externo(datos_vendedor):
         )
         response.raise_for_status()  # Lanza HTTPError para respuestas 4xx/5xx
 
-        datos_respuesta = response.json()
+        current_app.logger.info(f"Vendedor creado exitosamente: {response.json()}")
+    
+        try:
+            datos_signup_vendedor = {
+                'email': datos_vendedor['correo'],
+                'password': 'defaultPassword123',  # Contraseña por defecto o generada
+                'nombre': datos_vendedor['nombre'],
+                'apellido': datos_vendedor['apellidos'],
+                'role': 'vendedor'
+            }
+
+            registro_response = register_user(datos_signup_vendedor)
+            current_app.logger.info(f"Usuario de vendedor registrado exitosamente: {registro_response}")
+
+            datos_respuesta = response.json()
+        except AuthServiceError as e:
+            print(f"Error al registrar el usuario de vendedor: {e.message}")
         return datos_respuesta
     except requests.exceptions.HTTPError as e:
         current_app.logger.error(f"Error del microservicio de vendedores: {e.response.text}")
