@@ -52,7 +52,7 @@ def crear_vendedor_externo(datos_vendedor):
                 'password': 'defaultPassword123',  # Contraseña por defecto o generada
                 'nombre': datos_vendedor['nombre'],
                 'apellido': datos_vendedor['apellidos'],
-                'role': 'vendedor'
+                'rol': 'vendedor'
             }
 
             registro_response = register_user(datos_signup_vendedor)
@@ -60,7 +60,7 @@ def crear_vendedor_externo(datos_vendedor):
 
             datos_respuesta = response.json()
         except AuthServiceError as e:
-            print(f"Error al registrar el usuario de vendedor: {e.message}")
+            print(f"Error al crear la cuenta de usuario de vendedor: {e.message} el registro del vendedor fue exitoso.")
         return datos_respuesta
     except requests.exceptions.HTTPError as e:
         current_app.logger.error(f"Error del microservicio de vendedores: {e.response.text}")
