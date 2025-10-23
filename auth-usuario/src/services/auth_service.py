@@ -30,12 +30,19 @@ def register_user(data):
     if User.find_by_email(email):
         raise AuthServiceError({'error': 'El usuario ya existe'}, 409)
 
-    user = User(
-        email=email,
-        password=data['password'],
-        nombre=data['nombre'].strip(),
-        apellido=data['apellido'].strip()
-    )
+    # validar rol opcional
+    rol = data.get('rol', 'cliente') if data is not None else 'cliente'
+    try:
+        # el constructor de User validará si el rol es permitido
+        user = User(
+            email=email,
+            password=data['password'],
+            nombre=data['nombre'].strip(),
+            apellido=data['apellido'].strip(),
+            rol=rol
+        )
+    except ValueError as e:
+        raise AuthServiceError({'error': str(e)}, 400)
     user.save()
 
     access_token = create_access_token(identity=str(user.id))

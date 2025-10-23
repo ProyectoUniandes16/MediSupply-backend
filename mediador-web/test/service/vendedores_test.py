@@ -33,12 +33,16 @@ def test_crear_vendedor_externo_exito(mock_post):
 
     result = crear_vendedor_externo(valid_vendedor_data)
     assert result['nombre'] == 'Juan'
-    mock_post.assert_called_once_with(
-        'http://localhost:5007/v1/vendedores',
-        json=valid_vendedor_data,
-        headers={'Content-Type': 'application/json'},
-        timeout=10
-    )
+    # The service may call requests.post more than once (e.g. also calls auth service).
+    # Ensure that among the calls there is one to the vendedores endpoint with expected args.
+    calls = mock_post.call_args_list
+    found = False
+    for call_args in calls:
+        args, kwargs = call_args
+        if args and args[0] == 'http://localhost:5007/v1/vendedores' and kwargs.get('json') == valid_vendedor_data and kwargs.get('headers') == {'Content-Type': 'application/json'} and kwargs.get('timeout') == 10:
+            found = True
+            break
+    assert found, f"Expected a post call to vendedores with payload {valid_vendedor_data}; calls: {calls}"
 
 def test_crear_vendedor_externo_sin_datos():
     with pytest.raises(VendedorServiceError) as excinfo:
