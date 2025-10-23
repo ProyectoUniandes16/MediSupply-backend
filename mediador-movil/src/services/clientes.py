@@ -1,4 +1,3 @@
-from calendar import c
 import json
 import os
 import requests
@@ -55,15 +54,15 @@ def crear_cliente_externo(datos_cliente, vendedor_email):
                 'password': 'defaultPassword123',  # Contraseña por defecto o generada
                 'nombre': datos_cliente['nombre'],
                 'apellido': "",
-                'rol': 'cliente'
+                'rol': 'clientye'
             }
 
             registro_response = register_user(datos_signup_cliente)
             current_app.logger.info(f"Usuario de cliente registrado exitosamente: {registro_response}")
-            print("Registro response:", registro_response)
+            current_app.logger.info("Registro response:", registro_response)
             cliente_id = registro_response.get('data').get('user').get('id')
 
-            print("Cliente registrado, procediendo a asociar con vendedor...")
+            current_app.logger.info("Cliente registrado, procediendo a asociar con vendedor...")
             vendedores_url = Config.VENDEDORES_URL
             asociar_response = requests.patch(
                 url=f'{vendedores_url}/v1/vendedores/clientes',
@@ -76,9 +75,9 @@ def crear_cliente_externo(datos_cliente, vendedor_email):
             asociar_response.raise_for_status()
             current_app.logger.info(f"Cliente asociado al vendedor exitosamente: {asociar_response.json()}")
         except AuthServiceError as e:
-            print(f"Error al crear la cuenta de usuario de cliente: {e.message} el registro del cliente fue exitoso.")
+            current_app.logger.info(f"Error al crear la cuenta de usuario de cliente: {e.message} el registro del cliente fue exitoso.")
         except Exception as e:
-            print(f"Error al crear associar el cliente al vendedor: {str(e)} el registro del cliente fue exitoso.")
+            current_app.logger.info(f"Error al asociar el cliente al vendedor: {str(e)} el registro del cliente fue exitoso.")
         return cliente_response
     except requests.exceptions.HTTPError as e:
         current_app.logger.error(f"Error del microservicio de clientes: {e.response.text}")

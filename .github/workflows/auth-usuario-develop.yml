@@ -28,7 +28,7 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov coverage
 
-      - name: Ejecutar tests y medir cobertura (solo mediador-movil)
+      - name: Ejecutar tests y medir cobertura (solo auth-usuario)
         run: |
           # Ejecutar pytest sobre la carpeta de tests pero medir cobertura solo para el paquete `src`
           # --source=src limita la medición de cobertura a los módulos bajo `src`

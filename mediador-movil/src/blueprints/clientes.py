@@ -18,7 +18,7 @@ def crear_cliente():
         datos_cliente = request.get_json()
         token_data = decode_jwt(current_app, request.headers.get('Authorization'))
         email_token = token_data.get('user').get('email') if token_data else None
-        print(f"Email from token: {email_token}")
+        current_app.logger.info(f"Email from token: {email_token}")
         # Llamar a la capa de servicio para manejar la lógica
         datos_respuesta = crear_cliente_externo(datos_cliente, vendedor_email=email_token)
 

@@ -45,7 +45,7 @@ def register_user(data):
         raise AuthServiceError({'error': str(e)}, 400)
     user.save()
 
-    access_token = create_access_token(identity=str(object=str(user.id)), additional_claims={'user': user.to_dict()})
+    access_token = create_access_token(identity=str(user.id), additional_claims={'user': user.to_dict()})
 
     return {
         'message': 'Usuario creado exitosamente',
@@ -70,7 +70,7 @@ def login_user(data):
     if not user.is_active:
         raise AuthServiceError({'error': 'Usuario inactivo'}, 401)
 
-    access_token = create_access_token(identity=str(object=str(user.id)), additional_claims={'user': user.to_dict()})
+    access_token = create_access_token(identity=str(user.id), additional_claims={'user': user.to_dict()})
 
     return {
         'message': 'Login exitoso',

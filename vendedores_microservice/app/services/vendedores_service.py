@@ -186,6 +186,9 @@ def asociar_cliente_a_vendedor(vendedor_email: str, cliente_id: str) -> Dict[str
     vendedor = Vendedor.query.filter_by(correo=vendedor_email).first()
     if not vendedor:
         raise NotFoundError("vendedor no encontrado")
+    
+    if VendedorClientes.query.filter_by(vendedor_id=vendedor.id, cliente_id=cliente_id).first():
+        raise ConflictError("El cliente ya está asociado a este vendedor")
 
     asociacion = VendedorClientes(
         vendedor_id=vendedor.id,

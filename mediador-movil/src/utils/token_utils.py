@@ -18,8 +18,7 @@ def decode_jwt(current_app, token)  -> dict:
             # Decodificar y verificar firma
             decoded = pyjwt.decode(raw_token, secret, algorithms=[alg])
             return decoded
-            #print(f"Decoded JWT payload: {decoded}")
         except Exception as e:
             # Error al decodificar (firma inválida, token expirado, etc.)
+            current_app.logger.error(f"Failed to decode JWT: {str(e)}")
             raise ValueError("Token inválido") from e
-            print(f"Failed to decode JWT: {str(e)}")
