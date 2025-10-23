@@ -1,10 +1,9 @@
-import re
 import jwt as pyjwt
 
 def decode_jwt(current_app, token)  -> dict:
     """
-    Decodifica un token JWT sin verificar la firma.
-    Útil para extraer información del token sin necesidad de la clave secreta.
+    Decodifica un token JWT y verifica su firma utilizando la clave secreta y el algoritmo especificados en la configuración de la aplicación.
+    Útil para extraer información del token de manera segura.
     """
     raw_token = None
     if token and token.startswith('Bearer '):

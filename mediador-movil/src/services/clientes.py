@@ -54,12 +54,12 @@ def crear_cliente_externo(datos_cliente, vendedor_email):
                 'password': 'defaultPassword123',  # Contraseña por defecto o generada
                 'nombre': datos_cliente['nombre'],
                 'apellido': "",
-                'rol': 'clientye'
+                'rol': 'cliente'
             }
 
             registro_response = register_user(datos_signup_cliente)
             current_app.logger.info(f"Usuario de cliente registrado exitosamente: {registro_response}")
-            current_app.logger.info("Registro response:", registro_response)
+            current_app.logger.info(f"Registro response: {registro_response}")
             cliente_id = registro_response.get('data').get('user').get('id')
 
             current_app.logger.info("Cliente registrado, procediendo a asociar con vendedor...")
