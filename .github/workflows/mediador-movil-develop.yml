@@ -8,7 +8,7 @@ on:
       - 'mediador-movil/**'
 
 jobs:
-  Test-mediador-web:
+  Test-mediador-movil:
     runs-on: ubuntu-latest
     defaults:
       run:
