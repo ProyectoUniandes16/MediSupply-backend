@@ -29,6 +29,7 @@ def register_user(data):
     if len(data['password']) < 6:
         raise AuthServiceError({'error': 'La contraseña debe tener al menos 6 caracteres'}, 400)
 
+    data['role'] = 'vendedor'
     response = requests.post(f'{config.AUTH_URL}/auth/signup', json=data)
 
     if response.status_code != 201:
