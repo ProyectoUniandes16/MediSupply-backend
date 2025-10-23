@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clientes-deployment
+  namespace: medisupply
+  labels:
+    app: clientes
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: clientes
+  template:
+    metadata:
+      labels:
+        app: clientes
+    spec:
+      containers:
+      - name: clientes
+        image: 012146976167.dkr.ecr.us-east-2.amazonaws.com/clientes:latest
+        ports:
+        - containerPort: 5001
+        imagePullPolicy: Always
+        env:
+        - name: DB_HOST
+          value: "postgres-service"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_NAME
+          value: "medisupply"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: postgres-password
