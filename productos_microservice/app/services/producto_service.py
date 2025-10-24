@@ -4,6 +4,7 @@ from app.utils.validators import ProductoValidator, CertificacionValidator
 from werkzeug.utils import secure_filename
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
+from flask import current_app
 import os
 import uuid
 
@@ -15,6 +16,84 @@ class ConflictError(Exception):
 
 class ProductoService:
     """Servicio para gestión de productos"""
+    
+    @staticmethod
+    def obtener_detalle_completo(producto_id=None, sku=None):
+        """
+        Obtiene detalle completo de un producto con toda su información
+        Permite búsqueda por ID o SKU
+        
+        Args:
+            producto_id: ID del producto (opcional)
+            sku: SKU del producto (opcional)
+            
+        Returns:
+            Diccionario con toda la información del producto
+            
+        Raises:
+            ValueError: Si no se encuentra el producto o no se proporciona ID/SKU
+        """
+        # Validar que se proporcione al menos un parámetro
+        if not producto_id and not sku:
+            raise ValueError("Debe proporcionar producto_id o sku")
+        
+        # Buscar producto con eager loading para evitar N+1 queries
+        query = Producto.query.options(db.joinedload(Producto.certificacion))
+        
+        if producto_id:
+            producto = query.get(producto_id)
+        else:
+            producto = query.filter_by(codigo_sku=sku).first()
+        
+        if not producto:
+            raise ValueError("Producto no encontrado")
+        
+        # Construir respuesta completa con toda la información
+        detalle = {
+            "id": producto.id,
+            "nombre": producto.nombre,
+            "codigo_sku": producto.codigo_sku,
+            "categoria": producto.categoria,
+            "precio_unitario": float(producto.precio_unitario),
+            "condiciones_almacenamiento": producto.condiciones_almacenamiento,
+            "fecha_vencimiento": producto.fecha_vencimiento.strftime("%d/%m/%Y"),
+            "estado": producto.estado,
+            "proveedor_id": producto.proveedor_id,
+            
+            # Inventario
+            "inventario": {
+                "cantidad_disponible": producto.cantidad_disponible,
+                "tiene_stock": producto.tiene_stock_disponible()
+            },
+            
+            # Certificaciones con estado calculado
+            "certificaciones": [],
+            
+            # Trazabilidad
+            "trazabilidad": {
+                "fecha_creacion": producto.fecha_registro.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+                "fecha_actualizacion": producto.fecha_actualizacion.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+                "usuario_registro": producto.usuario_registro
+            }
+        }
+        
+        # Agregar certificación si existe
+        if producto.certificacion:
+            cert = producto.certificacion
+            estado_cert = "Activo" if producto.certificacion_activa() else "Inactivo"
+            
+            detalle["certificaciones"].append({
+                "id": cert.id,
+                "tipo_certificacion": cert.tipo_certificacion,
+                "nombre_archivo": cert.nombre_archivo,
+                "tamaño_archivo": cert.tamaño_archivo,
+                "fecha_emision": cert.fecha_subida.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+                "fecha_vencimiento": cert.fecha_vencimiento_cert.strftime("%d/%m/%Y"),
+                "estado": estado_cert,
+                "url_descarga": f"/api/productos/{producto.id}/certificacion/descargar"
+            })
+        
+        return detalle
     
     @staticmethod
     def crear_producto(data, archivos_certificacion):
@@ -81,7 +160,8 @@ class ProductoService:
                 fecha_vencimiento=fecha_vencimiento,
                 proveedor_id=int(data['proveedor_id']),
                 usuario_registro=data['usuario_registro'],
-                estado='Activo'  # Por defecto activo
+                estado='Activo',  # Por defecto activo
+                cantidad_disponible=int(data.get('cantidad_disponible', 0))  # Default 0 si no se proporciona
             )
             
             # 10. Agregar a sesión y hacer flush para obtener el ID
@@ -132,24 +212,29 @@ class ProductoService:
     def _guardar_certificacion(producto_id, archivo, tipo_certificacion, fecha_vencimiento_cert):
         """Guarda un archivo de certificación en el sistema de archivos"""
         
-        # Crear directorio si no existe
-        upload_dir = os.path.join('uploads', 'certificaciones_producto', str(producto_id))
+        # Obtener el directorio base de uploads desde la configuración de Flask
+        base_upload_dir = current_app.config['UPLOAD_FOLDER']
+        
+        # Crear ruta absoluta para el directorio de certificaciones del producto
+        upload_dir = os.path.join(base_upload_dir, 'certificaciones_producto', str(producto_id))
         os.makedirs(upload_dir, exist_ok=True)
         
         # Generar nombre único para el archivo
         filename = secure_filename(archivo.filename)
         unique_filename = f"{uuid.uuid4()}_{filename}"
+        
+        # Ruta absoluta completa del archivo
         file_path = os.path.join(upload_dir, unique_filename)
         
         # Guardar archivo
         archivo.save(file_path)
         
-        # Crear registro en base de datos
+        # Crear registro en base de datos con ruta absoluta
         certificacion = CertificacionProducto(
             producto_id=producto_id,
             tipo_certificacion=tipo_certificacion,
             nombre_archivo=filename,
-            ruta_archivo=file_path,
+            ruta_archivo=file_path,  # Ahora guarda ruta absoluta
             tamaño_archivo=os.path.getsize(file_path),
             fecha_vencimiento_cert=fecha_vencimiento_cert
         )

@@ -10,14 +10,21 @@ def app():
     app = create_app()
     # Usar la configuración específica de testing
     app.config.from_object('app.config.TestingConfig')
-    # Override del directorio de uploads para tests
-    app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp()
+    
+    # Override del directorio de uploads para tests (usar directorio temporal)
+    temp_dir = tempfile.mkdtemp()
+    app.config['UPLOAD_FOLDER'] = temp_dir
     
     with app.app_context():
         db.create_all()
         yield app
         db.session.remove()
         db.drop_all()
+    
+    # Limpiar directorio temporal después de tests
+    import shutil
+    if os.path.exists(temp_dir):
+        shutil.rmtree(temp_dir)
 
 @pytest.fixture
 def client(app):
