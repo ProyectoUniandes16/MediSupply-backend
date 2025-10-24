@@ -15,7 +15,7 @@ def register_user(data):
     if data is None:
         raise AuthServiceError({'error': 'No se proporcionaron datos'}, 400)
 
-    required_fields = ['email', 'password', 'nombre', 'apellido']
+    required_fields = ['email', 'password', 'nombre']
     missing_fields = [field for field in required_fields if not data.get(field)]
     if missing_fields:
         raise AuthServiceError({'error': f"Campos faltantes: {', '.join(missing_fields)}"}, 400)
@@ -38,14 +38,14 @@ def register_user(data):
             email=email,
             password=data['password'],
             nombre=data['nombre'].strip(),
-            apellido=data['apellido'].strip(),
+            apellido=data.get('apellido', '').strip(),
             rol=rol
         )
     except ValueError as e:
         raise AuthServiceError({'error': str(e)}, 400)
     user.save()
 
-    access_token = create_access_token(identity=str(user.id))
+    access_token = create_access_token(identity=str(user.id), additional_claims={'user': user.to_dict()})
 
     return {
         'message': 'Usuario creado exitosamente',
@@ -70,7 +70,7 @@ def login_user(data):
     if not user.is_active:
         raise AuthServiceError({'error': 'Usuario inactivo'}, 401)
 
-    access_token = create_access_token(identity=str(user.id))
+    access_token = create_access_token(identity=str(user.id), additional_claims={'user': user.to_dict()})
 
     return {
         'message': 'Login exitoso',
