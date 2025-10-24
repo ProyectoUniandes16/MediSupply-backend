@@ -7,7 +7,11 @@ class Config:
     
     # Configuración para upload de archivos
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB máximo por archivo
-    UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
+    
+    # Usar ruta absoluta para evitar problemas con directorio de trabajo
+    # Si la app se ejecuta desde run.py, el cwd será productos_microservice/
+    UPLOAD_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'uploads'))
+    
     ALLOWED_EXTENSIONS = {'pdf', 'jpg', 'jpeg', 'png'}
     
     # Configuración de seguridad

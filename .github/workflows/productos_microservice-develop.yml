@@ -33,6 +33,7 @@ jobs:
         run: |
           pytest tests/ \
             --cov=app.models \
+            --cov=app.routes \
             --cov=app.services.csv_service \
             --cov=app.services.producto_service \
             --cov=app.utils \

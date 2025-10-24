@@ -6,6 +6,7 @@ from app.extensions import db
 from datetime import datetime
 from werkzeug.exceptions import RequestEntityTooLarge
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -42,15 +43,15 @@ def listar_productos():
     """
     try:
         # Obtener parámetros de consulta
-        page = int(request.args.get('page', 1))
+        page = max(int(request.args.get('page', 1)), 1)  # Asegurar que page >= 1
         per_page = min(int(request.args.get('per_page', 10)), 100)
         categoria = request.args.get('categoria')
         estado = request.args.get('estado')
         proveedor_id = request.args.get('proveedor_id')
         buscar = request.args.get('buscar')
         
-        # Construir query base
-        query = Producto.query
+        # Construir query base con eager loading para evitar N+1 queries
+        query = Producto.query.options(db.joinedload(Producto.certificacion))
         
         # Aplicar filtros
         if categoria:
@@ -92,7 +93,9 @@ def listar_productos():
                 "fecha_vencimiento": producto.fecha_vencimiento.strftime("%d/%m/%Y"),
                 "estado": producto.estado,
                 "proveedor_id": producto.proveedor_id,
+                "cantidad_disponible": producto.cantidad_disponible,
                 "fecha_registro": producto.fecha_registro.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+                "fecha_actualizacion": producto.fecha_actualizacion.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
                 "usuario_registro": producto.usuario_registro,
                 "tiene_certificacion": producto.certificacion is not None
             })
@@ -126,7 +129,7 @@ def listar_productos():
         }), 400
         
     except Exception as e:
-        print(f"Error al listar productos: {str(e)}")
+        logger.error(f"Error al listar productos: {str(e)}")
         return jsonify({
             "error": "Error interno del servidor",
             "codigo": "ERROR_INTERNO"
@@ -136,16 +139,91 @@ def listar_productos():
 @productos_bp.route('/<int:producto_id>', methods=['GET'])
 def obtener_producto(producto_id):
     """
-    Endpoint para obtener un producto específico por ID
+    Endpoint para obtener detalle completo de un producto específico por ID
     
     Args:
         producto_id: ID del producto
         
     Returns:
-        200: Producto encontrado
+        200: Producto encontrado con toda su información detallada
         404: Producto no encontrado
         500: Error interno
     """
+    try:
+        # Usar el nuevo servicio de detalle completo
+        detalle = ProductoService.obtener_detalle_completo(producto_id=producto_id)
+        
+        return jsonify({
+            "producto": detalle
+        }), 200
+        
+    except ValueError as e:
+        return jsonify({
+            "error": str(e),
+            "codigo": "PRODUCTO_NO_ENCONTRADO",
+            "producto_id": producto_id
+        }), 404
+        
+    except Exception as e:
+        logger.error(f"Error al obtener producto: {str(e)}")
+        return jsonify({
+            "error": "Error interno del servidor",
+            "codigo": "ERROR_INTERNO"
+        }), 500
+
+
+@productos_bp.route('/sku/<string:sku>', methods=['GET'])
+def obtener_producto_por_sku(sku):
+    """
+    Endpoint para obtener detalle completo de un producto por SKU
+    Útil para búsqueda directa desde el frontend
+    
+    Args:
+        sku: Código SKU del producto
+        
+    Returns:
+        200: Producto encontrado con toda su información detallada
+        404: Producto no encontrado
+        500: Error interno
+    """
+    try:
+        # Usar el servicio de detalle completo con búsqueda por SKU
+        detalle = ProductoService.obtener_detalle_completo(sku=sku)
+        
+        return jsonify({
+            "producto": detalle
+        }), 200
+        
+    except ValueError as e:
+        return jsonify({
+            "error": str(e),
+            "codigo": "PRODUCTO_NO_ENCONTRADO",
+            "sku": sku
+        }), 404
+        
+    except Exception as e:
+        logger.error(f"Error al obtener producto por SKU: {str(e)}")
+        return jsonify({
+            "error": "Error interno del servidor",
+            "codigo": "ERROR_INTERNO"
+        }), 500
+
+
+@productos_bp.route('/<int:producto_id>/certificacion/descargar', methods=['GET'])
+def descargar_certificacion(producto_id):
+    """
+    Endpoint para descargar archivo de certificación del producto
+    
+    Args:
+        producto_id: ID del producto
+        
+    Returns:
+        200: Archivo de certificación
+        404: Producto o certificación no encontrada
+        500: Error interno
+    """
+    from flask import send_file
+    
     try:
         producto = Producto.query.get(producto_id)
         
@@ -156,38 +234,34 @@ def obtener_producto(producto_id):
                 "producto_id": producto_id
             }), 404
         
-        # Serializar producto completo con certificación
-        respuesta = {
-            "producto": {
-                "id": producto.id,
-                "nombre": producto.nombre,
-                "codigo_sku": producto.codigo_sku,
-                "categoria": producto.categoria,
-                "precio_unitario": float(producto.precio_unitario),
-                "condiciones_almacenamiento": producto.condiciones_almacenamiento,
-                "fecha_vencimiento": producto.fecha_vencimiento.strftime("%d/%m/%Y"),
-                "estado": producto.estado,
-                "proveedor_id": producto.proveedor_id,
-                "fecha_registro": producto.fecha_registro.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
-                "usuario_registro": producto.usuario_registro,
-                "certificacion": {
-                    "id": producto.certificacion.id,
-                    "tipo_certificacion": producto.certificacion.tipo_certificacion,
-                    "nombre_archivo": producto.certificacion.nombre_archivo,
-                    "tamaño_archivo": producto.certificacion.tamaño_archivo,
-                    "fecha_subida": producto.certificacion.fecha_subida.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
-                    "fecha_vencimiento_cert": producto.certificacion.fecha_vencimiento_cert.strftime("%d/%m/%Y")
-                } if producto.certificacion else None
-            }
-        }
+        if not producto.certificacion:
+            return jsonify({
+                "error": "El producto no tiene certificación adjunta",
+                "codigo": "CERTIFICACION_NO_ENCONTRADA",
+                "producto_id": producto_id
+            }), 404
         
-        return jsonify(respuesta), 200
+        # Verificar que el archivo exista
+        if not os.path.exists(producto.certificacion.ruta_archivo):
+            logger.error(f"Archivo de certificación no encontrado: {producto.certificacion.ruta_archivo}")
+            return jsonify({
+                "error": "Archivo de certificación no encontrado en el servidor",
+                "codigo": "ARCHIVO_NO_ENCONTRADO"
+            }), 404
+        
+        # Enviar archivo
+        return send_file(
+            producto.certificacion.ruta_archivo,
+            as_attachment=True,
+            download_name=producto.certificacion.nombre_archivo
+        )
         
     except Exception as e:
-        print(f"Error al obtener producto: {str(e)}")
+        logger.error(f"Error al descargar certificación: {str(e)}")
         return jsonify({
-            "error": "Error interno del servidor",
-            "codigo": "ERROR_INTERNO"
+            "error": "Error al descargar certificación",
+            "codigo": "ERROR_DESCARGA",
+            "detalles": str(e)
         }), 500
 
 

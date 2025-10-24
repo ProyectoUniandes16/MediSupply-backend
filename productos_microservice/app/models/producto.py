@@ -6,6 +6,9 @@ CATEGORIAS_VALIDAS = ['medicamento', 'insumo', 'reactivo', 'dispositivo']
 
 class Producto(db.Model):
     __tablename__ = "productos"
+    __table_args__ = (
+        db.CheckConstraint('cantidad_disponible >= 0', name='check_cantidad_positiva'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False)
@@ -15,9 +18,11 @@ class Producto(db.Model):
     condiciones_almacenamiento = db.Column(db.Text, nullable=False)
     fecha_vencimiento = db.Column(db.Date, nullable=False)
     estado = db.Column(db.String(20), nullable=False, default='Activo')  # Activo o Inactivo
+    cantidad_disponible = db.Column(db.Integer, nullable=False, default=0)  # Inventario disponible
     
     # Auditoría
     fecha_registro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    fecha_actualizacion = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     usuario_registro = db.Column(db.String(120), nullable=False)  # Usuario que creó el producto
     
     # Relación con proveedor (FK al microservicio de proveedores)
@@ -44,6 +49,16 @@ class Producto(db.Model):
     def tiene_certificacion_valida(self):
         """Verifica si el producto tiene certificación válida"""
         return self.certificacion is not None
+    
+    def tiene_stock_disponible(self):
+        """Verifica si el producto tiene stock disponible"""
+        return self.cantidad_disponible > 0
+    
+    def certificacion_activa(self):
+        """Verifica si la certificación está activa (no vencida)"""
+        if not self.certificacion:
+            return False
+        return self.certificacion.fecha_vencimiento_cert >= datetime.now().date()
 
 
 class CertificacionProducto(db.Model):
