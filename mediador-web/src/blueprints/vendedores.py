@@ -32,7 +32,7 @@ def crear_vendedor():
             'message': str(e)
         }), 500
 
-@vendedores_bp.route('/vendedores', methods=['GET'])
+@vendedores_bp.route('/vendedor', methods=['GET'])
 @jwt_required()
 def obtener_vendedores():
     """
