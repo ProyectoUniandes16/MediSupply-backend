@@ -37,7 +37,7 @@ def crear_vendedor_externo(datos_vendedor):
     vendedores_url = os.environ.get('VENDEDORES_URL', 'http://localhost:5007')
     try:
         response = requests.post(
-            f"{vendedores_url}/v1/vendedores",
+            f"{vendedores_url}/v1/vendedor",
             json=datos_vendedor,
             headers={'Content-Type': 'application/json'},
             timeout=10
@@ -102,7 +102,7 @@ def listar_vendedores(zona=None, estado=None, page=1, size=10):
     
     try:
         response = requests.get(
-            f"{vendedores_url}/v1/vendedores",
+            f"{vendedores_url}/v1/vendedor",
             params=params,
             timeout=10
         )

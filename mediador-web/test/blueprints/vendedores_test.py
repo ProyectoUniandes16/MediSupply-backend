@@ -68,7 +68,7 @@ def test_crear_vendedor_sin_token(client):
     response = client.post('/vendedor', json={'nombre': 'Vendedor Test'})
     assert response.status_code == 401
 
-# ==================== Tests para GET /vendedores ====================
+# ==================== Tests para GET /vendedor ====================
 
 @patch('src.blueprints.vendedores.listar_vendedores')
 def test_obtener_vendedores_exito(mock_listar, client, access_token):
@@ -84,7 +84,7 @@ def test_obtener_vendedores_exito(mock_listar, client, access_token):
     }
 
     headers = {'Authorization': f'Bearer {access_token}'}
-    response = client.get('/vendedores', headers=headers)
+    response = client.get('/vendedor', headers=headers)
 
     assert response.status_code == 200
     json_data = response.get_json()
@@ -105,7 +105,7 @@ def test_obtener_vendedores_con_filtros(mock_listar, client, access_token):
     }
 
     headers = {'Authorization': f'Bearer {access_token}'}
-    response = client.get('/vendedores?zona=Norte&estado=activo', headers=headers)
+    response = client.get('/vendedor?zona=Norte&estado=activo', headers=headers)
 
     assert response.status_code == 200
     json_data = response.get_json()
@@ -123,7 +123,7 @@ def test_obtener_vendedores_con_paginacion(mock_listar, client, access_token):
     }
 
     headers = {'Authorization': f'Bearer {access_token}'}
-    response = client.get('/vendedores?page=2&size=5', headers=headers)
+    response = client.get('/vendedor?page=2&size=5', headers=headers)
 
     assert response.status_code == 200
     json_data = response.get_json()
@@ -135,7 +135,7 @@ def test_obtener_vendedores_con_paginacion(mock_listar, client, access_token):
 def test_obtener_vendedores_pagina_invalida(mock_listar, client, access_token):
     """Test de validación de número de página inválido"""
     headers = {'Authorization': f'Bearer {access_token}'}
-    response = client.get('/vendedores?page=0', headers=headers)
+    response = client.get('/vendedor?page=0', headers=headers)
 
     assert response.status_code == 400
     json_data = response.get_json()
@@ -149,13 +149,13 @@ def test_obtener_vendedores_size_invalido(mock_listar, client, access_token):
     headers = {'Authorization': f'Bearer {access_token}'}
     
     # size = 0
-    response = client.get('/vendedores?size=0', headers=headers)
+    response = client.get('/vendedor?size=0', headers=headers)
     assert response.status_code == 400
     json_data = response.get_json()
     assert 'error' in json_data
     
     # size > 100
-    response = client.get('/vendedores?size=101', headers=headers)
+    response = client.get('/vendedor?size=101', headers=headers)
     assert response.status_code == 400
     json_data = response.get_json()
     assert 'error' in json_data
@@ -166,7 +166,7 @@ def test_obtener_vendedores_size_invalido(mock_listar, client, access_token):
 def test_obtener_vendedores_parametros_no_numericos(mock_listar, client, access_token):
     """Test de error con parámetros no numéricos"""
     headers = {'Authorization': f'Bearer {access_token}'}
-    response = client.get('/vendedores?page=abc', headers=headers)
+    response = client.get('/vendedor?page=abc', headers=headers)
 
     assert response.status_code == 400
     json_data = response.get_json()
@@ -181,7 +181,7 @@ def test_obtener_vendedores_error_servicio(mock_listar, client, access_token):
     mock_listar.side_effect = error
 
     headers = {'Authorization': f'Bearer {access_token}'}
-    response = client.get('/vendedores', headers=headers)
+    response = client.get('/vendedor', headers=headers)
 
     assert response.status_code == 503
     json_data = response.get_json()
@@ -198,7 +198,7 @@ def test_obtener_vendedores_error_inesperado(mock_listar, client, access_token, 
             mock_current_app.logger = mock_logger
 
             headers = {'Authorization': f'Bearer {access_token}'}
-            response = client.get('/vendedores', headers=headers)
+            response = client.get('/vendedor', headers=headers)
 
             assert response.status_code == 500
             json_data = response.get_json()
@@ -208,7 +208,7 @@ def test_obtener_vendedores_error_inesperado(mock_listar, client, access_token, 
 
 def test_obtener_vendedores_sin_token(client):
     """Test de acceso sin token de autenticación"""
-    response = client.get('/vendedores')
+    response = client.get('/vendedor')
     assert response.status_code == 401
 
 @patch('src.blueprints.vendedores.listar_vendedores')
@@ -222,7 +222,7 @@ def test_obtener_vendedores_lista_vacia(mock_listar, client, access_token):
     }
 
     headers = {'Authorization': f'Bearer {access_token}'}
-    response = client.get('/vendedores', headers=headers)
+    response = client.get('/vendedor', headers=headers)
 
     assert response.status_code == 200
     json_data = response.get_json()

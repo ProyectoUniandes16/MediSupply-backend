@@ -39,7 +39,7 @@ def test_crear_vendedor_externo_exito(mock_post):
     found = False
     for call_args in calls:
         args, kwargs = call_args
-        if args and args[0] == 'http://localhost:5007/v1/vendedores' and kwargs.get('json') == valid_vendedor_data and kwargs.get('headers') == {'Content-Type': 'application/json'} and kwargs.get('timeout') == 10:
+        if args and args[0] == 'http://localhost:5007/v1/vendedor' and kwargs.get('json') == valid_vendedor_data and kwargs.get('headers') == {'Content-Type': 'application/json'} and kwargs.get('timeout') == 10:
             found = True
             break
     assert found, f"Expected a post call to vendedores with payload {valid_vendedor_data}; calls: {calls}"
@@ -120,7 +120,7 @@ def test_listar_vendedores_exito(mock_get):
         assert result['page'] == 1
         assert result['total'] == 2
         mock_get.assert_called_once_with(
-            'http://localhost:5007/v1/vendedores',
+            'http://localhost:5007/v1/vendedor',
             params={'page': 1, 'size': 10},
             timeout=10
         )
@@ -152,7 +152,7 @@ def test_listar_vendedores_con_filtros(mock_get):
         assert result['items'][0]['zona'] == 'Norte'
         assert result['items'][0]['estado'] == 'activo'
         mock_get.assert_called_once_with(
-            'http://localhost:5007/v1/vendedores',
+            'http://localhost:5007/v1/vendedor',
             params={'page': 1, 'size': 10, 'zona': 'Norte', 'estado': 'activo'},
             timeout=10
         )
@@ -183,7 +183,7 @@ def test_listar_vendedores_paginacion(mock_get):
         assert result['size'] == 5
         assert result['total'] == 15
         mock_get.assert_called_once_with(
-            'http://localhost:5007/v1/vendedores',
+            'http://localhost:5007/v1/vendedor',
             params={'page': 2, 'size': 5},
             timeout=10
         )
