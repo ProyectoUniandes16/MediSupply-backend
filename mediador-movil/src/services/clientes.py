@@ -37,6 +37,7 @@ def crear_cliente_externo(datos_cliente, vendedor_email):
     # --- Fin de la validación ---
 
     clientes_url = Config.CLIENTES_URL
+    current_app.logger.info(f"URL del microservicio de clientes: {clientes_url}")
     try:
         response = requests.post(
             clientes_url+'/cliente',
@@ -60,16 +61,21 @@ def crear_cliente_externo(datos_cliente, vendedor_email):
             registro_response = register_user(datos_signup_cliente)
             current_app.logger.info(f"Usuario de cliente registrado exitosamente: {registro_response}")
             current_app.logger.info(f"Registro response: {registro_response}")
-            cliente_id = registro_response.get('data').get('user').get('id')
+            cliente_id = cliente_response.get('data').get('cliente').get('id')
 
             current_app.logger.info("Cliente registrado, procediendo a asociar con vendedor...")
             vendedores_url = Config.VENDEDORES_URL
+            # Log adicional para depuración: URL usada y payload que se enviará al microservicio de vendedores
+            current_app.logger.info(f"VENDEDORES_URL: {vendedores_url}")
+            payload_asociacion = {
+                'vendedor_email': vendedor_email,
+                'cliente_id': cliente_id
+            }
+            current_app.logger.info(f"Payload para asociar cliente a vendedor: {payload_asociacion}")
+
             asociar_response = requests.patch(
                 url=f'{vendedores_url}/v1/vendedores/clientes',
-                json={
-                    'vendedor_email': vendedor_email,
-                    'cliente_id': cliente_id
-                },
+                json=payload_asociacion,
                 headers={'Content-Type': 'application/json'},
             )
             asociar_response.raise_for_status()
