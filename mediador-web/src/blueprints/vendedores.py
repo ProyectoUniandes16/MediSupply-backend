@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required
-from src.services.vendedores import crear_vendedor_externo, listar_vendedores, VendedorServiceError
+from src.services.vendedores import crear_vendedor_externo, listar_vendedores, VendedorServiceError, obtener_detalle_vendedor_externo
 
 # Crear el blueprint para vendedores
 vendedores_bp = Blueprint('vendedor', __name__)
@@ -82,3 +82,21 @@ def obtener_vendedores():
             'message': str(e)
         }), 500
 
+@vendedores_bp.route('/vendedor/<string:vendedor_id>', methods=['GET'])
+@jwt_required()
+def obtener_detalle_vendedor(vendedor_id):
+    """
+    Endpoint del BFF para obtener el detalle completo de un vendedor.
+    Delega al microservicio de vendedores.
+    """
+    try:
+        detalle = obtener_detalle_vendedor_externo(vendedor_id)
+        return jsonify({'data': detalle}), 200
+    except VendedorServiceError as e:
+        return jsonify(e.message), e.status_code
+    except Exception as e:
+        current_app.logger.error(f"Error inesperado obteniendo detalle de vendedor {vendedor_id}: {str(e)}")
+        return jsonify({
+            'error': 'Error interno del servidor',
+            'codigo': 'ERROR_INESPERADO'
+        }), 500

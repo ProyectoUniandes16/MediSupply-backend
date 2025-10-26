@@ -259,3 +259,223 @@ def test_listar_vendedores_lista_vacia(mock_get):
         
         assert len(result['items']) == 0
         assert result['total'] == 0
+
+# ==================== Tests para obtener_detalle_vendedor_externo ====================
+
+@patch('src.services.vendedores.requests.get')
+def test_obtener_detalle_vendedor_externo_exito(mock_get):
+    """Test de obtención exitosa del detalle de un vendedor"""
+    vendedor_mock = {
+        'id': 'v123',
+        'nombre': 'Juan',
+        'apellidos': 'Perez Garcia',
+        'correo': 'juan.perez@example.com',
+        'telefono': '3001234567',
+        'zona': 'Norte',
+        'estado': 'activo',
+        'fecha_creacion': '2025-01-15T10:30:00Z'
+    }
+    
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = vendedor_mock
+    mock_response.raise_for_status.return_value = None
+    mock_get.return_value = mock_response
+
+    with patch('src.services.vendedores.current_app') as mock_current_app:
+        mock_logger = MagicMock()
+        mock_current_app.logger = mock_logger
+
+        from src.services.vendedores import obtener_detalle_vendedor_externo
+        result = obtener_detalle_vendedor_externo('v123')
+        
+        assert result['id'] == 'v123'
+        assert result['nombre'] == 'Juan'
+        assert result['correo'] == 'juan.perez@example.com'
+        assert result['zona'] == 'Norte'
+        mock_get.assert_called_once_with('http://localhost:5007/v1/vendedores/v123')
+
+@patch('src.services.vendedores.requests.get')
+def test_obtener_detalle_vendedor_externo_no_encontrado_404(mock_get):
+    """Test cuando el vendedor no existe (HTTP 404)"""
+    mock_response = MagicMock()
+    mock_response.status_code = 404
+    mock_response.json.return_value = {'error': 'Vendedor no encontrado'}
+    mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(response=mock_response)
+    mock_get.return_value = mock_response
+
+    with patch('src.services.vendedores.current_app') as mock_current_app:
+        mock_logger = MagicMock()
+        mock_current_app.logger = mock_logger
+
+        from src.services.vendedores import obtener_detalle_vendedor_externo
+        with pytest.raises(VendedorServiceError) as excinfo:
+            obtener_detalle_vendedor_externo('v999')
+
+        assert excinfo.value.status_code == 404
+        mock_logger.error.assert_called_once()
+
+@patch('src.services.vendedores.requests.get')
+def test_obtener_detalle_vendedor_externo_error_conexion(mock_get):
+    """Test de error de conexión con el microservicio"""
+    mock_get.side_effect = requests.exceptions.ConnectionError('Connection failed')
+
+    with patch('src.services.vendedores.current_app') as mock_current_app:
+        mock_logger = MagicMock()
+        mock_current_app.logger = mock_logger
+
+        from src.services.vendedores import obtener_detalle_vendedor_externo
+        with pytest.raises(VendedorServiceError) as excinfo:
+            obtener_detalle_vendedor_externo('v123')
+
+        assert excinfo.value.status_code == 503
+        assert 'error de conexión' in excinfo.value.message.get('error').lower()
+        assert excinfo.value.message.get('codigo') == 'ERROR_CONEXION'
+        mock_logger.error.assert_called_once()
+
+@patch('src.services.vendedores.requests.get')
+def test_obtener_detalle_vendedor_externo_timeout(mock_get):
+    """Test de timeout en la petición"""
+    mock_get.side_effect = requests.exceptions.Timeout('Request timeout')
+
+    with patch('src.services.vendedores.current_app') as mock_current_app:
+        mock_logger = MagicMock()
+        mock_current_app.logger = mock_logger
+
+        from src.services.vendedores import obtener_detalle_vendedor_externo
+        with pytest.raises(VendedorServiceError) as excinfo:
+            obtener_detalle_vendedor_externo('v123')
+
+        assert excinfo.value.status_code == 503
+        assert excinfo.value.message.get('codigo') == 'ERROR_CONEXION'
+
+@patch('src.services.vendedores.requests.get')
+def test_obtener_detalle_vendedor_externo_error_http_500(mock_get):
+    """Test de error HTTP 500 del microservicio"""
+    mock_response = MagicMock()
+    mock_response.status_code = 500
+    mock_response.json.return_value = {'error': 'Error interno del servidor', 'codigo': 'ERROR_INTERNO'}
+    mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(response=mock_response)
+    mock_get.return_value = mock_response
+
+    with patch('src.services.vendedores.current_app') as mock_current_app:
+        mock_logger = MagicMock()
+        mock_current_app.logger = mock_logger
+
+        from src.services.vendedores import obtener_detalle_vendedor_externo
+        with pytest.raises(VendedorServiceError) as excinfo:
+            obtener_detalle_vendedor_externo('v123')
+
+        assert excinfo.value.status_code == 500
+        mock_logger.error.assert_called_once()
+
+@patch('src.services.vendedores.requests.get')
+def test_obtener_detalle_vendedor_externo_error_inesperado(mock_get):
+    """Test de error inesperado (Exception genérica)"""
+    mock_get.side_effect = Exception('Error inesperado del sistema')
+
+    with patch('src.services.vendedores.current_app') as mock_current_app:
+        mock_logger = MagicMock()
+        mock_current_app.logger = mock_logger
+
+        from src.services.vendedores import obtener_detalle_vendedor_externo
+        with pytest.raises(VendedorServiceError) as excinfo:
+            obtener_detalle_vendedor_externo('v123')
+
+        assert excinfo.value.status_code == 500
+        assert 'error interno' in excinfo.value.message.get('error').lower()
+        assert excinfo.value.message.get('codigo') == 'ERROR_INESPERADO'
+        # Debe haber dos llamadas al logger: una para el error inesperado
+        assert mock_logger.error.call_count >= 1
+
+@patch('src.services.vendedores.requests.get')
+def test_obtener_detalle_vendedor_externo_id_numerico(mock_get):
+    """Test con ID numérico de vendedor"""
+    vendedor_mock = {
+        'id': 12345,
+        'nombre': 'Maria',
+        'apellidos': 'Lopez',
+        'correo': 'maria@example.com'
+    }
+    
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = vendedor_mock
+    mock_response.raise_for_status.return_value = None
+    mock_get.return_value = mock_response
+
+    with patch('src.services.vendedores.current_app') as mock_current_app:
+        mock_logger = MagicMock()
+        mock_current_app.logger = mock_logger
+
+        from src.services.vendedores import obtener_detalle_vendedor_externo
+        result = obtener_detalle_vendedor_externo(12345)
+        
+        assert result['id'] == 12345
+        assert result['nombre'] == 'Maria'
+        mock_get.assert_called_once_with('http://localhost:5007/v1/vendedores/12345')
+
+@patch('src.services.vendedores.requests.get')
+def test_obtener_detalle_vendedor_externo_con_variable_entorno(mock_get):
+    """Test que verifica el uso de la variable de entorno VENDEDORES_URL"""
+    vendedor_mock = {'id': 'v1', 'nombre': 'Test'}
+    
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = vendedor_mock
+    mock_response.raise_for_status.return_value = None
+    mock_get.return_value = mock_response
+
+    with patch('src.services.vendedores.current_app') as mock_current_app:
+        mock_logger = MagicMock()
+        mock_current_app.logger = mock_logger
+
+        with patch.dict('os.environ', {'VENDEDORES_URL': 'http://custom-url:8080'}):
+            from src.services.vendedores import obtener_detalle_vendedor_externo
+            result = obtener_detalle_vendedor_externo('v1')
+            
+            assert result['id'] == 'v1'
+            mock_get.assert_called_once_with('http://custom-url:8080/v1/vendedores/v1')
+
+@patch('src.services.vendedores.requests.get')
+def test_obtener_detalle_vendedor_externo_respuesta_completa(mock_get):
+    """Test que valida que se retorna toda la información del vendedor"""
+    vendedor_completo = {
+        'id': 'vend-2025-001',
+        'nombre': 'Carlos',
+        'apellidos': 'Ramirez Gonzalez',
+        'correo': 'carlos.ramirez@example.com',
+        'telefono': '3109876543',
+        'zona': 'Sur',
+        'estado': 'activo',
+        'fecha_creacion': '2025-01-20T15:45:00Z',
+        'fecha_actualizacion': '2025-01-25T10:20:00Z',
+        'ventas_realizadas': 150,
+        'calificacion': 4.8
+    }
+    
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = vendedor_completo
+    mock_response.raise_for_status.return_value = None
+    mock_get.return_value = mock_response
+
+    with patch('src.services.vendedores.current_app') as mock_current_app:
+        mock_logger = MagicMock()
+        mock_current_app.logger = mock_logger
+
+        from src.services.vendedores import obtener_detalle_vendedor_externo
+        result = obtener_detalle_vendedor_externo('vend-2025-001')
+        
+        # Verificar que todos los campos están presentes
+        assert result['id'] == 'vend-2025-001'
+        assert result['nombre'] == 'Carlos'
+        assert result['apellidos'] == 'Ramirez Gonzalez'
+        assert result['correo'] == 'carlos.ramirez@example.com'
+        assert result['telefono'] == '3109876543'
+        assert result['zona'] == 'Sur'
+        assert result['estado'] == 'activo'
+        assert result['ventas_realizadas'] == 150
+        assert result['calificacion'] == 4.8
+        assert 'fecha_creacion' in result
+        assert 'fecha_actualizacion' in result

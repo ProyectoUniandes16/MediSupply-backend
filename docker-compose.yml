@@ -134,7 +134,7 @@ services:
       - medisupply-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5006/api/proveedores/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:5006/proveedores/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -189,7 +189,7 @@ services:
       - medisupply-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5008/api/productos/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:5008/productos/health"]
       interval: 30s
       timeout: 10s
       retries: 3
