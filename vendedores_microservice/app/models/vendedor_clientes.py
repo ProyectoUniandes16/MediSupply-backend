@@ -5,7 +5,7 @@ class VendedorClientes(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     vendedor_id = db.Column(db.String(36), db.ForeignKey("vendedores.id"), nullable=False)
-    cliente_id = db.Column(db.String(36), nullable=False)
+    cliente_id = db.Column(db.Integer, nullable=False)
 
     def to_dict(self):
         return {
