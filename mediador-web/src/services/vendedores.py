@@ -71,3 +71,52 @@ def crear_vendedor_externo(datos_vendedor):
             'error': 'Error de conexión con el microservicio de vendedores',
             'codigo': 'ERROR_CONEXION'
         }, 503)
+
+def listar_vendedores(zona=None, estado=None, page=1, size=10):
+    """
+    Obtiene la lista de vendedores del microservicio externo.
+
+    Args:
+        zona (str, optional): Filtro por zona.
+        estado (str, optional): Filtro por estado.
+        page (int): Número de página (default: 1).
+        size (int): Tamaño de página (default: 10).
+
+    Returns:
+        dict: Lista paginada de vendedores.
+
+    Raises:
+        VendedorServiceError: Si ocurre un error de conexión o del microservicio.
+    """
+    vendedores_url = os.environ.get('VENDEDORES_URL', 'http://localhost:5007')
+    
+    # Construir parámetros de consulta
+    params = {
+        'page': page,
+        'size': size
+    }
+    if zona:
+        params['zona'] = zona
+    if estado:
+        params['estado'] = estado
+    
+    try:
+        response = requests.get(
+            f"{vendedores_url}/v1/vendedores",
+            params=params,
+            timeout=10
+        )
+        response.raise_for_status()
+        
+        current_app.logger.info(f"Vendedores listados exitosamente: página {page}")
+        return response.json()
+        
+    except requests.exceptions.HTTPError as e:
+        current_app.logger.error(f"Error del microservicio de vendedores: {e.response.text}")
+        raise VendedorServiceError(e.response.json(), e.response.status_code)
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"Error de conexión con microservicio de vendedores: {str(e)}")
+        raise VendedorServiceError({
+            'error': 'Error de conexión con el microservicio de vendedores',
+            'codigo': 'ERROR_CONEXION'
+        }, 503)
