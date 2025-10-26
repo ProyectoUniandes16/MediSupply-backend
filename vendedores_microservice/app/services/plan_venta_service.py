@@ -326,6 +326,8 @@ def listar_planes_venta(
     """
     Lista planes de venta con filtros opcionales.
     
+    KAN-87: Lista todos los planes con información del vendedor asociado.
+    
     Args:
         vendedor_id: Filtrar por vendedor
         periodo: Filtrar por periodo
@@ -334,19 +336,23 @@ def listar_planes_venta(
         size: Tamaño de página
         
     Returns:
-        Dict con lista paginada de planes
+        Dict con lista paginada de planes incluyendo información del vendedor
     """
-    query = db.session.query(PlanVenta)
+    # Query con join para obtener información del vendedor
+    query = db.session.query(PlanVenta).join(
+        Vendedor, 
+        PlanVenta.vendedor_id == Vendedor.id
+    )
     
     # Aplicar filtros
     if vendedor_id:
-        query = query.filter_by(vendedor_id=vendedor_id)
+        query = query.filter(PlanVenta.vendedor_id == vendedor_id)
     
     if periodo:
-        query = query.filter_by(periodo=periodo)
+        query = query.filter(PlanVenta.periodo == periodo)
     
     if estado:
-        query = query.filter_by(estado=estado)
+        query = query.filter(PlanVenta.estado == estado)
     
     # Ordenar por fecha de creación descendente
     query = query.order_by(PlanVenta.fecha_creacion.desc())
@@ -355,10 +361,29 @@ def listar_planes_venta(
     total = query.count()
     planes = query.offset((page - 1) * size).limit(size).all()
     
+    # Construir respuesta con información del vendedor
+    items = []
+    for plan in planes:
+        plan_dict = plan.to_dict()
+        
+        # Agregar información del vendedor
+        if plan.vendedor:
+            plan_dict["vendedor"] = {
+                "id": plan.vendedor.id,
+                "nombre": plan.vendedor.nombre,
+                "apellidos": plan.vendedor.apellidos,
+                "correo": plan.vendedor.correo,
+                "zona": plan.vendedor.zona
+            }
+            # Nombre completo del vendedor para la tabla
+            plan_dict["vendedor_nombre_completo"] = f"{plan.vendedor.nombre} {plan.vendedor.apellidos}"
+        
+        items.append(plan_dict)
+    
     return {
-        "planes": [plan.to_dict() for plan in planes],
+        "items": items,
         "total": total,
         "page": page,
         "size": size,
-        "total_pages": (total + size - 1) // size
+        "pages": (total + size - 1) // size if total > 0 else 0
     }

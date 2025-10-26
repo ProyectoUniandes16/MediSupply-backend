@@ -348,7 +348,7 @@ class TestListarPlanesVenta:
         result = listar_planes_venta()
         
         assert result["total"] >= 3
-        assert len(result["planes"]) >= 3
+        assert len(result["items"]) >= 3
         assert result["page"] == 1
     
     def test_listar_filtrado_por_vendedor(self, app_ctx, vendedor_test):
@@ -369,14 +369,14 @@ class TestListarPlanesVenta:
         result = listar_planes_venta(vendedor_id=vendedor_test.id)
         
         assert result["total"] > 0
-        for plan in result["planes"]:
+        for plan in result["items"]:
             assert plan["vendedor_id"] == vendedor_test.id
     
     def test_listar_con_paginacion(self, app_ctx, vendedor_test):
         """Debe soportar paginación"""
         result = listar_planes_venta(page=1, size=5)
         
-        assert "planes" in result
+        assert "items" in result
         assert "total" in result
         assert "page" in result
         assert "size" in result

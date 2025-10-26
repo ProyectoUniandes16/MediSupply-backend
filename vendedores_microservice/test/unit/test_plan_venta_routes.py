@@ -303,7 +303,7 @@ class TestGetPlanesVenta:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert "planes" in data
+        assert "items" in data
         assert "total" in data
         assert data["total"] >= 3
     
@@ -331,7 +331,7 @@ class TestGetPlanesVenta:
         assert response.status_code == 200
         data = response.get_json()
         assert data["total"] > 0
-        for plan in data["planes"]:
+        for plan in data["items"]:
             assert plan["vendedor_id"] == vendedor_test
     
     def test_listar_con_paginacion(self, client):
@@ -342,4 +342,4 @@ class TestGetPlanesVenta:
         data = response.get_json()
         assert data["page"] == 1
         assert data["size"] == 5
-        assert "total_pages" in data
+        assert "pages" in data
