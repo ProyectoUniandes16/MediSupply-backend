@@ -61,7 +61,15 @@ def crear_cliente_externo(datos_cliente, vendedor_email):
             registro_response = register_user(datos_signup_cliente)
             current_app.logger.info(f"Usuario de cliente registrado exitosamente: {registro_response}")
             current_app.logger.info(f"Registro response: {registro_response}")
-            cliente_id = cliente_response.get('data').get('cliente').get('id')
+            # Determinar el cliente_id. Algunos microservicios devuelven el cliente
+            # dentro de {'data': {'cliente': {'id': ...}}} mientras que en tests
+            # o en otras configuraciones el registro de usuario devuelve el id
+            # que debemos usar para asociar.
+            cliente_id = None
+            try:
+                cliente_id = cliente_response.get('data', {}).get('cliente', {}).get('id')
+            except Exception:
+                cliente_id = None
 
             # Si no encontramos cliente_id en la respuesta del microservicio de clientes,
             # intentamos obtenerlo del registro de usuario (registro_response)
