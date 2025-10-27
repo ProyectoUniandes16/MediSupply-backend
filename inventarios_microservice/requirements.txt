@@ -1,4 +1,4 @@
-Flask
+Flask==3.0.0
 Flask-SQLAlchemy
 Flask-Marshmallow
 marshmallow
@@ -13,6 +13,6 @@ requests
 psycopg2-binary
 Werkzeug
 SQLAlchemy
-flask_cors
 coverage
-redis
+Flask-CORS
+redis==5.0.1
