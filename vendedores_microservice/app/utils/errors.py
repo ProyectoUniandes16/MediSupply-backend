@@ -1,6 +1,8 @@
 class ServiceError(Exception):
     """Base para errores de la capa de servicios."""
-    pass
+    def __init__(self, message):
+        self.message = message
+        super().__init__(str(message))
 
 
 class ValidationError(ServiceError):

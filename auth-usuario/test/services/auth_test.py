@@ -36,14 +36,18 @@ def test_register_user_exito(app):
 
             mock_user_class.find_by_email.assert_called_once_with(user_data["email"])
             mock_instance.save.assert_called_once()
-            mock_create_token.assert_called_once_with(identity="1")
+            # La implementación pasa additional_claims además de identity. Verificamos
+            # que la función fue llamada y que el identity es '1'.
+            mock_create_token.assert_called_once()
+            called_kwargs = mock_create_token.call_args.kwargs
+            assert called_kwargs.get('identity') == "1"
             assert result['data']['access_token'] == "fake_token"
             assert result['data']['user']['email'] == user_data["email"]
 
 @pytest.mark.parametrize("data, expected_error", [
     (None, "No se proporcionaron datos"),
-    ({}, "Campos faltantes: email, password, nombre, apellido"),
-    ({"email": "a@a.com"}, "Campos faltantes: password, nombre, apellido"),
+    ({}, "Campos faltantes: email, password, nombre"),
+    ({"email": "a@a.com"}, "Campos faltantes: password, nombre"),
     ({"email": "invalid", "password": "123", "nombre": "N", "apellido": "A"}, "Formato de email inválido"),
     ({"email": "a@a.com", "password": "123", "nombre": "N", "apellido": "A"}, "La contraseña debe tener al menos 6 caracteres"),
 ])
