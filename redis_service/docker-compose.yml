@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: test-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_test_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - test-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis_service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: test-redis-service
+    ports:
+      - "5011:5011"
+    environment:
+      - FLASK_APP=run.py
+      - FLASK_ENV=development
+      - PORT=5011
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - SECRET_KEY=test-secret-key
+      - CACHE_DEFAULT_TTL=3600
+      - QUEUE_CHANNEL=inventarios_updates
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - test-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5011/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  test-network:
+    driver: bridge
+    name: test-redis-network
+
+volumes:
+  redis_test_data:
+    name: test-redis-data
