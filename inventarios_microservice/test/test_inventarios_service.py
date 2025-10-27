@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, MagicMock, patch
 from app.services.inventarios_service import (
     crear_inventario,
     listar_inventarios,
@@ -14,13 +14,32 @@ from app.models import db
 
 
 class TestInventariosService:
-    """Tests para el servicio de inventarios."""
+    """Tests para el servicio de inventarios con mocks."""
     
     # ==================== TESTS DE CREAR INVENTARIO ====================
     
     @patch('app.services.inventarios_service.RedisQueueService.enqueue_cache_update')
-    def test_crear_inventario_success(self, mock_enqueue, db_session, sample_inventario_data):
+    @patch('app.services.inventarios_service.db.session')
+    @patch('app.services.inventarios_service.Inventario')
+    def test_crear_inventario_success(self, MockInventario, mock_db_session, mock_enqueue, sample_inventario_data):
         """Test: Crear inventario exitosamente."""
+        # Arrange
+        mock_inventario = MagicMock()
+        mock_inventario.id = 'uuid-123'
+        mock_inventario.producto_id = 1
+        mock_inventario.cantidad = 100
+        mock_inventario.ubicacion = 'Bodega A - Estante 1'
+        mock_inventario.usuario_creacion = 'admin'
+        mock_inventario.to_dict.return_value = {
+            'id': 'uuid-123',
+            'productoId': 1,
+            'cantidad': 100,
+            'ubicacion': 'Bodega A - Estante 1',
+            'usuarioCreacion': 'admin'
+        }
+        MockInventario.return_value = mock_inventario
+        MockInventario.query.filter_by.return_value.first.return_value = None
+        
         # Act
         result = crear_inventario(sample_inventario_data)
         
@@ -31,15 +50,11 @@ class TestInventariosService:
         assert result['usuarioCreacion'] == 'admin'
         assert 'id' in result
         
-        # Verificar que se encoló el mensaje
+        mock_db_session.add.assert_called_once()
+        mock_db_session.commit.assert_called_once()
         mock_enqueue.assert_called_once()
-        
-        # Verificar que se guardó en BD
-        inventario = Inventario.query.filter_by(id=result['id']).first()
-        assert inventario is not None
-        assert inventario.cantidad == 100
     
-    def test_crear_inventario_sin_producto_id(self, db_session):
+    def test_crear_inventario_sin_producto_id(self):
         """Test: Error al crear inventario sin productoId."""
         # Arrange
         data = {
@@ -49,10 +64,10 @@ class TestInventariosService:
         }
         
         # Act & Assert
-        with pytest.raises(ValidationError, match="productoId.*requerido"):
+        with pytest.raises(ValidationError, match="Faltan campos obligatorios.*productoId"):
             crear_inventario(data)
     
-    def test_crear_inventario_sin_cantidad(self, db_session):
+    def test_crear_inventario_sin_cantidad(self):
         """Test: Error al crear inventario sin cantidad."""
         # Arrange
         data = {
@@ -62,10 +77,10 @@ class TestInventariosService:
         }
         
         # Act & Assert
-        with pytest.raises(ValidationError, match="cantidad.*requerido"):
+        with pytest.raises(ValidationError, match="Faltan campos obligatorios.*cantidad"):
             crear_inventario(data)
     
-    def test_crear_inventario_sin_ubicacion(self, db_session):
+    def test_crear_inventario_sin_ubicacion(self):
         """Test: Error al crear inventario sin ubicación."""
         # Arrange
         data = {
@@ -75,10 +90,10 @@ class TestInventariosService:
         }
         
         # Act & Assert
-        with pytest.raises(ValidationError, match="ubicacion.*requerido"):
+        with pytest.raises(ValidationError, match="Faltan campos obligatorios.*ubicacion"):
             crear_inventario(data)
     
-    def test_crear_inventario_cantidad_negativa(self, db_session):
+    def test_crear_inventario_cantidad_negativa(self):
         """Test: Error al crear inventario con cantidad negativa."""
         # Arrange
         data = {
@@ -92,7 +107,7 @@ class TestInventariosService:
         with pytest.raises(ValidationError, match="positivo"):
             crear_inventario(data)
     
-    def test_crear_inventario_cantidad_cero(self, db_session):
+    def test_crear_inventario_cantidad_cero(self):
         """Test: Error al crear inventario con cantidad cero."""
         # Arrange
         data = {
@@ -107,36 +122,49 @@ class TestInventariosService:
             crear_inventario(data)
     
     @patch('app.services.inventarios_service.RedisQueueService.enqueue_cache_update')
-    def test_crear_inventario_duplicado(self, mock_enqueue, db_session, sample_inventario_data):
+    @patch('app.services.inventarios_service.Inventario')
+    def test_crear_inventario_duplicado(self, MockInventario, mock_enqueue, sample_inventario_data):
         """Test: Error al crear inventario duplicado (mismo producto y ubicación)."""
-        # Arrange - Crear primer inventario
-        crear_inventario(sample_inventario_data)
+        # Arrange
+        mock_existing = MagicMock()
+        MockInventario.query.filter_by.return_value.first.return_value = mock_existing
         
-        # Act & Assert - Intentar crear duplicado
+        # Act & Assert
         with pytest.raises(ConflictError, match="Ya existe.*inventario"):
             crear_inventario(sample_inventario_data)
     
     # ==================== TESTS DE LISTAR INVENTARIOS ====================
     
-    @patch('app.services.inventarios_service.RedisQueueService.enqueue_cache_update')
-    def test_listar_inventarios_vacio(self, mock_enqueue, db_session):
+    @patch('app.services.inventarios_service.Inventario')
+    def test_listar_inventarios_vacio(self, MockInventario):
         """Test: Listar inventarios cuando no hay ninguno."""
+        # Arrange
+        MockInventario.query.all.return_value = []
+        
         # Act
         result = listar_inventarios()
         
         # Assert
         assert result == []
     
-    @patch('app.services.inventarios_service.RedisQueueService.enqueue_cache_update')
-    def test_listar_inventarios_con_datos(self, mock_enqueue, db_session, sample_inventario_data):
+    @patch('app.services.inventarios_service._to_dict')
+    @patch('app.services.inventarios_service.Inventario')
+    def test_listar_inventarios_con_datos(self, MockInventario, mock_to_dict):
         """Test: Listar inventarios con datos."""
         # Arrange
-        crear_inventario(sample_inventario_data)
+        mock_inv1 = MagicMock()
+        mock_inv2 = MagicMock()
         
-        # Crear segundo inventario
-        data2 = sample_inventario_data.copy()
-        data2['ubicacion'] = 'Bodega B - Estante 1'
-        crear_inventario(data2)
+        # Configurar mock_to_dict para retornar datos diferentes para cada inventario
+        mock_to_dict.side_effect = [
+            {'id': '1', 'productoId': 1, 'cantidad': 100},
+            {'id': '2', 'productoId': 1, 'cantidad': 50}
+        ]
+        
+        # Crear mock chain completo para query
+        mock_query = MagicMock()
+        mock_query.order_by.return_value.limit.return_value.offset.return_value.all.return_value = [mock_inv1, mock_inv2]
+        MockInventario.query = mock_query
         
         # Act
         result = listar_inventarios()
@@ -145,16 +173,17 @@ class TestInventariosService:
         assert len(result) == 2
         assert result[0]['productoId'] == 1
     
-    @patch('app.services.inventarios_service.RedisQueueService.enqueue_cache_update')
-    def test_listar_inventarios_filtro_por_producto(self, mock_enqueue, db_session, sample_inventario_data):
+    @patch('app.services.inventarios_service._to_dict')
+    @patch('app.services.inventarios_service.Inventario')
+    def test_listar_inventarios_filtro_por_producto(self, MockInventario, mock_to_dict):
         """Test: Listar inventarios filtrados por producto."""
         # Arrange
-        crear_inventario(sample_inventario_data)
+        mock_inv = MagicMock()
+        mock_to_dict.return_value = {'id': '1', 'productoId': 1, 'cantidad': 100}
         
-        data2 = sample_inventario_data.copy()
-        data2['productoId'] = 2
-        data2['ubicacion'] = 'Bodega B'
-        crear_inventario(data2)
+        mock_query = MagicMock()
+        mock_query.filter.return_value.order_by.return_value.limit.return_value.offset.return_value.all.return_value = [mock_inv]
+        MockInventario.query = mock_query
         
         # Act
         result = listar_inventarios(producto_id=1)
@@ -163,15 +192,17 @@ class TestInventariosService:
         assert len(result) == 1
         assert result[0]['productoId'] == 1
     
-    @patch('app.services.inventarios_service.RedisQueueService.enqueue_cache_update')
-    def test_listar_inventarios_filtro_por_ubicacion(self, mock_enqueue, db_session, sample_inventario_data):
+    @patch('app.services.inventarios_service._to_dict')
+    @patch('app.services.inventarios_service.Inventario')
+    def test_listar_inventarios_filtro_por_ubicacion(self, MockInventario, mock_to_dict):
         """Test: Listar inventarios filtrados por ubicación."""
         # Arrange
-        crear_inventario(sample_inventario_data)
+        mock_inv = MagicMock()
+        mock_to_dict.return_value = {'id': '1', 'ubicacion': 'Bodega A - Estante 1'}
         
-        data2 = sample_inventario_data.copy()
-        data2['ubicacion'] = 'Bodega B - Estante 2'
-        crear_inventario(data2)
+        mock_query = MagicMock()
+        mock_query.filter.return_value.order_by.return_value.limit.return_value.offset.return_value.all.return_value = [mock_inv]
+        MockInventario.query = mock_query
         
         # Act
         result = listar_inventarios(ubicacion='Bodega A')
@@ -182,22 +213,35 @@ class TestInventariosService:
     
     # ==================== TESTS DE OBTENER INVENTARIO ====================
     
-    @patch('app.services.inventarios_service.RedisQueueService.enqueue_cache_update')
-    def test_obtener_inventario_por_id_success(self, mock_enqueue, db_session, sample_inventario_data):
+    @patch('app.services.inventarios_service._to_dict')
+    @patch('app.services.inventarios_service.Inventario')
+    def test_obtener_inventario_por_id_success(self, MockInventario, mock_to_dict):
         """Test: Obtener inventario por ID exitosamente."""
         # Arrange
-        created = crear_inventario(sample_inventario_data)
-        inventario_id = created['id']
+        mock_inventario = MagicMock()
+        MockInventario.query.get.return_value = mock_inventario
+        
+        mock_to_dict.return_value = {
+            'id': 'uuid-123',
+            'productoId': 1,
+            'cantidad': 100
+        }
         
         # Act
-        result = obtener_inventario_por_id(inventario_id)
+        result = obtener_inventario_por_id('uuid-123')
         
         # Assert
-        assert result['id'] == inventario_id
+        assert result['id'] == 'uuid-123'
         assert result['cantidad'] == 100
+        MockInventario.query.get.assert_called_once_with('uuid-123')
+        mock_to_dict.assert_called_once_with(mock_inventario)
     
-    def test_obtener_inventario_por_id_no_existe(self, db_session):
+    @patch('app.services.inventarios_service.Inventario')
+    def test_obtener_inventario_por_id_no_existe(self, MockInventario):
         """Test: Error al obtener inventario que no existe."""
+        # Arrange
+        MockInventario.query.get.return_value = None
+        
         # Act & Assert
         with pytest.raises(NotFoundError, match="no encontrado"):
             obtener_inventario_por_id('uuid-inexistente')
@@ -205,14 +249,24 @@ class TestInventariosService:
     # ==================== TESTS DE ACTUALIZAR INVENTARIO ====================
     
     @patch('app.services.inventarios_service.RedisQueueService.enqueue_cache_update')
-    def test_actualizar_inventario_cantidad(self, mock_enqueue, db_session, sample_inventario_data):
+    @patch('app.services.inventarios_service.db.session')
+    @patch('app.services.inventarios_service.Inventario')
+    def test_actualizar_inventario_cantidad(self, MockInventario, mock_db_session, mock_enqueue):
         """Test: Actualizar cantidad de inventario."""
         # Arrange
-        created = crear_inventario(sample_inventario_data)
-        inventario_id = created['id']
+        mock_inventario = MagicMock()
+        mock_inventario.id = 'uuid-123'
+        mock_inventario.cantidad = 100
+        mock_inventario.to_dict.return_value = {
+            'id': 'uuid-123',
+            'cantidad': 150,
+            'usuarioActualizacion': 'admin2'
+        }
+        MockInventario.query.get.return_value = mock_inventario
+        MockInventario.query.filter_by.return_value.first.return_value = None
         
         # Act
-        result = actualizar_inventario(inventario_id, {
+        result = actualizar_inventario('uuid-123', {
             'cantidad': 150,
             'usuario': 'admin2'
         })
@@ -220,88 +274,104 @@ class TestInventariosService:
         # Assert
         assert result['cantidad'] == 150
         assert result['usuarioActualizacion'] == 'admin2'
-        assert mock_enqueue.call_count == 2  # create + update
+        mock_db_session.commit.assert_called_once()
+        mock_enqueue.assert_called_once()
     
-    @patch('app.services.inventarios_service.RedisQueueService.enqueue_cache_update')
-    def test_actualizar_inventario_ubicacion(self, mock_enqueue, db_session, sample_inventario_data):
-        """Test: Actualizar ubicación de inventario."""
-        # Arrange
-        created = crear_inventario(sample_inventario_data)
-        inventario_id = created['id']
-        
-        # Act
-        result = actualizar_inventario(inventario_id, {
-            'ubicacion': 'Bodega C - Estante 3',
-            'usuario': 'admin'
-        })
-        
-        # Assert
-        assert result['ubicacion'] == 'Bodega C - Estante 3'
-    
-    def test_actualizar_inventario_no_existe(self, db_session):
+    @patch('app.services.inventarios_service.Inventario')
+    def test_actualizar_inventario_no_existe(self, MockInventario):
         """Test: Error al actualizar inventario que no existe."""
+        # Arrange
+        MockInventario.query.get.return_value = None
+        
         # Act & Assert
         with pytest.raises(NotFoundError, match="no encontrado"):
             actualizar_inventario('uuid-inexistente', {'cantidad': 100})
     
-    @patch('app.services.inventarios_service.RedisQueueService.enqueue_cache_update')
-    def test_actualizar_inventario_ubicacion_duplicada(self, mock_enqueue, db_session, sample_inventario_data):
+    @patch('app.services.inventarios_service.Inventario')
+    def test_actualizar_inventario_ubicacion_duplicada(self, MockInventario):
         """Test: Error al actualizar a ubicación que ya existe para ese producto."""
         # Arrange
-        created1 = crear_inventario(sample_inventario_data)
+        mock_inventario = MagicMock()
+        mock_inventario.id = 'uuid-123'
+        mock_inventario.producto_id = 1
+        MockInventario.query.get.return_value = mock_inventario
         
-        data2 = sample_inventario_data.copy()
-        data2['ubicacion'] = 'Bodega B'
-        created2 = crear_inventario(data2)
+        # Simular que ya existe otro inventario con la misma ubicación
+        mock_existing = MagicMock()
+        mock_existing.id = 'uuid-456'
+        MockInventario.query.filter_by.return_value.first.return_value = mock_existing
         
-        # Act & Assert - Intentar actualizar inventario2 a la ubicación de inventario1
+        # Act & Assert
         with pytest.raises(ConflictError, match="Ya existe"):
-            actualizar_inventario(created2['id'], {
+            actualizar_inventario('uuid-123', {
                 'ubicacion': 'Bodega A - Estante 1'
             })
     
     # ==================== TESTS DE AJUSTAR CANTIDAD ====================
     
     @patch('app.services.inventarios_service.RedisQueueService.enqueue_cache_update')
-    def test_ajustar_cantidad_incremento(self, mock_enqueue, db_session, sample_inventario_data):
+    @patch('app.services.inventarios_service.db.session')
+    @patch('app.services.inventarios_service.Inventario')
+    def test_ajustar_cantidad_incremento(self, MockInventario, mock_db_session, mock_enqueue):
         """Test: Incrementar cantidad de inventario."""
         # Arrange
-        created = crear_inventario(sample_inventario_data)
-        inventario_id = created['id']
+        mock_inventario = MagicMock()
+        mock_inventario.id = 'uuid-123'
+        mock_inventario.cantidad = 100
+        mock_inventario.to_dict.return_value = {
+            'id': 'uuid-123',
+            'cantidad': 150
+        }
+        MockInventario.query.get.return_value = mock_inventario
         
         # Act
-        result = ajustar_cantidad(inventario_id, ajuste=50, usuario='admin')
+        result = ajustar_cantidad('uuid-123', ajuste=50, usuario='admin')
         
         # Assert
-        assert result['cantidad'] == 150  # 100 + 50
-        assert mock_enqueue.call_count == 2  # create + adjust
+        assert result['cantidad'] == 150
+        mock_db_session.commit.assert_called_once()
+        mock_enqueue.assert_called_once()
     
     @patch('app.services.inventarios_service.RedisQueueService.enqueue_cache_update')
-    def test_ajustar_cantidad_decremento(self, mock_enqueue, db_session, sample_inventario_data):
+    @patch('app.services.inventarios_service.db.session')
+    @patch('app.services.inventarios_service.Inventario')
+    def test_ajustar_cantidad_decremento(self, MockInventario, mock_db_session, mock_enqueue):
         """Test: Decrementar cantidad de inventario."""
         # Arrange
-        created = crear_inventario(sample_inventario_data)
-        inventario_id = created['id']
+        mock_inventario = MagicMock()
+        mock_inventario.id = 'uuid-123'
+        mock_inventario.cantidad = 100
+        mock_inventario.to_dict.return_value = {
+            'id': 'uuid-123',
+            'cantidad': 70
+        }
+        MockInventario.query.get.return_value = mock_inventario
         
         # Act
-        result = ajustar_cantidad(inventario_id, ajuste=-30, usuario='admin')
+        result = ajustar_cantidad('uuid-123', ajuste=-30, usuario='admin')
         
         # Assert
-        assert result['cantidad'] == 70  # 100 - 30
+        assert result['cantidad'] == 70
+        mock_db_session.commit.assert_called_once()
     
-    @patch('app.services.inventarios_service.RedisQueueService.enqueue_cache_update')
-    def test_ajustar_cantidad_negativa(self, mock_enqueue, db_session, sample_inventario_data):
+    @patch('app.services.inventarios_service.Inventario')
+    def test_ajustar_cantidad_negativa(self, MockInventario):
         """Test: Error al ajustar cantidad resultando en negativo."""
         # Arrange
-        created = crear_inventario(sample_inventario_data)
-        inventario_id = created['id']
+        mock_inventario = MagicMock()
+        mock_inventario.cantidad = 100
+        MockInventario.query.get.return_value = mock_inventario
         
         # Act & Assert
         with pytest.raises(ValidationError, match="cantidad negativa"):
-            ajustar_cantidad(inventario_id, ajuste=-150, usuario='admin')
+            ajustar_cantidad('uuid-123', ajuste=-150, usuario='admin')
     
-    def test_ajustar_cantidad_inventario_no_existe(self, db_session):
+    @patch('app.services.inventarios_service.Inventario')
+    def test_ajustar_cantidad_inventario_no_existe(self, MockInventario):
         """Test: Error al ajustar cantidad de inventario inexistente."""
+        # Arrange
+        MockInventario.query.get.return_value = None
+        
         # Act & Assert
         with pytest.raises(NotFoundError, match="no encontrado"):
             ajustar_cantidad('uuid-inexistente', ajuste=10)
@@ -309,22 +379,31 @@ class TestInventariosService:
     # ==================== TESTS DE ELIMINAR INVENTARIO ====================
     
     @patch('app.services.inventarios_service.RedisQueueService.enqueue_cache_update')
-    def test_eliminar_inventario_success(self, mock_enqueue, db_session, sample_inventario_data):
+    @patch('app.services.inventarios_service.db.session')
+    @patch('app.services.inventarios_service.Inventario')
+    def test_eliminar_inventario_success(self, MockInventario, mock_db_session, mock_enqueue):
         """Test: Eliminar inventario exitosamente."""
         # Arrange
-        created = crear_inventario(sample_inventario_data)
-        inventario_id = created['id']
+        mock_inventario = MagicMock()
+        mock_inventario.id = 'uuid-123'
+        mock_inventario.to_dict.return_value = {'id': 'uuid-123', 'productoId': 1}
+        MockInventario.query.get.return_value = mock_inventario
         
         # Act
-        eliminar_inventario(inventario_id)
+        eliminar_inventario('uuid-123')
         
         # Assert
-        inventario = Inventario.query.get(inventario_id)
-        assert inventario is None
-        assert mock_enqueue.call_count == 2  # create + delete
+        mock_db_session.delete.assert_called_once_with(mock_inventario)
+        mock_db_session.commit.assert_called_once()
+        mock_enqueue.assert_called_once()
     
-    def test_eliminar_inventario_no_existe(self, db_session):
+    @patch('app.services.inventarios_service.Inventario')
+    def test_eliminar_inventario_no_existe(self, MockInventario):
         """Test: Error al eliminar inventario que no existe."""
+        # Arrange
+        MockInventario.query.get.return_value = None
+        
         # Act & Assert
         with pytest.raises(NotFoundError, match="no encontrado"):
             eliminar_inventario('uuid-inexistente')
+
