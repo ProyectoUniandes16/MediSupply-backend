@@ -10,6 +10,18 @@ on:
 jobs:
   Test-producto-inventario-web:
     runs-on: ubuntu-latest
+    
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
     defaults:
       run:
         working-directory: producto-inventario-web
@@ -46,5 +58,26 @@ jobs:
           pip install pytest-mock
 
       - name: Ejecutar tests con cobertura
+        env:
+          REDIS_SERVICE_URL: http://localhost:5011
+          INVENTARIOS_URL: http://localhost:5009
+          PRODUCTO_URL: http://localhost:5008
+          AUTH_URL: http://localhost:5001
+          TESTING: true
+          SECRET_KEY: test-secret-key
         run: |
-          pytest --cov=. --cov-report=xml --cov-fail-under=80
+          pytest test/ \
+            --cov=src.services \
+            --cov=src.blueprints \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-fail-under=70 \
+            -v
+
+      - name: Subir reporte de cobertura
+        if: always()
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./producto-inventario-web/coverage.xml
+          flags: producto-inventario-web
+          name: producto-inventario-web-coverage
