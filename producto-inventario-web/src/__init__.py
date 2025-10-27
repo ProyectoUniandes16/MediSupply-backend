@@ -3,6 +3,7 @@ from flask_jwt_extended import JWTManager
 from src.config.config import Config
 from src.blueprints.health import health_bp
 from src.blueprints.producto import producto_bp
+from src.blueprints.inventarios import inventarios_bp
 
 def create_app(config_class=Config):
     """
@@ -17,5 +18,6 @@ def create_app(config_class=Config):
     # Registrar blueprints
     app.register_blueprint(health_bp)
     app.register_blueprint(producto_bp)
+    app.register_blueprint(inventarios_bp, url_prefix='/api')
     
     return app

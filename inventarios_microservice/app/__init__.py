@@ -1,5 +1,6 @@
 import os
 from flask import Flask
+from flask_cors import CORS
 from app.models import db
 
 
@@ -10,10 +11,17 @@ def create_app():
     # Configuración de la base de datos
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
         'DATABASE_URL',
-        'postgresql://postgres:postgres@localhost:5432/inventarios_db'
+        'postgresql://medisupply_user:medisupply_password@localhost:5432/medisupply'
     )
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_ECHO'] = os.getenv('SQLALCHEMY_ECHO', 'False') == 'True'
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
+    
+    # Configuración de Redis Service
+    app.config['REDIS_SERVICE_URL'] = os.getenv('REDIS_SERVICE_URL', 'http://localhost:5011')
+    
+    # CORS
+    CORS(app)
 
     # Inicializar extensiones
     db.init_app(app)
@@ -31,6 +39,9 @@ def create_app():
 
     # Crear las tablas si no existen
     with app.app_context():
+        # Primero reflejar las tablas existentes para reconocer la tabla productos
+        db.Model.metadata.reflect(bind=db.engine, only=['productos'])
+        # Luego crear las tablas de este microservicio
         db.create_all()
 
     return app
