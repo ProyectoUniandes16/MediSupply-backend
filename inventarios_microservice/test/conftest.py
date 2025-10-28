@@ -1,9 +1,9 @@
-import pytest
 import os
 import sys
-from unittest.mock import Mock, MagicMock, patch
+import pytest
+from unittest.mock import patch
 
-# Agregar el directorio raíz al path
+# Asegurar que el paquete principal esté en el path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from app import create_app
@@ -11,45 +11,31 @@ from app import create_app
 
 @pytest.fixture(scope='session')
 def app():
-    """Crea una instancia de la aplicación para testing con mocks."""
-    os.environ['TESTING'] = 'True'
-    os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
-    os.environ['REDIS_SERVICE_URL'] = 'http://localhost:5011'
-    
-    app = create_app()
-    app.config.update({
-        'TESTING': True,
-        'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:',
-        'REDIS_SERVICE_URL': 'http://localhost:5011',
-    })
-    
-    yield app
+    """Configura la aplicación Flask para pruebas sin tocar una base real."""
+    os.environ.setdefault('TESTING', 'True')
+    os.environ.setdefault('DATABASE_URL', 'sqlite:///:memory:')
+    os.environ.setdefault('REDIS_SERVICE_URL', 'http://redis-service.test')
+    with patch('app.__init__.db.Model.metadata.reflect', return_value=None), \
+         patch('app.__init__.db.create_all', return_value=None):
+        flask_app = create_app()
+    flask_app.config.update(
+        TESTING=True,
+        SQLALCHEMY_DATABASE_URI='sqlite:///:memory:',
+        REDIS_SERVICE_URL='http://redis-service.test',
+    )
+    yield flask_app
 
 
 @pytest.fixture(scope='function')
 def client(app):
-    """Crea un cliente de prueba para hacer requests HTTP."""
+    """Cliente HTTP de prueba."""
     return app.test_client()
 
 
-@pytest.fixture
-def mock_db_session():
-    """Mock de la sesión de base de datos."""
-    session = MagicMock()
-    session.add = MagicMock()
-    session.commit = MagicMock()
-    session.delete = MagicMock()
-    session.rollback = MagicMock()
-    return session
-
-
-@pytest.fixture
-def mock_redis_service():
-    """Mock del servicio Redis."""
-    with patch('app.services.redis_queue_service.requests.post') as mock_post:
-        mock_post.return_value.status_code = 200
-        mock_post.return_value.json.return_value = {'message': 'Published'}
-        yield mock_post
+@pytest.fixture(autouse=True)
+def disable_queue(mocker):
+    """Evita llamadas reales al servicio de cola durante las pruebas."""
+    return mocker.patch('app.services.inventarios_service.RedisQueueService.enqueue_cache_update', return_value=True)
 
 
 @pytest.fixture
