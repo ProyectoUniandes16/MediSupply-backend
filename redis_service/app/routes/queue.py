@@ -1,7 +1,8 @@
-"""
-Endpoints para operaciones de Cola (Pub/Sub)
-"""
+"""Endpoints para operaciones de Cola (Pub/Sub)."""
+
 from flask import Blueprint, request, jsonify, current_app
+from werkzeug.exceptions import BadRequest
+
 from app.services.redis_service import redis_client
 
 queue_bp = Blueprint('queue', __name__)
@@ -24,25 +25,29 @@ def publish_message():
     """
     try:
         data = request.get_json()
-        
+
         if not data or 'channel' not in data or 'message' not in data:
             return jsonify({
                 'error': 'Se requieren los campos "channel" y "message"'
             }), 400
-        
+
         channel = data['channel']
         message = data['message']
-        
+
         subscribers = redis_client.queue_publish(channel, message)
-        
-        current_app.logger.info(f"📤 Mensaje publicado en '{channel}' - {subscribers} subscriptores")
-        
+
+        current_app.logger.info(
+            "📤 Mensaje publicado en '%s' - %s subscriptores", channel, subscribers
+        )
+
         return jsonify({
             'message': 'Mensaje publicado',
             'channel': channel,
             'subscribers': subscribers
         }), 200
-        
+
+    except BadRequest as exc:
+        return jsonify({'error': 'JSON inválido', 'details': str(exc)}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
