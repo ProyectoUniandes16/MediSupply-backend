@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-service-deployment
+  namespace: medisupply
+  labels:
+    app: redis-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: redis-service
+  template:
+    metadata:
+      labels:
+        app: redis-service
+    spec:
+      containers:
+      - name: redis-service
+        image: ACCOUNT_ID.dkr.ecr.us-east-2.amazonaws.com/redis-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5011
+          protocol: TCP
+        env:
+        - name: FLASK_APP
+          value: "run.py"
+        - name: FLASK_ENV
+          value: "production"
+        - name: PORT
+          value: "5011"
+        - name: REDIS_HOST
+          value: "redis-service"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_DB
+          value: "0"
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: medisupply-secrets
+              key: secret-key
+        - name: CACHE_DEFAULT_TTL
+          value: "3600"
+        - name: QUEUE_CHANNEL
+          value: "inventarios_updates"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5011
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5011
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3

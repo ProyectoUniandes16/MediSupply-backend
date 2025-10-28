@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventarios-deployment
+  namespace: medisupply
+  labels:
+    app: inventarios
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: inventarios
+  template:
+    metadata:
+      labels:
+        app: inventarios
+    spec:
+      containers:
+      - name: inventarios
+        image: ACCOUNT_ID.dkr.ecr.us-east-2.amazonaws.com/inventarios-microservice:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5009
+          protocol: TCP
+        env:
+        - name: FLASK_APP
+          value: "run.py"
+        - name: FLASK_ENV
+          value: "production"
+        - name: PORT
+          value: "5009"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: medisupply-secrets
+              key: database-url
+        - name: REDIS_SERVICE_URL
+          value: "http://redis-service:5011"
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: medisupply-secrets
+              key: secret-key
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5009
+          initialDelaySeconds: 40
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5009
+          initialDelaySeconds: 20
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
