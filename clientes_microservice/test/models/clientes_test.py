@@ -35,6 +35,7 @@ def test_cliente_save_y_to_dict(session):
         nombre_contacto="Juan Pérez",
         cargo_contacto="Gerente",
         correo_contacto="juan@empresa.com",
+        correo_empresa="contacto@empresa.com",
         telefono_contacto="5551234567",
         nit="A1B2C3D4E5",
         direccion="Calle Falsa 123"
@@ -53,6 +54,7 @@ def test_cliente_delete(session):
         nombre_contacto="Ana Gómez",
         cargo_contacto="Directora",
         correo_contacto="ana@empresa.com",
+        correo_empresa="contacto@empresa.com",
         telefono_contacto="3219876543",
         nit="X6Y7Z8W9V0",
         direccion="Avenida Siempreviva 742"
@@ -71,6 +73,7 @@ def test_cliente_unique_nit(session):
         nombre_contacto="Laura Barrera",
         cargo_contacto="Consultor",
         correo_contacto="laura@email.com",
+        correo_empresa="contacto@empresa.com",
         telefono_contacto="1112223333",
         nit="UNIQUE123",
         direccion="Zona 1"
@@ -83,6 +86,7 @@ def test_cliente_unique_nit(session):
         nombre_contacto="Mario Ruiz",
         cargo_contacto="Director",
         correo_contacto="mario@email.com",
+        correo_empresa="contacto@empresa.com",
         telefono_contacto="4445556666",
         nit="UNIQUE123",  # mismo NIT
         direccion="Zona 2"

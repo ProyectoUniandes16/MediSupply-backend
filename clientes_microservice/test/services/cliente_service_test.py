@@ -11,6 +11,7 @@ def valid_data():
         'nombre_contacto': 'Luis García',
         'cargo_contacto': 'Director',
         'correo_contacto': 'luis@empresa.com',
+        'correo_empresa': 'contacto@empresa.com',
         'telefono_contacto': '5512345678',
         'nit': 'A12345678',
         'direccion': 'Calle Falsa 123'
@@ -49,6 +50,7 @@ def test_formato_email_invalido():
         'nombre_contacto': 'Luis García',
         'cargo_contacto': 'Director',
         'correo_contacto': 'emailinvalido',
+        'correo_empresa': 'contacto@empresa.com',
         'telefono_contacto': '5512345678',
         'nit': 'A12345678',
         'direccion': 'Calle Falsa 123'
@@ -79,6 +81,7 @@ def test_telefono_corto(app, mocker):
         'nombre_contacto': 'Luis García',
         'cargo_contacto': 'Director',
         'correo_contacto': 'luis@empresa.com',
+        'correo_empresa': 'contacto@empresa.com',
         'telefono_contacto': '1234',
         'nit': 'A12345678',
         'direccion': 'Calle Falsa 123'
@@ -102,6 +105,7 @@ def test_telefono_no_numerico(app, mocker):
         'nombre_contacto': 'Luis García',
         'cargo_contacto': 'Director',
         'correo_contacto': 'luis@empresa.com',
+        'correo_empresa': 'contacto@empresa.com',
         'telefono_contacto': 'X1234567',
         'nit': 'A12345678',
         'direccion': 'Calle Falsa 123'
@@ -124,6 +128,7 @@ def test_nit_corto_o_largo(app, mocker):
         'nombre_contacto': 'Luis García',
         'cargo_contacto': 'Director',
         'correo_contacto': 'luis@empresa.com',
+        'correo_empresa': 'contacto@empresa.com',
         'telefono_contacto': '5512345678',
         'nit': '1234',
         'direccion': 'Calle Falsa 123'

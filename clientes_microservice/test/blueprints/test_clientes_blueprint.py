@@ -11,6 +11,7 @@ def test_crear_cliente_exito(client, mocker):
         'nombre_contacto': 'Luis García',
         'cargo_contacto': 'Director',
         'correo_contacto': 'luis@empresa.com',
+        'correo_empresa': 'contacto@empresa.com',
         'telefono_contacto': '5512345678',
         'nit': 'A12345678',
         'direccion': 'Calle Falsa 123'

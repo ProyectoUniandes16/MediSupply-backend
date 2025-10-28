@@ -197,3 +197,12 @@ def asociar_cliente_a_vendedor(vendedor_email: str, cliente_id: str) -> Dict[str
     db.session.add(asociacion)
     db.session.commit()
     return asociacion.to_dict()
+
+def obtener_clientes_de_vendedor(vendedor_email: str) -> list:
+    """Obtener los clientes asociados a un vendedor."""
+    vendedor = Vendedor.query.filter_by(correo=vendedor_email).first()
+    if not vendedor:
+        raise NotFoundError("vendedor no encontrado")
+
+    clientes = VendedorClientes.query.filter_by(vendedor_id=vendedor.id).all()
+    return [c.to_dict() for c in clientes]

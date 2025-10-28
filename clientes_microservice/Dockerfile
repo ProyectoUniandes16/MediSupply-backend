@@ -20,7 +20,7 @@ EXPOSE 5001
 # Variables de entorno
 ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
-ENV PORT=5001
+ENV PORT=5010
 
 # Comando para ejecutar la aplicación
-CMD ["python", "-m", "gunicorn", "--bind", "0.0.0.0:5001", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "app:app"]
+CMD ["python", "-m", "gunicorn", "--bind", "0.0.0.0:5010", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "app:app"]
