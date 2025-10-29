@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from jwt import decode
-from src.services.clientes import crear_cliente_externo, ClienteServiceError
+from src.services.clientes import crear_cliente_externo, ClienteServiceError, listar_clientes_vendedor_externo
 from src.utils.token_utils import decode_jwt
 
 # Crear el blueprint para clientes
@@ -28,6 +28,33 @@ def crear_cliente():
         # Capturar errores controlados desde la capa de servicio
         return jsonify(e.message), e.status_code
 
+    except Exception as e:
+        # Capturar cualquier otro error no esperado
+        current_app.logger.error(f"Error inesperado en el blueprint de cliente: {str(e)}")
+        return jsonify({
+            'error': 'Error interno del servidor',
+            'message': str(e)
+        }), 500
+
+@clientes_bp.route('/cliente', methods=['GET'])
+@jwt_required()
+def listar_clientes():
+    """
+    Endpoint del BFF para listar clientes.
+    Delega la lógica de negocio al servicio de clientes.
+    """
+    try:
+        # Llamar a la capa de servicio para manejar la lógica
+        vendedor_email = None
+        token_data = decode_jwt(current_app, request.headers.get('Authorization'))
+        vendedor_email = token_data.get('user').get('email') if token_data else None
+        current_app.logger.info(f"Email from token: {vendedor_email}")
+        datos_respuesta = listar_clientes_vendedor_externo(vendedor_email)
+
+        return jsonify(datos_respuesta), 200
+    except ClienteServiceError as e:
+        # Capturar errores controlados desde la capa de servicio
+        return jsonify(e.message), e.status_code
     except Exception as e:
         # Capturar cualquier otro error no esperado
         current_app.logger.error(f"Error inesperado en el blueprint de cliente: {str(e)}")

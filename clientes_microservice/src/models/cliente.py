@@ -17,19 +17,20 @@ class Cliente(db.Model):
     nombre_contacto = db.Column(db.String(100), nullable=False)
     cargo_contacto = db.Column(db.String(100), nullable=False)
     correo_contacto = db.Column(db.String(120), nullable=False)
+    correo_empresa = db.Column(db.String(120), nullable=True)
     telefono_contacto = db.Column(db.String(50), nullable=False)
     nit = db.Column(db.String(50), nullable=False, unique=True)
     direccion = db.Column(db.String(200), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
-    def __init__(self, nombre, tipo, pais, nombre_contacto, cargo_contacto, correo_contacto, telefono_contacto, nit, direccion):
+    def __init__(self, nombre, tipo, pais, nombre_contacto, cargo_contacto, correo_contacto, telefono_contacto, nit, direccion, correo_empresa):
         self.nombre = nombre
         self.tipo = tipo
         self.pais = pais
         self.nombre_contacto = nombre_contacto
         self.cargo_contacto = cargo_contacto
-        self.correo_contacto = correo_contacto
+        self.correo_empresa = correo_empresa
         self.telefono_contacto = telefono_contacto
         self.nit = nit
         self.direccion = direccion
@@ -56,6 +57,7 @@ class Cliente(db.Model):
                 'telefono': self.telefono_contacto,
             },
             'nit': self.nit,
+            'correo': self.correo_empresa,
             'direccion': self.direccion,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None

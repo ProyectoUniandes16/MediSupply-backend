@@ -54,5 +54,8 @@ def login_user(data):
     print("URL de autenticación:", f'{config.AUTH_URL}/auth/login')
 
     response = requests.post(f'{config.AUTH_URL}/auth/login', json=data)
+    print("Respuesta del servicio de autenticación:", response.status_code, response.text)
+    if response.status_code != 200:
+        raise AuthServiceError({'error': 'Error al autenticar usuario', 'codigo': 'LOGIN_ERROR'}, response.status_code)
 
     return response.json()

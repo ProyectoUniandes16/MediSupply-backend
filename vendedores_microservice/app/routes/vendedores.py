@@ -2,10 +2,12 @@ from flask import Blueprint, jsonify, request
 from app.services.vendedores_service import (
     asociar_cliente_a_vendedor,
     crear_vendedor,
+    obtener_clientes_de_vendedor,
     obtener_vendedor,
     actualizar_vendedor,
     listar_vendedores,
 )
+from app.utils.errors import NotFoundError
 
 bp_vendedores = Blueprint("vendedores", __name__)
 
@@ -27,6 +29,18 @@ def path_vendedores_clientes():
 
     data = asociar_cliente_a_vendedor(vendedor_email, cliente_id)
     return jsonify(data), 200
+
+@bp_vendedores.get("/vendedores/clientes")
+def get_clientes_de_vendedor():
+    vendedor_email = request.args.get("vendedor_email")
+    if not vendedor_email:
+        return jsonify({"error": "vendedor_email is required", "codigo": "DATOS_INVALIDOS"}), 400
+
+    try:
+        clientes = obtener_clientes_de_vendedor(vendedor_email)
+        return jsonify({"data": clientes}), 200
+    except NotFoundError as e:
+        return jsonify({"error": str(e), "codigo": "VENDEDOR_NO_ENCONTRADO"}), 404
 
 @bp_vendedores.get("/vendedores/<string:v_id>")
 def get_vendedor(v_id: str):
