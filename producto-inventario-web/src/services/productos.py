@@ -344,3 +344,171 @@ def consultar_productos_externo(params=None):
             'error': 'Error de conexión con el microservicio de productos',
             'codigo': 'ERROR_CONEXION'
         }, 503)
+
+
+def obtener_detalle_producto_externo(producto_id):
+    """
+    Obtiene el detalle completo de un producto por ID desde el microservicio.
+
+    Args:
+        producto_id (int): ID del producto a consultar.
+
+    Returns:
+        dict: Detalle completo del producto incluyendo stock y certificaciones.
+
+    Raises:
+        ProductoServiceError: Si el producto no existe o hay error de conexión.
+    """
+    url_producto = f"{config.PRODUCTO_URL}/api/productos/{producto_id}"
+
+    try:
+        response = requests.get(url_producto)
+
+        if response.status_code == 404:
+            current_app.logger.warning(f"Producto {producto_id} no encontrado")
+            raise ProductoServiceError({
+                'error': f'Producto con ID {producto_id} no encontrado',
+                'codigo': 'PRODUCTO_NO_ENCONTRADO'
+            }, 404)
+
+        if response.status_code != 200:
+            current_app.logger.error(f"Error del microservicio de productos: {response.text}")
+            try:
+                error_data = response.json()
+            except Exception:
+                error_data = {'error': response.text, 'codigo': 'ERROR_INESPERADO'}
+            raise ProductoServiceError(error_data, response.status_code)
+
+        return response.json()
+
+    except ProductoServiceError:
+        raise
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"Error de conexión con microservicio de productos: {str(e)}")
+        raise ProductoServiceError({
+            'error': 'Error de conexión con el microservicio de productos',
+            'codigo': 'ERROR_CONEXION'
+        }, 503)
+    except Exception as e:
+        current_app.logger.error(f"Error inesperado obteniendo detalle de producto: {str(e)}")
+        raise ProductoServiceError({
+            'error': 'Error interno al obtener detalle del producto',
+            'codigo': 'ERROR_INESPERADO'
+        }, 500)
+
+
+def obtener_producto_por_sku_externo(sku):
+    """
+    Obtiene el detalle de un producto por código SKU desde el microservicio.
+
+    Args:
+        sku (str): Código SKU del producto.
+
+    Returns:
+        dict: Detalle completo del producto.
+
+    Raises:
+        ProductoServiceError: Si el SKU no existe o hay error de conexión.
+    """
+    if not sku or not sku.strip():
+        raise ProductoServiceError({
+            'error': 'El código SKU es requerido',
+            'codigo': 'SKU_REQUERIDO'
+        }, 400)
+
+    url_producto = f"{config.PRODUCTO_URL}/api/productos/sku/{sku}"
+
+    try:
+        response = requests.get(url_producto)
+
+        if response.status_code == 404:
+            current_app.logger.warning(f"Producto con SKU {sku} no encontrado")
+            raise ProductoServiceError({
+                'error': f'Producto con SKU {sku} no encontrado',
+                'codigo': 'PRODUCTO_NO_ENCONTRADO'
+            }, 404)
+
+        if response.status_code != 200:
+            current_app.logger.error(f"Error del microservicio de productos: {response.text}")
+            try:
+                error_data = response.json()
+            except Exception:
+                error_data = {'error': response.text, 'codigo': 'ERROR_INESPERADO'}
+            raise ProductoServiceError(error_data, response.status_code)
+
+        return response.json()
+
+    except ProductoServiceError:
+        raise
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"Error de conexión con microservicio de productos: {str(e)}")
+        raise ProductoServiceError({
+            'error': 'Error de conexión con el microservicio de productos',
+            'codigo': 'ERROR_CONEXION'
+        }, 503)
+    except Exception as e:
+        current_app.logger.error(f"Error inesperado obteniendo producto por SKU: {str(e)}")
+        raise ProductoServiceError({
+            'error': 'Error interno al obtener producto por SKU',
+            'codigo': 'ERROR_INESPERADO'
+        }, 500)
+
+
+def descargar_certificacion_producto_externo(producto_id):
+    """
+    Descarga la certificación de un producto desde el microservicio.
+
+    Args:
+        producto_id (int): ID del producto.
+
+    Returns:
+        tuple: (file_content, filename, mimetype) para enviar con send_file.
+
+    Raises:
+        ProductoServiceError: Si no hay certificación disponible o hay error.
+    """
+    url_certificacion = f"{config.PRODUCTO_URL}/api/productos/{producto_id}/certificacion/descargar"
+
+    try:
+        response = requests.get(url_certificacion, stream=True)
+
+        if response.status_code == 404:
+            current_app.logger.warning(f"Certificación no encontrada para producto {producto_id}")
+            raise ProductoServiceError({
+                'error': 'No hay certificación disponible para este producto',
+                'codigo': 'CERTIFICACION_NO_ENCONTRADA'
+            }, 404)
+
+        if response.status_code != 200:
+            current_app.logger.error(f"Error al descargar certificación: {response.status_code}")
+            try:
+                error_data = response.json()
+            except Exception:
+                error_data = {'error': 'Error al descargar certificación', 'codigo': 'ERROR_DESCARGA'}
+            raise ProductoServiceError(error_data, response.status_code)
+
+        # Extraer información del archivo desde headers
+        content_disposition = response.headers.get('Content-Disposition', '')
+        filename = 'certificacion.pdf'  # default
+        if 'filename=' in content_disposition:
+            filename = content_disposition.split('filename=')[1].strip('"')
+
+        mimetype = response.headers.get('Content-Type', 'application/pdf')
+        file_content = response.content
+
+        return file_content, filename, mimetype
+
+    except ProductoServiceError:
+        raise
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"Error de conexión al descargar certificación: {str(e)}")
+        raise ProductoServiceError({
+            'error': 'Error de conexión con el microservicio de productos',
+            'codigo': 'ERROR_CONEXION'
+        }, 503)
+    except Exception as e:
+        current_app.logger.error(f"Error inesperado descargando certificación: {str(e)}")
+        raise ProductoServiceError({
+            'error': 'Error interno al descargar certificación',
+            'codigo': 'ERROR_INESPERADO'
+        }, 500)
