@@ -11,7 +11,7 @@ def create_app():
     app.config["APP_NAME"] = "vendedores_microservice"
     
     # Configuración de la base de datos
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DB_URL', 'postgresql+psycopg2://postgres:password@localhost:5432/medisupply')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DB_URL', 'sqlite:///vendedores.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     # Inicializar SQLAlchemy

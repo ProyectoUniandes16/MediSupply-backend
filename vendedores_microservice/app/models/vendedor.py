@@ -17,5 +17,11 @@ class Vendedor(db.Model):
     usuario_actualizacion = db.Column(db.String(100), nullable=True)
     fecha_actualizacion = db.Column(db.DateTime, nullable=False, server_default=db.func.now(), onupdate=db.func.now())
 
-    planes = db.relationship("PlanVenta", back_populates="vendedor", cascade="all, delete-orphan", lazy="selectin")
+    # Relación Many-to-Many con PlanVenta a través de plan_vendedor
+    planes = db.relationship(
+        "PlanVenta", 
+        secondary="plan_vendedor",
+        back_populates="vendedores",
+        lazy="selectin"
+    )
     asignaciones = db.relationship("AsignacionZona", back_populates="vendedor", cascade="all, delete-orphan", lazy="selectin")

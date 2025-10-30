@@ -2,13 +2,14 @@
 Servicio de Plan de Venta - KAN-86
 Gestión de planes de venta con operación UPSERT (create or update).
 """
-from typing import Dict, Any
+from typing import Dict, Any, List
 from uuid import uuid4
 from decimal import Decimal, InvalidOperation
 import re
 from sqlalchemy.exc import IntegrityError
 from app.models import db
 from app.models.plan_venta import PlanVenta
+from app.models.plan_vendedor import PlanVendedor
 from app.models.vendedor import Vendedor
 from app.utils.validators import require
 from . import NotFoundError, ConflictError, ValidationError
@@ -132,42 +133,56 @@ def validar_entero_no_negativo(valor: Any, campo: str) -> int:
 def crear_o_actualizar_plan_venta(payload: Dict[str, Any]) -> Dict[str, Any]:
     """
     Crea o actualiza un plan de venta (operación UPSERT).
-    
-    Si existe un plan para (vendedor_id, periodo), lo actualiza.
-    Si no existe, crea uno nuevo.
+    Ahora soporta múltiples vendedores por plan.
     
     Args:
         payload: Diccionario con datos del plan:
             - nombre_plan (str): Nombre del plan
             - gerente_id (str): ID del gerente comercial
-            - vendedor_id (str): ID del vendedor
+            - vendedores_ids (list): Lista de IDs de vendedores
             - periodo (str): Periodo YYYY-MM
             - meta_ingresos (decimal): Objetivo de ingresos
             - meta_visitas (int): Objetivo de visitas
             - meta_clientes_nuevos (int): Objetivo de clientes nuevos
             - estado (str, opcional): Estado del plan (default: "activo")
+            - plan_id (str, opcional): ID del plan para actualización
     
     Returns:
         Dict con el plan creado/actualizado
         
     Raises:
         ValidationError: Si hay errores de validación
-        NotFoundError: Si el vendedor no existe
+        NotFoundError: Si algún vendedor no existe
         ConflictError: Si hay conflicto de concurrencia
     """
-    # Validar campos obligatorios
+    # Validar campos obligatorios (excepto vendedores_ids que necesita validación especial)
     require(payload, [
         "nombre_plan",
-        "gerente_id", 
-        "vendedor_id", 
+        "gerente_id",
         "periodo"
     ])
     
     # Extraer y validar datos
     nombre_plan = payload.get("nombre_plan", "").strip()
     gerente_id = payload.get("gerente_id", "").strip()
-    vendedor_id = payload.get("vendedor_id", "").strip()
+    vendedores_ids = payload.get("vendedores_ids")
     periodo = payload.get("periodo", "").strip()
+    plan_id = payload.get("plan_id")  # Opcional para actualización
+    
+    # Validar que vendedores_ids sea una lista con al menos un elemento
+    if vendedores_ids is None:
+        raise ValidationError({
+            "error": "El campo vendedores_ids es requerido",
+            "codigo": "VENDEDORES_REQUERIDOS",
+            "campo": "vendedores_ids"
+        })
+    
+    if not isinstance(vendedores_ids, list) or len(vendedores_ids) == 0:
+        raise ValidationError({
+            "error": "Se requiere al menos un vendedor en vendedores_ids",
+            "codigo": "VENDEDORES_REQUERIDOS",
+            "campo": "vendedores_ids"
+        })
     
     # Validar nombre del plan
     if not nombre_plan or len(nombre_plan) < 3:
@@ -187,12 +202,15 @@ def crear_o_actualizar_plan_venta(payload: Dict[str, Any]) -> Dict[str, Any]:
     # Validar formato de periodo
     validar_periodo(periodo)
     
-    # Validar que el vendedor existe
-    vendedor = db.session.query(Vendedor).filter_by(id=vendedor_id).first()
-    if not vendedor:
+    # Validar que todos los vendedores existen
+    vendedores = db.session.query(Vendedor).filter(Vendedor.id.in_(vendedores_ids)).all()
+    if len(vendedores) != len(vendedores_ids):
+        vendedores_encontrados = {v.id for v in vendedores}
+        vendedores_faltantes = set(vendedores_ids) - vendedores_encontrados
         raise NotFoundError({
-            "error": "Vendedor no encontrado",
-            "codigo": "VENDEDOR_NO_ENCONTRADO"
+            "error": f"Vendedores no encontrados: {', '.join(vendedores_faltantes)}",
+            "codigo": "VENDEDORES_NO_ENCONTRADOS",
+            "vendedores_faltantes": list(vendedores_faltantes)
         })
     
     # Validar objetivos/metas
@@ -214,26 +232,42 @@ def crear_o_actualizar_plan_venta(payload: Dict[str, Any]) -> Dict[str, Any]:
     if estado not in ["activo", "inactivo", "completado"]:
         estado = "activo"
     
-    # Buscar si ya existe un plan para este vendedor y periodo
-    plan_existente = db.session.query(PlanVenta).filter_by(
-        vendedor_id=vendedor_id,
-        periodo=periodo
-    ).first()
+    # Buscar si ya existe un plan con el ID proporcionado
+    plan_existente = None
+    if plan_id:
+        plan_existente = db.session.query(PlanVenta).filter_by(id=plan_id).first()
     
     try:
         if plan_existente:
             # ACTUALIZAR plan existente
             plan_existente.nombre_plan = nombre_plan
             plan_existente.gerente_id = gerente_id
+            plan_existente.periodo = periodo
             plan_existente.meta_ingresos = meta_ingresos
             plan_existente.meta_visitas = meta_visitas
             plan_existente.meta_clientes_nuevos = meta_clientes_nuevos
             plan_existente.estado = estado
             
+            # Actualizar vendedores asociados
+            # Eliminar asociaciones actuales
+            db.session.query(PlanVendedor).filter_by(plan_id=plan_existente.id).delete()
+            
+            # Crear nuevas asociaciones
+            for vendedor_id in vendedores_ids:
+                nueva_asociacion = PlanVendedor(
+                    id=str(uuid4()),
+                    plan_id=plan_existente.id,
+                    vendedor_id=vendedor_id
+                )
+                db.session.add(nueva_asociacion)
+            
             db.session.commit()
             
+            # Recargar el plan con sus vendedores
+            db.session.refresh(plan_existente)
+            
             return {
-                **plan_existente.to_dict(),
+                **plan_existente.to_dict(include_vendedores=True),
                 "mensaje": "Plan de venta actualizado exitosamente",
                 "operacion": "actualizar"
             }
@@ -243,7 +277,6 @@ def crear_o_actualizar_plan_venta(payload: Dict[str, Any]) -> Dict[str, Any]:
                 id=str(uuid4()),
                 nombre_plan=nombre_plan,
                 gerente_id=gerente_id,
-                vendedor_id=vendedor_id,
                 periodo=periodo,
                 meta_ingresos=meta_ingresos,
                 meta_visitas=meta_visitas,
@@ -252,10 +285,24 @@ def crear_o_actualizar_plan_venta(payload: Dict[str, Any]) -> Dict[str, Any]:
             )
             
             db.session.add(nuevo_plan)
+            db.session.flush()  # Para obtener el ID
+            
+            # Crear asociaciones con vendedores
+            for vendedor_id in vendedores_ids:
+                nueva_asociacion = PlanVendedor(
+                    id=str(uuid4()),
+                    plan_id=nuevo_plan.id,
+                    vendedor_id=vendedor_id
+                )
+                db.session.add(nueva_asociacion)
+            
             db.session.commit()
             
+            # Recargar el plan con sus vendedores
+            db.session.refresh(nuevo_plan)
+            
             return {
-                **nuevo_plan.to_dict(),
+                **nuevo_plan.to_dict(include_vendedores=True),
                 "mensaje": "Plan de venta creado exitosamente",
                 "operacion": "crear"
             }
@@ -264,18 +311,11 @@ def crear_o_actualizar_plan_venta(payload: Dict[str, Any]) -> Dict[str, Any]:
         db.session.rollback()
         error_msg = str(e.orig) if hasattr(e, 'orig') else str(e)
         
-        # Verificar si es error de unicidad
-        if 'uq_planes_venta_vendedor_periodo' in error_msg or 'UNIQUE constraint' in error_msg:
+        # Verificar si es error de unicidad en plan_vendedor
+        if 'uq_plan_vendedor' in error_msg or 'UNIQUE constraint' in error_msg:
             raise ConflictError({
-                "error": "Ya existe un plan para ese vendedor y periodo",
-                "codigo": "PLAN_DUPLICADO"
-            })
-        
-        # Verificar si es error de FK (vendedor no existe)
-        if 'FOREIGN KEY' in error_msg or 'foreign key' in error_msg.lower():
-            raise NotFoundError({
-                "error": "Vendedor no encontrado",
-                "codigo": "VENDEDOR_NO_ENCONTRADO"
+                "error": "Ya existe una asociación entre este plan y uno de los vendedores",
+                "codigo": "ASOCIACION_DUPLICADA"
             })
         
         raise ConflictError({
@@ -300,7 +340,7 @@ def obtener_plan_venta(plan_id: str) -> Dict[str, Any]:
         plan_id: ID del plan
         
     Returns:
-        Dict con los datos del plan
+        Dict con los datos del plan incluyendo vendedores
         
     Raises:
         NotFoundError: Si el plan no existe
@@ -313,7 +353,7 @@ def obtener_plan_venta(plan_id: str) -> Dict[str, Any]:
             "codigo": "PLAN_NO_ENCONTRADO"
         })
     
-    return plan.to_dict()
+    return plan.to_dict(include_vendedores=True)
 
 
 def listar_planes_venta(
@@ -326,7 +366,7 @@ def listar_planes_venta(
     """
     Lista planes de venta con filtros opcionales.
     
-    KAN-87: Lista todos los planes con información del vendedor asociado.
+    KAN-87: Lista todos los planes con información de vendedores asociados.
     
     Args:
         vendedor_id: Filtrar por vendedor
@@ -336,17 +376,15 @@ def listar_planes_venta(
         size: Tamaño de página
         
     Returns:
-        Dict con lista paginada de planes incluyendo información del vendedor
+        Dict con lista paginada de planes incluyendo información de vendedores
     """
-    # Query con join para obtener información del vendedor
-    query = db.session.query(PlanVenta).join(
-        Vendedor, 
-        PlanVenta.vendedor_id == Vendedor.id
-    )
+    # Query base
+    query = db.session.query(PlanVenta)
     
     # Aplicar filtros
     if vendedor_id:
-        query = query.filter(PlanVenta.vendedor_id == vendedor_id)
+        # Filtrar por planes que tengan asociado este vendedor
+        query = query.join(PlanVenta.vendedores).filter(Vendedor.id == vendedor_id)
     
     if periodo:
         query = query.filter(PlanVenta.periodo == periodo)
@@ -361,23 +399,10 @@ def listar_planes_venta(
     total = query.count()
     planes = query.offset((page - 1) * size).limit(size).all()
     
-    # Construir respuesta con información del vendedor
+    # Construir respuesta con información de vendedores
     items = []
     for plan in planes:
-        plan_dict = plan.to_dict()
-        
-        # Agregar información del vendedor
-        if plan.vendedor:
-            plan_dict["vendedor"] = {
-                "id": plan.vendedor.id,
-                "nombre": plan.vendedor.nombre,
-                "apellidos": plan.vendedor.apellidos,
-                "correo": plan.vendedor.correo,
-                "zona": plan.vendedor.zona
-            }
-            # Nombre completo del vendedor para la tabla
-            plan_dict["vendedor_nombre_completo"] = f"{plan.vendedor.nombre} {plan.vendedor.apellidos}"
-        
+        plan_dict = plan.to_dict(include_vendedores=True)
         items.append(plan_dict)
     
     return {
