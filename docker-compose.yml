@@ -261,6 +261,51 @@ services:
       retries: 3
       start_period: 40s
 
+  producto-inventario-movil:
+    build:
+      context: ./producto-inventario-movil
+      dockerfile: Dockerfile
+    container_name: medisupply-producto-inventario-movil
+    ports:
+      - "5005:5005"
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=production
+      - PORT=5005
+      - AUTH_URL=http://auth-usuario:5001
+      - PRODUCTO_URL=http://productos:5008
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-jwt-secret-key-change-in-production}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      - DEBUG=False
+    depends_on:
+      auth-usuario:
+        condition: service_healthy
+      productos:
+        condition: service_healthy
+    networks:
+      - medisupply-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+  nginx:
+    image: nginx:alpine
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - 80:80
+    networks:
+      - medisupply-network
+    depends_on:
+      - mediador-web
+      - producto-inventario-web
+      - mediador-movil
+      - producto-inventario-movil
+
 networks:
   medisupply-network:
     driver: bridge
@@ -273,4 +318,3 @@ volumes:
     name: medisupply-proveedores-uploads
   productos_uploads:
     name: medisupply-productos-uploads
-
