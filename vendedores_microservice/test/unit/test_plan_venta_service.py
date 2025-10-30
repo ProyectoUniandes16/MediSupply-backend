@@ -35,6 +35,23 @@ def vendedor_test(app_ctx):
     # Cleanup se hace automáticamente por app_ctx
 
 
+@pytest.fixture
+def vendedor_test_2(app_ctx):
+    """Fixture para crear un segundo vendedor de prueba"""
+    vendedor = Vendedor(
+        id=str(uuid4()),
+        nombre="María",
+        apellidos="González",
+        correo="maria.gonzalez@test.com",
+        telefono="0987654321",
+        estado="activo"
+    )
+    db.session.add(vendedor)
+    db.session.commit()
+    yield vendedor
+    # Cleanup se hace automáticamente por app_ctx
+
+
 class TestValidarPeriodo:
     """Tests para validación de periodo"""
     
@@ -134,14 +151,14 @@ class TestValidarEnteroNoNegativo:
 
 
 class TestCrearOActualizarPlanVenta:
-    """Tests para crear o actualizar plan de venta"""
+    """Tests para crear o actualizar plan de venta con Many-to-Many"""
     
     def test_crear_plan_exitoso(self, app_ctx, vendedor_test):
-        """Debe crear un nuevo plan de venta exitosamente"""
+        """Debe crear un nuevo plan de venta con un vendedor"""
         payload = {
             "nombre_plan": "Plan Q1 2025",
             "gerente_id": str(uuid4()),
-            "vendedor_id": vendedor_test.id,
+            "vendedores_ids": [vendedor_test.id],
             "periodo": "2025-01",
             "meta_ingresos": 50000.00,
             "meta_visitas": 100,
@@ -152,22 +169,44 @@ class TestCrearOActualizarPlanVenta:
         
         assert result["operacion"] == "crear"
         assert result["nombre_plan"] == "Plan Q1 2025"
-        assert result["vendedor_id"] == vendedor_test.id
         assert result["periodo"] == "2025-01"
         assert result["meta_ingresos"] == 50000.00
         assert result["meta_visitas"] == 100
         assert result["meta_clientes_nuevos"] == 20
         assert result["estado"] == "activo"
         assert "id" in result
+        assert "vendedores" in result
+        assert len(result["vendedores"]) == 1
+        assert result["vendedores"][0]["id"] == vendedor_test.id
     
-    def test_actualizar_plan_existente(self, app_ctx, vendedor_test):
-        """Debe actualizar un plan existente (UPSERT)"""
-        # Crear plan inicial
+    def test_crear_plan_con_multiples_vendedores(self, app_ctx, vendedor_test, vendedor_test_2):
+        """Debe crear un plan con múltiples vendedores (Many-to-Many)"""
+        payload = {
+            "nombre_plan": "Plan Multi-Vendedor",
+            "gerente_id": str(uuid4()),
+            "vendedores_ids": [vendedor_test.id, vendedor_test_2.id],
+            "periodo": "2025-02",
+            "meta_ingresos": 100000.00,
+            "meta_visitas": 200,
+            "meta_clientes_nuevos": 40
+        }
+        
+        result = crear_o_actualizar_plan_venta(payload)
+        
+        assert result["operacion"] == "crear"
+        assert len(result["vendedores"]) == 2
+        vendedor_ids = {v["id"] for v in result["vendedores"]}
+        assert vendedor_test.id in vendedor_ids
+        assert vendedor_test_2.id in vendedor_ids
+    
+    def test_actualizar_plan_existente(self, app_ctx, vendedor_test, vendedor_test_2):
+        """Debe actualizar un plan existente (UPSERT) usando plan_id"""
+        # Crear plan inicial con un vendedor
         payload_inicial = {
             "nombre_plan": "Plan Inicial",
             "gerente_id": str(uuid4()),
-            "vendedor_id": vendedor_test.id,
-            "periodo": "2025-02",
+            "vendedores_ids": [vendedor_test.id],
+            "periodo": "2025-03",
             "meta_ingresos": 30000.00,
             "meta_visitas": 50,
             "meta_clientes_nuevos": 10
@@ -175,13 +214,14 @@ class TestCrearOActualizarPlanVenta:
         result1 = crear_o_actualizar_plan_venta(payload_inicial)
         plan_id = result1["id"]
         
-        # Actualizar el mismo plan (mismo vendedor_id y periodo)
+        # Actualizar el mismo plan (ahora con 2 vendedores)
         payload_actualizado = {
+            "plan_id": plan_id,
             "nombre_plan": "Plan Actualizado",
             "gerente_id": str(uuid4()),
-            "vendedor_id": vendedor_test.id,
-            "periodo": "2025-02",  # mismo periodo
-            "meta_ingresos": 60000.00,  # valores actualizados
+            "vendedores_ids": [vendedor_test.id, vendedor_test_2.id],
+            "periodo": "2025-03",
+            "meta_ingresos": 60000.00,
             "meta_visitas": 120,
             "meta_clientes_nuevos": 25
         }
@@ -192,6 +232,7 @@ class TestCrearOActualizarPlanVenta:
         assert result2["nombre_plan"] == "Plan Actualizado"
         assert result2["meta_ingresos"] == 60000.00
         assert result2["meta_visitas"] == 120
+        assert len(result2["vendedores"]) == 2
     
     def test_crear_plan_campos_faltantes(self, app_ctx):
         """Debe rechazar si faltan campos obligatorios"""
@@ -203,20 +244,36 @@ class TestCrearOActualizarPlanVenta:
         with pytest.raises(ValidationError) as exc_info:
             crear_o_actualizar_plan_venta(payload)
         
-        # El mensaje puede ser string o dict
         error_msg = exc_info.value.message
         if isinstance(error_msg, dict):
             assert "requerido" in error_msg.get("error", "").lower()
         else:
             assert "obligatorios" in str(error_msg).lower() or "requerido" in str(error_msg).lower()
     
-    def test_crear_plan_vendedor_no_existe(self, app_ctx):
-        """Debe rechazar si el vendedor no existe"""
+    def test_crear_plan_sin_vendedores(self, app_ctx):
+        """Debe rechazar si vendedores_ids está vacío"""
         payload = {
             "nombre_plan": "Plan Test",
             "gerente_id": str(uuid4()),
-            "vendedor_id": str(uuid4()),  # vendedor que no existe
-            "periodo": "2025-03",
+            "vendedores_ids": [],  # vacío
+            "periodo": "2025-04",
+            "meta_ingresos": 50000.00,
+            "meta_visitas": 100,
+            "meta_clientes_nuevos": 20
+        }
+        
+        with pytest.raises(ValidationError) as exc_info:
+            crear_o_actualizar_plan_venta(payload)
+        
+        assert exc_info.value.message["codigo"] == "VENDEDORES_REQUERIDOS"
+    
+    def test_crear_plan_vendedor_no_existe(self, app_ctx, vendedor_test):
+        """Debe rechazar si algún vendedor no existe"""
+        payload = {
+            "nombre_plan": "Plan Test",
+            "gerente_id": str(uuid4()),
+            "vendedores_ids": [vendedor_test.id, str(uuid4())],  # uno no existe
+            "periodo": "2025-05",
             "meta_ingresos": 50000.00,
             "meta_visitas": 100,
             "meta_clientes_nuevos": 20
@@ -225,15 +282,15 @@ class TestCrearOActualizarPlanVenta:
         with pytest.raises(NotFoundError) as exc_info:
             crear_o_actualizar_plan_venta(payload)
         
-        assert exc_info.value.message["codigo"] == "VENDEDOR_NO_ENCONTRADO"
+        assert exc_info.value.message["codigo"] == "VENDEDORES_NO_ENCONTRADOS"
     
     def test_crear_plan_periodo_invalido(self, app_ctx, vendedor_test):
         """Debe rechazar periodos con formato inválido"""
         payload = {
             "nombre_plan": "Plan Test",
             "gerente_id": str(uuid4()),
-            "vendedor_id": vendedor_test.id,
-            "periodo": "2025/03",  # formato inválido
+            "vendedores_ids": [vendedor_test.id],
+            "periodo": "2025/06",  # formato inválido
             "meta_ingresos": 50000.00,
             "meta_visitas": 100,
             "meta_clientes_nuevos": 20
@@ -249,8 +306,8 @@ class TestCrearOActualizarPlanVenta:
         payload = {
             "nombre_plan": "Plan Test",
             "gerente_id": str(uuid4()),
-            "vendedor_id": vendedor_test.id,
-            "periodo": "2025-04",
+            "vendedores_ids": [vendedor_test.id],
+            "periodo": "2025-07",
             "meta_ingresos": -1000.00,  # negativo
             "meta_visitas": 100,
             "meta_clientes_nuevos": 20
@@ -266,8 +323,8 @@ class TestCrearOActualizarPlanVenta:
         payload = {
             "nombre_plan": "AB",  # muy corto
             "gerente_id": str(uuid4()),
-            "vendedor_id": vendedor_test.id,
-            "periodo": "2025-05",
+            "vendedores_ids": [vendedor_test.id],
+            "periodo": "2025-08",
             "meta_ingresos": 50000.00,
             "meta_visitas": 100,
             "meta_clientes_nuevos": 20
@@ -283,8 +340,8 @@ class TestCrearOActualizarPlanVenta:
         payload = {
             "nombre_plan": "Plan Test",
             "gerente_id": str(uuid4()),
-            "vendedor_id": vendedor_test.id,
-            "periodo": "2025-06",
+            "vendedores_ids": [vendedor_test.id],
+            "periodo": "2025-09",
             "meta_ingresos": 50000.00,
             "meta_visitas": 100,
             "meta_clientes_nuevos": 20,
@@ -299,13 +356,13 @@ class TestObtenerPlanVenta:
     """Tests para obtener plan de venta por ID"""
     
     def test_obtener_plan_existente(self, app_ctx, vendedor_test):
-        """Debe obtener un plan existente"""
+        """Debe obtener un plan existente con sus vendedores"""
         # Crear plan
         payload = {
             "nombre_plan": "Plan Test",
             "gerente_id": str(uuid4()),
-            "vendedor_id": vendedor_test.id,
-            "periodo": "2025-07",
+            "vendedores_ids": [vendedor_test.id],
+            "periodo": "2025-10",
             "meta_ingresos": 50000.00,
             "meta_visitas": 100,
             "meta_clientes_nuevos": 20
@@ -317,6 +374,8 @@ class TestObtenerPlanVenta:
         
         assert plan_obtenido["id"] == plan_creado["id"]
         assert plan_obtenido["nombre_plan"] == "Plan Test"
+        assert "vendedores" in plan_obtenido
+        assert len(plan_obtenido["vendedores"]) == 1
     
     def test_obtener_plan_no_existente(self, app_ctx):
         """Debe lanzar NotFoundError si el plan no existe"""
@@ -330,13 +389,13 @@ class TestListarPlanesVenta:
     """Tests para listar planes de venta"""
     
     def test_listar_todos_los_planes(self, app_ctx, vendedor_test):
-        """Debe listar todos los planes"""
+        """Debe listar todos los planes con vendedores"""
         # Crear varios planes
         for i in range(3):
             payload = {
                 "nombre_plan": f"Plan {i}",
                 "gerente_id": str(uuid4()),
-                "vendedor_id": vendedor_test.id,
+                "vendedores_ids": [vendedor_test.id],
                 "periodo": f"2025-{i+1:02d}",
                 "meta_ingresos": 50000.00 * (i+1),
                 "meta_visitas": 100 * (i+1),
@@ -350,15 +409,18 @@ class TestListarPlanesVenta:
         assert result["total"] >= 3
         assert len(result["items"]) >= 3
         assert result["page"] == 1
+        # Verificar que cada plan tiene vendedores
+        for plan in result["items"]:
+            assert "vendedores" in plan
     
     def test_listar_filtrado_por_vendedor(self, app_ctx, vendedor_test):
-        """Debe filtrar planes por vendedor"""
+        """Debe filtrar planes que contengan un vendedor específico"""
         # Crear plan para este vendedor
         payload = {
             "nombre_plan": "Plan Vendedor Específico",
             "gerente_id": str(uuid4()),
-            "vendedor_id": vendedor_test.id,
-            "periodo": "2025-08",
+            "vendedores_ids": [vendedor_test.id],
+            "periodo": "2025-11",
             "meta_ingresos": 50000.00,
             "meta_visitas": 100,
             "meta_clientes_nuevos": 20
@@ -370,7 +432,9 @@ class TestListarPlanesVenta:
         
         assert result["total"] > 0
         for plan in result["items"]:
-            assert plan["vendedor_id"] == vendedor_test.id
+            # Verificar que el vendedor está en la lista de vendedores del plan
+            vendedor_ids = [v["id"] for v in plan["vendedores"]]
+            assert vendedor_test.id in vendedor_ids
     
     def test_listar_con_paginacion(self, app_ctx, vendedor_test):
         """Debe soportar paginación"""
