@@ -28,3 +28,17 @@ spec:
             name: mediador-web-service
             port:
               number: 5002
+      - path: /movil-producto/(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: producto-inventario-movil-service
+            port:
+              number: 5005
+      - path: /movil/(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: mediador-movil-service
+            port:
+              number: 5004
