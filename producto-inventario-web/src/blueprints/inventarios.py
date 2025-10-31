@@ -57,6 +57,28 @@ def get_disponible_producto(producto_id):
         }), 500
 
 
+@inventarios_bp.route('/productos', methods=['GET'])
+def get_productos_con_inventarios():
+    """Obtiene todos los productos con sus inventarios embebidos (cache-first)."""
+    try:
+        filtros = {
+            'categoria': request.args.get('categoria'),
+            'estado': request.args.get('estado')
+        }
+        filtros = {clave: valor for clave, valor in filtros.items() if valor}
+
+        result = InventariosService.get_productos_con_inventarios(filtros)
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        logger.error(f"Error consultando productos con inventarios: {e}")
+        return jsonify({
+            'error': 'Error consultando productos con inventarios',
+            'detalle': str(e)
+        }), 500
+
+
 # ============================================
 # ENDPOINTS DE ESCRITURA (Mediador)
 # ============================================

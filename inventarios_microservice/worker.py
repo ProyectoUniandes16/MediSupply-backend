@@ -113,6 +113,26 @@ class CacheWorkerSubscriber:
         except Exception as e:
             logger.error(f"❌ Error actualizando cache: {e}")
             return False
+
+    def _invalidate_aggregate_cache(self):
+        """Elimina keys agregadas productos_con_inventarios* para forzar reconstrucción."""
+        try:
+            pattern = 'productos_con_inventarios*'
+            cursor = 0
+            deleted = 0
+
+            while True:
+                cursor, keys = self.redis_client.scan(cursor=cursor, match=pattern, count=100)
+                if keys:
+                    deleted += self.redis_client.delete(*keys)
+                if cursor == 0:
+                    break
+
+            if deleted:
+                logger.info(f"🗑️  Invalidados {deleted} registros agregados de cache")
+
+        except Exception as e:
+            logger.warning(f"⚠️  No se pudieron invalidar caches agregados: {e}")
     
     def _process_message(self, message_data: str):
         """Procesa un mensaje recibido del canal Pub/Sub."""
@@ -132,6 +152,9 @@ class CacheWorkerSubscriber:
             
             # Actualizar cache
             self._update_cache(producto_id, inventarios)
+
+            # Invalidar cache agregado para reconstrucción en próxima consulta
+            self._invalidate_aggregate_cache()
             
             logger.info(f"✅ Procesado: {action} para producto {producto_id}")
             
