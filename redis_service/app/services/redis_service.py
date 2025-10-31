@@ -94,10 +94,17 @@ class RedisService:
             Número de claves eliminadas
         """
         try:
-            keys = self.client.keys(pattern)
-            if keys:
-                return self.client.delete(*keys)
-            return 0
+            cursor = 0
+            deleted = 0
+
+            while True:
+                cursor, keys = self.client.scan(cursor=cursor, match=pattern, count=100)
+                if keys:
+                    deleted += self.client.delete(*keys)
+                if cursor == 0:
+                    break
+
+            return deleted
         except Exception as e:
             raise Exception(f"Error al eliminar claves por patrón: {str(e)}")
     

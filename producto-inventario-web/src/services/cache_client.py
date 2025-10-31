@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class CacheClient:
-    """Cliente para leer cache de inventarios (READ-ONLY)."""
+    """Cliente para leer y escribir valores en el cache expuesto por Redis Service."""
     
     def __init__(self, redis_service_url: str):
         self.redis_service_url = redis_service_url.rstrip('/')
@@ -54,6 +54,62 @@ class CacheClient:
         except Exception as e:
             logger.error(f"❌ Error inesperado consultando cache: {e}")
             return None
+
+    def get_generic(self, key: str) -> Optional[Any]:
+        """Obtiene un valor arbitrario desde el cache por clave."""
+        try:
+            response = requests.get(f"{self.cache_endpoint}/{key}", timeout=3)
+
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"✅ Cache HIT: {key}")
+                return data.get('value')
+            if response.status_code == 404:
+                logger.info(f"⚠️ Cache MISS: {key}")
+                return None
+
+            logger.error(f"❌ Error consultando cache: {response.status_code}")
+            return None
+
+        except requests.Timeout:
+            logger.warning(f"⏱️ Timeout consultando cache para key {key}")
+            return None
+        except requests.RequestException as e:
+            logger.error(f"❌ Error de conexión con Redis Service: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"❌ Error inesperado consultando cache: {e}")
+            return None
+
+    def set_generic(self, key: str, value: Any, ttl: int = 3600) -> bool:
+        """Guarda un valor arbitrario en el cache con TTL configurable."""
+        try:
+            response = requests.post(
+                f"{self.cache_endpoint}/",
+                json={
+                    'key': key,
+                    'value': value,
+                    'ttl': ttl
+                },
+                timeout=3
+            )
+
+            if response.status_code == 200 or response.status_code == 201:
+                logger.info(f"✅ Cache SET: {key} (TTL {ttl}s)")
+                return True
+
+            logger.error(f"❌ Error guardando en cache: {response.status_code}")
+            return False
+
+        except requests.Timeout:
+            logger.warning(f"⏱️ Timeout guardando cache para key {key}")
+            return False
+        except requests.RequestException as e:
+            logger.error(f"❌ Error de conexión guardando cache: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"❌ Error inesperado guardando cache: {e}")
+            return False
     
     def is_available(self) -> bool:
         """Verifica que Redis Service esté disponible."""

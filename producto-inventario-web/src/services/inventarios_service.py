@@ -270,3 +270,119 @@ class InventariosService:
         except Exception as e:
             logger.error(f"❌ Error ajustando cantidad: {e}")
             raise
+
+    @staticmethod
+    def get_productos_con_inventarios(filtros: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Obtiene los productos con sus inventarios embebidos usando cache agregado."""
+        cache_client = InventariosService._get_cache_client()
+        cache_key = 'productos_con_inventarios'
+
+        if filtros:
+            parts = [f"{clave}:{valor}" for clave, valor in filtros.items() if valor]
+            if parts:
+                cache_key += ':' + '_'.join(parts)
+
+        cached = cache_client.get_generic(cache_key)
+        if cached is not None:
+            if isinstance(cached, list):
+                updated = False
+                for item in cached:
+                    if isinstance(item, dict) and 'totalInventario' not in item:
+                        inventarios = item.get('inventarios') or []
+                        item['totalInventario'] = sum(inv.get('cantidad', 0) for inv in inventarios)
+                        updated = True
+                if updated:
+                    cache_client.set_generic(cache_key, cached, ttl=300)
+            logger.info(f"✅ Productos con inventarios obtenidos del cache ({len(cached) if isinstance(cached, list) else 0} productos)")
+            return {
+                'data': cached,
+                'total': len(cached) if isinstance(cached, list) else 0,
+                'source': 'cache'
+            }
+
+        logger.info("📡 Cache MISS productos_con_inventarios, consultando microservicios")
+        productos_con_inventarios = InventariosService._build_productos_con_inventarios(filtros)
+
+        cache_client.set_generic(cache_key, productos_con_inventarios, ttl=300)
+
+        return {
+            'data': productos_con_inventarios,
+            'total': len(productos_con_inventarios),
+            'source': 'microservices'
+        }
+
+    @staticmethod
+    def _build_productos_con_inventarios(filtros: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Construye la lista de productos junto con sus inventarios."""
+        productos_url = current_app.config.get('PRODUCTO_URL')
+        inventarios_url = current_app.config.get('INVENTARIOS_URL')
+
+        params: Dict[str, Any] = {}
+        if filtros:
+            if filtros.get('categoria'):
+                params['categoria'] = filtros['categoria']
+            if filtros.get('estado'):
+                params['estado'] = filtros['estado']
+
+        try:
+            response = requests.get(
+                f"{productos_url}/api/productos",
+                params=params or None,
+                timeout=15
+            )
+            response.raise_for_status()
+
+            raw_data = response.json()
+            if isinstance(raw_data, dict):
+                productos = raw_data.get('data') or raw_data.get('productos') or raw_data.get('items') or []
+            else:
+                productos = raw_data
+
+            if not isinstance(productos, list):
+                logger.warning("⚠️ La respuesta de productos no es una lista, se devolverá vacía")
+                productos = []
+
+            logger.info(f"✅ Obtenidos {len(productos)} productos")
+
+        except Exception as e:
+            logger.error(f"❌ Error obteniendo productos del microservicio: {e}")
+            raise Exception(f"Error obteniendo productos: {str(e)}")
+
+        cache_client = InventariosService._get_cache_client()
+        resultado: List[Dict[str, Any]] = []
+
+        for producto in productos:
+            producto_id = producto.get('id')
+            if producto_id is None:
+                logger.warning(f"⚠️ Producto sin ID, se omite: {producto}")
+                continue
+
+            inventarios = cache_client.get_inventarios_by_producto(str(producto_id))
+
+            if inventarios is None:
+                try:
+                    inv_resp = requests.get(
+                        f"{inventarios_url}/api/inventarios",
+                        params={'productoId': producto_id},
+                        timeout=10
+                    )
+                    if inv_resp.status_code == 200:
+                        inv_body = inv_resp.json()
+                        inventarios = inv_body.get('inventarios', []) if isinstance(inv_body, dict) else inv_body
+                    else:
+                        logger.warning(f"⚠️ Inventarios no disponibles para producto {producto_id}")
+                        inventarios = []
+                except Exception as e:
+                    logger.error(f"❌ Error obteniendo inventarios para producto {producto_id}: {e}")
+                    inventarios = []
+
+            total_inventario = sum(inv.get('cantidad', 0) for inv in (inventarios or []))
+
+            resultado.append({
+                **producto,
+                'inventarios': inventarios or [],
+                'totalInventario': total_inventario
+            })
+
+        logger.info(f"✅ Construidos {len(resultado)} productos con inventarios")
+        return resultado
