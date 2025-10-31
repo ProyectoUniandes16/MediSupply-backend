@@ -8,7 +8,7 @@ def test_crear_pedido_success(client):
     data = {
         'cliente_id': 99,
         'total': 5.0,
-        'productos': [{'producto_id': 1, 'cantidad': 1, 'precio': 5.0}]
+        'productos': [{'id': 1, 'cantidad': 1, 'precio': 5.0}]
     }
 
     response = client.post('/pedido', json=data)

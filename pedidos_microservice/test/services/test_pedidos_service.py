@@ -41,7 +41,9 @@ def test_registrar_pedido_productos_vacio():
         registrar_pedido(data)
 
     assert exc.value.status_code == 400
-    assert 'Campos faltantes' in exc.value.message.get('error', '')
+    # With the updated missing_fields logic an empty list is considered present
+    # and the function raises a specific PRODUCTOS_VACIO error.
+    assert exc.value.message.get('codigo') == 'PRODUCTOS_VACIO'
 
 
 def test_registrar_pedido_success(session):

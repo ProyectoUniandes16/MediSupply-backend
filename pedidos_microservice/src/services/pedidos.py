@@ -22,7 +22,11 @@ def registrar_pedido(data):
         raise PedidoServiceError({'error': 'No se proporcionaron datos'}, 400)
 
     required_fields = ['cliente_id', 'total', 'productos']
-    missing_fields = [field for field in required_fields if not data.get(field)]
+    # Consider a field missing only if it's not present or its value is None.
+    # This allows numeric values like 0 to be valid inputs (total == 0 will be
+    # validated by the subsequent business rule) and avoids treating empty
+    # strings/lists as missing when the caller intended to pass them.
+    missing_fields = [field for field in required_fields if field not in data or data.get(field) is None]
     if missing_fields:
         raise PedidoServiceError({'error': f"Campos faltantes: {', '.join(missing_fields)}"}, 400)
     
