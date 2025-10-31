@@ -96,11 +96,14 @@ services:
       - PROVEEDORES_URL=http://proveedores:5006
       - VENDEDORES_URL=http://vendedores:5007
       - CLIENTES_URL=http://clientes:5010
+      - PEDIDOS_URL=http://pedidos:5011
       - DEBUG=True
     depends_on:
       auth-usuario:
         condition: service_healthy
       proveedores:
+        condition: service_healthy
+      pedidos:
         condition: service_healthy
     networks:
       - medisupply-network
