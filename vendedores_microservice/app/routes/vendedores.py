@@ -59,5 +59,5 @@ def get_vendedores():
     estado = request.args.get("estado")
     page = int(request.args.get("page", 1))
     size = int(request.args.get("size", 10))
-    data = listar_vendedores(zona=zona, estado=estado, page=page, size=size)
+    data = listar_vendedores(zona=zona, estado=estado, page=page, size=size, filters=request.args.to_dict())
     return jsonify(data), 200
