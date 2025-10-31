@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: producto-inventario-movil-deployment
+  namespace: medisupply
+  labels:
+    app: producto-inventario-movil
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: producto-inventario-movil
+  template:
+    metadata:
+      labels:
+        app: producto-inventario-movil
+    spec:
+      containers:
+      - name: producto-inventario-movil
+        image: 012146976167.dkr.ecr.us-east-2.amazonaws.com/producto-inventario-movil:latest
+        ports:
+        - containerPort: 5005
+        envFrom:
+        - configMapRef:
+            name: mediador-web-configmap
+        imagePullPolicy: Always

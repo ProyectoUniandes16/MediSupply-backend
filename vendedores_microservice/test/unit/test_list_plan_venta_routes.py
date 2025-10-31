@@ -34,7 +34,7 @@ class TestPostPlanVenta:
         payload = {
             "nombre_plan": "Plan Trimestre Q1",
             "gerente_id": str(uuid4()),
-            "vendedor_id": vendedor_test,
+            "vendedores_ids": [vendedor_test],
             "periodo": "2025-01",
             "meta_ingresos": 75000.50,
             "meta_visitas": 150,
@@ -50,7 +50,9 @@ class TestPostPlanVenta:
         assert response.status_code == 201
         data = response.get_json()
         assert data["nombre_plan"] == "Plan Trimestre Q1"
-        assert data["vendedor_id"] == vendedor_test
+        assert "vendedores" in data
+        assert len(data["vendedores"]) == 1
+        assert data["vendedores"][0]["id"] == vendedor_test
         assert data["periodo"] == "2025-01"
         assert data["meta_ingresos"] == 75000.50
         assert data["meta_visitas"] == 150
@@ -60,12 +62,12 @@ class TestPostPlanVenta:
         assert "id" in data
     
     def test_actualizar_plan_existente(self, client, vendedor_test):
-        """Debe actualizar un plan existente si ya existe para ese vendedor y periodo"""
+        """Debe actualizar un plan existente usando plan_id"""
         # Crear plan inicial
         payload_inicial = {
             "nombre_plan": "Plan Original",
             "gerente_id": str(uuid4()),
-            "vendedor_id": vendedor_test,
+            "vendedores_ids": [vendedor_test],
             "periodo": "2025-02",
             "meta_ingresos": 50000.00,
             "meta_visitas": 100,
@@ -80,12 +82,13 @@ class TestPostPlanVenta:
         assert response1.status_code == 201
         plan_id = response1.get_json()["id"]
         
-        # Actualizar con mismo vendedor y periodo
+        # Actualizar usando plan_id
         payload_actualizado = {
+            "plan_id": plan_id,
             "nombre_plan": "Plan Actualizado",
             "gerente_id": str(uuid4()),
-            "vendedor_id": vendedor_test,
-            "periodo": "2025-02",  # mismo periodo
+            "vendedores_ids": [vendedor_test],
+            "periodo": "2025-02",
             "meta_ingresos": 80000.00,
             "meta_visitas": 200,
             "meta_clientes_nuevos": 40
@@ -123,11 +126,11 @@ class TestPostPlanVenta:
         assert "error" in data or "obligatorios" in str(data).lower()
     
     def test_crear_plan_vendedor_no_existe(self, client):
-        """Debe retornar 404 si el vendedor no existe"""
+        """Debe retornar 404 si algún vendedor no existe"""
         payload = {
             "nombre_plan": "Plan Test",
             "gerente_id": str(uuid4()),
-            "vendedor_id": str(uuid4()),  # vendedor que no existe
+            "vendedores_ids": [str(uuid4())],  # vendedor que no existe
             "periodo": "2025-03",
             "meta_ingresos": 50000.00,
             "meta_visitas": 100,
@@ -142,14 +145,14 @@ class TestPostPlanVenta:
         
         assert response.status_code == 404
         data = response.get_json()
-        assert data["codigo"] == "VENDEDOR_NO_ENCONTRADO"
+        assert data["codigo"] == "VENDEDORES_NO_ENCONTRADOS"
     
     def test_crear_plan_periodo_invalido(self, client, vendedor_test):
         """Debe retornar 400 si el formato del periodo es inválido"""
         payload = {
             "nombre_plan": "Plan Test",
             "gerente_id": str(uuid4()),
-            "vendedor_id": vendedor_test,
+            "vendedores_ids": [vendedor_test],
             "periodo": "2025/04",  # formato inválido
             "meta_ingresos": 50000.00,
             "meta_visitas": 100,
@@ -171,7 +174,7 @@ class TestPostPlanVenta:
         payload = {
             "nombre_plan": "Plan Test",
             "gerente_id": str(uuid4()),
-            "vendedor_id": vendedor_test,
+            "vendedores_ids": [vendedor_test],
             "periodo": "2025-05",
             "meta_ingresos": 50000.00,
             "meta_visitas": -10,  # negativo
@@ -193,7 +196,7 @@ class TestPostPlanVenta:
         payload = {
             "nombre_plan": "Plan Test",
             "gerente_id": str(uuid4()),
-            "vendedor_id": vendedor_test,
+            "vendedores_ids": [vendedor_test],
             "periodo": "2025-06",
             "meta_ingresos": "no_es_numero",  # inválido
             "meta_visitas": 100,
@@ -215,7 +218,7 @@ class TestPostPlanVenta:
         payload = {
             "nombre_plan": "Plan Inactivo",
             "gerente_id": str(uuid4()),
-            "vendedor_id": vendedor_test,
+            "vendedores_ids": [vendedor_test],
             "periodo": "2025-07",
             "meta_ingresos": 50000.00,
             "meta_visitas": 100,
@@ -238,12 +241,12 @@ class TestGetPlanVenta:
     """Tests para GET /v1/planes-venta/{plan_id}"""
     
     def test_obtener_plan_existente(self, client, vendedor_test):
-        """Debe obtener un plan existente por su ID"""
+        """Debe obtener un plan existente por su ID con vendedores"""
         # Crear plan
         payload = {
             "nombre_plan": "Plan Para Obtener",
             "gerente_id": str(uuid4()),
-            "vendedor_id": vendedor_test,
+            "vendedores_ids": [vendedor_test],
             "periodo": "2025-08",
             "meta_ingresos": 50000.00,
             "meta_visitas": 100,
@@ -264,6 +267,8 @@ class TestGetPlanVenta:
         data = response.get_json()
         assert data["id"] == plan_id
         assert data["nombre_plan"] == "Plan Para Obtener"
+        assert "vendedores" in data
+        assert len(data["vendedores"]) == 1
     
     def test_obtener_plan_no_existente(self, client):
         """Debe retornar 404 si el plan no existe"""
@@ -285,7 +290,7 @@ class TestGetPlanesVenta:
         payload = {
             "nombre_plan": "Plan Q1 2025",
             "gerente_id": str(uuid4()),
-            "vendedor_id": vendedor_test,
+            "vendedores_ids": [vendedor_test],
             "periodo": "2025-01",
             "meta_ingresos": 50000.00,
             "meta_visitas": 100,
@@ -309,13 +314,13 @@ class TestGetPlanesVenta:
         assert "pages" in data
         assert data["total"] >= 1
         
-        # Verificar que incluye información del vendedor
+        # Verificar que incluye información de vendedores
         if len(data["items"]) > 0:
             plan = data["items"][0]
-            assert "vendedor" in plan
-            assert "vendedor_nombre_completo" in plan
-            assert plan["vendedor"]["nombre"] == "María"
-            assert plan["vendedor"]["apellidos"] == "González"
+            assert "vendedores" in plan
+            assert len(plan["vendedores"]) > 0
+            assert plan["vendedores"][0]["nombre"] == "María"
+            assert plan["vendedores"][0]["apellidos"] == "González"
     
     def test_bdd_listado_paginado(self, client, vendedor_test, app_ctx):
         """
@@ -348,7 +353,7 @@ class TestGetPlanesVenta:
             payload = {
                 "nombre_plan": f"Plan {i+1:02d}",
                 "gerente_id": str(uuid4()),
-                "vendedor_id": vendedores_ids[vendedor_idx],
+                "vendedores_ids": [vendedores_ids[vendedor_idx]],
                 "periodo": f"2025-{periodo_num:02d}",
                 "meta_ingresos": 50000.00 + (i * 1000),
                 "meta_visitas": 100 + (i * 10),
@@ -406,7 +411,7 @@ class TestGetPlanesVenta:
             payload = {
                 "nombre_plan": f"Plan María {i+1}",
                 "gerente_id": str(uuid4()),
-                "vendedor_id": vendedor_test,
+                "vendedores_ids": [vendedor_test],
                 "periodo": f"2025-{i+1:02d}",
                 "meta_ingresos": 50000.00,
                 "meta_visitas": 100,
@@ -423,7 +428,7 @@ class TestGetPlanesVenta:
             payload = {
                 "nombre_plan": f"Plan Pedro {i+1}",
                 "gerente_id": str(uuid4()),
-                "vendedor_id": otro_vendedor.id,
+                "vendedores_ids": [otro_vendedor.id],
                 "periodo": f"2025-{i+4:02d}",
                 "meta_ingresos": 40000.00,
                 "meta_visitas": 80,
@@ -441,11 +446,12 @@ class TestGetPlanesVenta:
         assert response.status_code == 200
         data = response.get_json()
         
-        # Todos los planes deben ser del vendedor_test
+        # Todos los planes deben contener al vendedor_test
         assert data["total"] == 3
         for plan in data["items"]:
-            assert plan["vendedor_id"] == vendedor_test
-            assert plan["vendedor"]["nombre"] == "María"
+            vendedor_ids = [v["id"] for v in plan["vendedores"]]
+            assert vendedor_test in vendedor_ids
+            assert plan["vendedores"][0]["nombre"] == "María"
             assert "María" in plan["nombre_plan"]
     
     def test_bdd_sin_resultados(self, client):
@@ -474,7 +480,7 @@ class TestGetPlanesVenta:
             payload = {
                 "nombre_plan": f"Plan {periodo}",
                 "gerente_id": str(uuid4()),
-                "vendedor_id": vendedor_test,
+                "vendedores_ids": [vendedor_test],
                 "periodo": periodo,
                 "meta_ingresos": 50000.00,
                 "meta_visitas": 100,
@@ -505,7 +511,7 @@ class TestGetPlanesVenta:
             payload = {
                 "nombre_plan": f"Plan {estado}",
                 "gerente_id": str(uuid4()),
-                "vendedor_id": vendedor_test,
+                "vendedores_ids": [vendedor_test],
                 "periodo": f"2025-{i+10:02d}",
                 "meta_ingresos": 50000.00,
                 "meta_visitas": 100,
@@ -534,7 +540,7 @@ class TestGetPlanesVenta:
         payload = {
             "nombre_plan": "Plan Específico Combinado",
             "gerente_id": str(uuid4()),
-            "vendedor_id": vendedor_test,
+            "vendedores_ids": [vendedor_test],
             "periodo": "2025-12",
             "meta_ingresos": 50000.00,
             "meta_visitas": 100,
@@ -557,7 +563,8 @@ class TestGetPlanesVenta:
         
         assert data["total"] >= 1
         for plan in data["items"]:
-            assert plan["vendedor_id"] == vendedor_test
+            vendedor_ids = [v["id"] for v in plan["vendedores"]]
+            assert vendedor_test in vendedor_ids
             assert plan["periodo"] == "2025-12"
             assert plan["estado"] == "activo"
     
