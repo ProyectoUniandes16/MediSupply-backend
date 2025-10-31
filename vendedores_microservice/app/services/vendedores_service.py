@@ -159,13 +159,42 @@ def listar_vendedores(
     estado: Optional[str] = None,
     page: int = 1,
     size: int = 10,
-) -> Dict[str, Any]:
-    """Lista vendedores con paginación y filtros opcionales."""
+    filters: Optional[Dict[str, Any]] = None,
+ ) -> Dict[str, Any]:
+    """Lista vendedores con paginación y filtros opcionales.
+
+    Ahora permite filtrar por cualquiera de las propiedades del modelo mediante
+    el parámetro `filters`, que debe ser un diccionario {campo: valor}.
+    Solo se aplican filtros para atributos existentes en el modelo `Vendedor` y
+    para valores no nulos / no vacíos.
+    """
     q = Vendedor.query
+
+    # filtros explícitos tradicionales
     if zona:
         q = q.filter(Vendedor.zona == zona)
     if estado:
         q = q.filter(Vendedor.estado == estado)
+
+    # filtros dinámicos por cualquier propiedad
+    # filters puede contener claves como 'nombre', 'correo', 'telefono', etc.
+    def _is_empty(val: Any) -> bool:
+        return val is None or (isinstance(val, str) and val.strip() == "")
+
+    # Si se pasa un diccionario 'filters' en los argumentos (por compatibilidad), aplicarlo
+    # Nota: asumimos que el caller normaliza/valida los valores según sea necesario.
+    # Ignoramos claves que no existen en el modelo para evitar errores.
+    # Si se desea un comportamiento más estricto se podría lanzar ValidationError.
+    # Si se recibió un dict de filtros por el parámetro `filters`, aplicarlo
+    if isinstance(filters, dict):
+        for key, val in filters.items():
+            if _is_empty(val):
+                continue
+            # solo aplicar si el modelo tiene ese atributo
+            if not hasattr(Vendedor, key):
+                continue
+            column = getattr(Vendedor, key)
+            q = q.filter(column == val)
 
     total = q.count()
     items: List[Vendedor] = (
