@@ -22,11 +22,11 @@ def test_inventarios_read_endpoints(client, mocker):
     )
     mocker.patch('src.blueprints.inventarios.InventariosService.get_total_disponible', return_value=5)
 
-    response = client.get('/productos/123/inventarios')
+    response = client.get('/producto/123/inventarios')
     assert response.status_code == 200
     assert response.get_json()['totalCantidad'] == 3
 
-    response = client.get('/productos/123/disponible')
+    response = client.get('/producto/123/disponible')
     assert response.status_code == 200
     assert response.get_json()['totalDisponible'] == 5
 
