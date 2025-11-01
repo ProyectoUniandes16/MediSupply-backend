@@ -71,10 +71,11 @@ class InventariosService:
         # Intentar obtener del cache
         inventarios = cache_client.get_inventarios_by_producto(producto_id)
         source = 'cache'
+        current_app.logger.info(f"inventarios: {inventarios}")
         
         # Si no está en cache, consultar microservicio
         if inventarios is None:
-            logger.info(f"📡 Consultando microservicio para producto {producto_id}")
+            current_app.logger.info(f"📡 Consultando microservicio para producto {producto_id}")
             inventarios = InventariosService._get_from_microservice(producto_id)
             source = 'microservice'
         
@@ -82,11 +83,13 @@ class InventariosService:
         total_cantidad = sum(inv.get('cantidad', 0) for inv in inventarios)
         
         return {
-            'productoId': producto_id,
-            'inventarios': inventarios,
-            'total': len(inventarios),
-            'totalCantidad': total_cantidad,
-            'source': source  # Útil para debugging
+            'data': {
+                'productoId': producto_id,
+                'inventarios': inventarios,
+                'total': len(inventarios),
+                'totalCantidad': total_cantidad,
+                'source': source  # Útil para debugging
+            }
         }
     
     @staticmethod

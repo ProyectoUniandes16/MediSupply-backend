@@ -18,6 +18,6 @@ def create_app(config_class=Config):
     # Registrar blueprints
     app.register_blueprint(health_bp)
     app.register_blueprint(producto_bp)
-    app.register_blueprint(inventarios_bp, url_prefix='/api')
+    app.register_blueprint(inventarios_bp)
     
     return app

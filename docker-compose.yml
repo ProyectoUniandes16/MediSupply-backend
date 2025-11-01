@@ -96,8 +96,9 @@ services:
       - PROVEEDORES_URL=http://proveedores:5006
       - VENDEDORES_URL=http://vendedores:5007
       - CLIENTES_URL=http://clientes:5010
-      - PEDIDOS_URL=http://pedidos:5011
+      - PEDIDOS_URL=http://pedidos:5012
       - DEBUG=True
+    
     depends_on:
       auth-usuario:
         condition: service_healthy
@@ -184,11 +185,11 @@ services:
       dockerfile: Dockerfile
     container_name: medisupply-pedidos
     ports:
-      - "5011:5011"
+      - "5012:5012"
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=production
-      - PORT=5011
+      - PORT=5012
       - DB_HOST=db
       - DB_PORT=5432
       - DB_NAME=${POSTGRES_DB:-medisupply}
@@ -409,6 +410,36 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+  inventarios:
+    build:
+      context: ./inventarios_microservice
+      dockerfile: Dockerfile
+    container_name: medisupply-inventarios
+    ports:
+      - "5009:5009"
+    environment:
+      - FLASK_APP=run.py
+      - FLASK_ENV=production
+      - PORT=5009
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-medisupply_user}:${POSTGRES_PASSWORD:-medisupply_password}@db:5432/${POSTGRES_DB:-medisupply}
+      - REDIS_SERVICE_URL=http://redis_service:5011
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+    depends_on:
+      db:
+        condition: service_healthy
+      productos:
+        condition: service_healthy
+      redis_service:
+        condition: service_healthy
+    networks:
+      - medisupply-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5009/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     
   nginx:
     image: nginx:alpine
@@ -423,6 +454,77 @@ services:
       - producto-inventario-web
       - mediador-movil
       - producto-inventario-movil
+
+  cache_worker:
+    build:
+      context: ./inventarios_microservice
+      dockerfile: Dockerfile
+    container_name: medisupply-cache-worker
+    command: ["python", "worker.py"]
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-medisupply_user}:${POSTGRES_PASSWORD:-medisupply_password}@db:5432/${POSTGRES_DB:-medisupply}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_SERVICE_URL=http://redis_service:5011
+    depends_on:
+      db:
+        condition: service_healthy
+      productos:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redis_service:
+        condition: service_healthy
+    networks:
+      - medisupply-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: medisupply-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - medisupply-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis_service:
+    build:
+      context: ./redis_service
+      dockerfile: Dockerfile
+    container_name: medisupply-redis-service
+    ports:
+      - "5011:5011"
+    environment:
+      - FLASK_APP=run.py
+      - FLASK_ENV=production
+      - PORT=5011
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      - CACHE_DEFAULT_TTL=3600
+      - QUEUE_CHANNEL=inventarios_updates
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - medisupply-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5011/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 networks:
   medisupply-network:

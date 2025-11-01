@@ -14,7 +14,7 @@ inventarios_bp = Blueprint('inventarios', __name__)
 # ENDPOINTS DE LECTURA
 # ============================================
 
-@inventarios_bp.route('/productos/<producto_id>/inventarios', methods=['GET'])
+@inventarios_bp.route('/producto/<producto_id>/inventarios', methods=['GET'])
 def get_inventarios_producto(producto_id):
     """
     Obtiene los inventarios de un producto (desde cache).
@@ -34,7 +34,7 @@ def get_inventarios_producto(producto_id):
         }), 500
 
 
-@inventarios_bp.route('/productos/<producto_id>/disponible', methods=['GET'])
+@inventarios_bp.route('/producto/<producto_id>/disponible', methods=['GET'])
 def get_disponible_producto(producto_id):
     """
     Obtiene el total disponible de un producto.
