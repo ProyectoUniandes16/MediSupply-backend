@@ -13,4 +13,6 @@ requests
 psycopg2-binary
 Werkzeug
 SQLAlchemy
+flask_cors
 coverage
+redis

@@ -4,7 +4,11 @@ from sqlalchemy.exc import IntegrityError
 from app.models import db
 from app.models.inventario import Inventario
 from app.utils.validators import require, is_positive_integer, length_between
+from app.services.redis_queue_service import RedisQueueService
 from . import NotFoundError, ConflictError, ValidationError
+import logging
+
+logger = logging.getLogger(__name__)
 
 def _to_dict(i: Inventario) -> Dict[str, Any]:
     """Convierte un inventario a diccionario para la respuesta JSON."""
@@ -32,13 +36,16 @@ def crear_inventario(payload: Dict[str, Any]) -> Dict[str, Any]:
     
     # Validaciones específicas
     is_positive_integer(cantidad, "cantidad")
-    length_between(producto_id, 1, 100, "productoId")
     length_between(ubicacion, 1, 100, "ubicacion")
+    
+    # producto_id debe ser un entero positivo (FK a productos.id)
+    if not isinstance(producto_id, int) or producto_id <= 0:
+        raise ValidationError("El campo 'productoId' debe ser un entero positivo")
     
     # Verificar si ya existe un inventario para este producto en esta ubicación
     existente = Inventario.query.filter_by(
         producto_id=producto_id,
-        ubicacion="111111"
+        ubicacion=ubicacion
     ).first()
     
     if existente:
@@ -58,10 +65,31 @@ def crear_inventario(payload: Dict[str, Any]) -> Dict[str, Any]:
         )
         db.session.add(inventario)
         db.session.commit()
+        
+        # Encolar actualización de cache
+        RedisQueueService.enqueue_cache_update(
+            producto_id=producto_id,
+            action='create',
+            data=_to_dict(inventario)
+        )
+        
+        logger.info(f"✅ Inventario creado: {inventario.id}")
         return _to_dict(inventario)
     except IntegrityError as e:
         db.session.rollback()
-        raise ConflictError(f"Error de integridad al crear inventario: {str(e)}")
+        error_msg = str(e.orig) if hasattr(e, 'orig') else str(e)
+        
+        # Detectar error de Foreign Key (producto no existe)
+        if 'foreign key constraint' in error_msg.lower() or 'fk_' in error_msg.lower():
+            raise NotFoundError(f"El producto con ID '{producto_id}' no existe")
+        
+        # Detectar error de constraint único (ya existe inventario en esa ubicación)
+        if 'unique constraint' in error_msg.lower() or 'uq_producto_ubicacion' in error_msg.lower():
+            raise ConflictError(
+                f"Ya existe un inventario para el producto '{producto_id}' en la ubicación '{ubicacion}'"
+            )
+        
+        raise ConflictError(f"Error de integridad: {error_msg}")
     except Exception as e:
         db.session.rollback()
         raise ValidationError(f"Error al crear inventario: {str(e)}")
@@ -132,7 +160,10 @@ def actualizar_inventario(inventario_id: str, payload: Dict[str, Any]) -> Dict[s
     
     if "productoId" in payload:
         producto_id = payload["productoId"]
-        length_between(producto_id, 1, 100, "productoId")
+        
+        # producto_id debe ser un entero positivo
+        if not isinstance(producto_id, int) or producto_id <= 0:
+            raise ValidationError("El campo 'productoId' debe ser un entero positivo")
         
         # Verificar que no exista otro inventario con el nuevo producto en la misma ubicación
         if producto_id != inventario.producto_id:
@@ -154,10 +185,31 @@ def actualizar_inventario(inventario_id: str, payload: Dict[str, Any]) -> Dict[s
     
     try:
         db.session.commit()
+        
+        # Encolar actualización de cache
+        RedisQueueService.enqueue_cache_update(
+            producto_id=inventario.producto_id,
+            action='update',
+            data=_to_dict(inventario)
+        )
+        
+        logger.info(f"✅ Inventario actualizado: {inventario_id}")
         return _to_dict(inventario)
     except IntegrityError as e:
         db.session.rollback()
-        raise ConflictError(f"Error de integridad al actualizar inventario: {str(e)}")
+        error_msg = str(e.orig) if hasattr(e, 'orig') else str(e)
+        
+        # Detectar error de Foreign Key (producto no existe)
+        if 'foreign key constraint' in error_msg.lower() or 'fk_' in error_msg.lower():
+            raise NotFoundError(f"El producto con ID '{payload.get('productoId')}' no existe")
+        
+        # Detectar error de constraint único
+        if 'unique constraint' in error_msg.lower() or 'uq_producto_ubicacion' in error_msg.lower():
+            raise ConflictError(
+                f"Ya existe un inventario para ese producto en la ubicación especificada"
+            )
+        
+        raise ConflictError(f"Error de integridad: {error_msg}")
     except Exception as e:
         db.session.rollback()
         raise ValidationError(f"Error al actualizar inventario: {str(e)}")
@@ -170,9 +222,20 @@ def eliminar_inventario(inventario_id: str) -> None:
     if not inventario:
         raise NotFoundError(f"Inventario con ID '{inventario_id}' no encontrado")
     
+    producto_id = inventario.producto_id  # Guardar antes de eliminar
+    
     try:
         db.session.delete(inventario)
         db.session.commit()
+        
+        # Encolar actualización de cache
+        RedisQueueService.enqueue_cache_update(
+            producto_id=producto_id,
+            action='delete',
+            data={'inventarioId': inventario_id}
+        )
+        
+        logger.info(f"✅ Inventario eliminado: {inventario_id}")
     except Exception as e:
         db.session.rollback()
         raise ValidationError(f"Error al eliminar inventario: {str(e)}")
@@ -200,6 +263,19 @@ def ajustar_cantidad(inventario_id: str, ajuste: int, usuario: Optional[str] = N
     
     try:
         db.session.commit()
+        
+        # Encolar actualización de cache
+        RedisQueueService.enqueue_cache_update(
+            producto_id=inventario.producto_id,
+            action='adjust',
+            data={
+                'inventarioId': inventario_id,
+                'ajuste': ajuste,
+                'nuevaCantidad': nueva_cantidad
+            }
+        )
+        
+        logger.info(f"✅ Cantidad ajustada: {inventario_id} ({ajuste:+d})")
         return _to_dict(inventario)
     except Exception as e:
         db.session.rollback()

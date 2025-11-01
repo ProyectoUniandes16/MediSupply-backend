@@ -1,17 +1,19 @@
 from . import db
+import uuid
 
 class Inventario(db.Model):
     __tablename__ = "inventarios"
 
-    id = db.Column(db.String(36), primary_key=True)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     
-    # Clave foránea a la tabla productos
-    # En desarrollo local sin relación estricta, en producción con FK real
+    # Foreign Key a la tabla productos (misma base de datos compartida)
+    # ondelete='RESTRICT' previene borrar productos con inventario
+    # onupdate='CASCADE' actualiza automáticamente si cambia el ID del producto
     producto_id = db.Column(
-        db.String(100), 
-        db.ForeignKey('productos.id', ondelete='CASCADE', onupdate='CASCADE'),
+        db.Integer,  # Mismo tipo que productos.id
+        db.ForeignKey('productos.id', ondelete='RESTRICT', onupdate='CASCADE'),
         nullable=False,
-        index=True  # Índice para mejorar búsquedas
+        index=True
     )
     
     cantidad = db.Column(db.Integer, nullable=False)

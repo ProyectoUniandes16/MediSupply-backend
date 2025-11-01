@@ -10,7 +10,6 @@ def crear_inventario():
     """Crea un nuevo inventario."""
     try:
         data = request.get_json()
-        data.ubicacion = "111111"
         resultado = inventarios_service.crear_inventario(data)
         return jsonify(resultado), 201
     except ValidationError as e:
