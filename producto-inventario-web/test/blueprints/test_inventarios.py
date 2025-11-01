@@ -22,11 +22,11 @@ def test_inventarios_read_endpoints(client, mocker):
     )
     mocker.patch('src.blueprints.inventarios.InventariosService.get_total_disponible', return_value=5)
 
-    response = client.get('/api/productos/123/inventarios')
+    response = client.get('/productos/123/inventarios')
     assert response.status_code == 200
     assert response.get_json()['totalCantidad'] == 3
 
-    response = client.get('/api/productos/123/disponible')
+    response = client.get('/productos/123/disponible')
     assert response.status_code == 200
     assert response.get_json()['totalDisponible'] == 5
 
@@ -34,32 +34,32 @@ def test_inventarios_read_endpoints(client, mocker):
     cache_instance.is_available.return_value = True
     cache_factory = mocker.patch('src.services.cache_client.CacheClient', return_value=cache_instance)
 
-    response = client.get('/api/health/cache')
+    response = client.get('/health/cache')
     assert response.status_code == 200
     assert response.get_json()['cache'] == 'available'
 
     cache_instance.is_available.return_value = False
-    response = client.get('/api/health/cache')
+    response = client.get('/health/cache')
     assert response.status_code == 503
     assert response.get_json()['cache'] == 'unavailable'
 
     cache_factory.side_effect = Exception('boom')
-    response = client.get('/api/health/cache')
+    response = client.get('/health/cache')
     assert response.status_code == 500
     assert response.get_json()['cache'] == 'error'
 
 
 def test_inventarios_input_validation(client):
-    response = client.post('/api/inventarios', data='{}', content_type='application/json')
+    response = client.post('/inventarios', data='{}', content_type='application/json')
     assert response.status_code == 400
 
-    response = client.put('/api/inventarios/abc', data='{}', content_type='application/json')
+    response = client.put('/inventarios/abc', data='{}', content_type='application/json')
     assert response.status_code == 400
 
-    response = client.post('/api/inventarios/abc/ajustar', json={'usuario': 'tester'})
+    response = client.post('/inventarios/abc/ajustar', json={'usuario': 'tester'})
     assert response.status_code == 400
 
-    response = client.post('/api/inventarios/abc/ajustar', json={'ajuste': 'no-int', 'usuario': 'tester'})
+    response = client.post('/inventarios/abc/ajustar', json={'ajuste': 'no-int', 'usuario': 'tester'})
     assert response.status_code == 400
 
 
@@ -69,11 +69,11 @@ def test_inventarios_write_operations(client, mocker):
         side_effect=[{'id': 'inv-1'}, Exception('ya existe inventario')]
     )
 
-    response = client.post('/api/inventarios', json={'productoId': '1', 'cantidad': 5})
+    response = client.post('/inventarios', json={'productoId': '1', 'cantidad': 5})
     assert response.status_code == 201
     assert response.get_json()['id'] == 'inv-1'
 
-    response = client.post('/api/inventarios', json={'productoId': '1', 'cantidad': 5})
+    response = client.post('/inventarios', json={'productoId': '1', 'cantidad': 5})
     assert response.status_code == 400
     assert 'Error' in response.get_json()['error']
     crear_mock.assert_called()
@@ -83,17 +83,17 @@ def test_inventarios_write_operations(client, mocker):
         side_effect=[{'id': 'inv-1', 'cantidad': 7}, Exception('no encontrado'), Exception('ya existe'), Exception('otra cosa')]
     )
 
-    response = client.put('/api/inventarios/inv-1', json={'cantidad': 7})
+    response = client.put('/inventarios/inv-1', json={'cantidad': 7})
     assert response.status_code == 200
     assert response.get_json()['cantidad'] == 7
 
-    response = client.put('/api/inventarios/inv-1', json={'cantidad': 7})
+    response = client.put('/inventarios/inv-1', json={'cantidad': 7})
     assert response.status_code == 404
 
-    response = client.put('/api/inventarios/inv-1', json={'cantidad': 7})
+    response = client.put('/inventarios/inv-1', json={'cantidad': 7})
     assert response.status_code == 400
 
-    response = client.put('/api/inventarios/inv-1', json={'cantidad': 7})
+    response = client.put('/inventarios/inv-1', json={'cantidad': 7})
     assert response.status_code == 500
     actualizar_mock.assert_called()
 
@@ -102,13 +102,13 @@ def test_inventarios_write_operations(client, mocker):
         side_effect=[True, Exception('no encontrado'), Exception('error grave')]
     )
 
-    response = client.delete('/api/inventarios/inv-1', json={'usuario': 'tester'})
+    response = client.delete('/inventarios/inv-1', json={'usuario': 'tester'})
     assert response.status_code == 200
 
-    response = client.delete('/api/inventarios/inv-1', json={'usuario': 'tester'})
+    response = client.delete('/inventarios/inv-1', json={'usuario': 'tester'})
     assert response.status_code == 404
 
-    response = client.delete('/api/inventarios/inv-1', json={'usuario': 'tester'})
+    response = client.delete('/inventarios/inv-1', json={'usuario': 'tester'})
     assert response.status_code == 500
     eliminar_mock.assert_called()
 
@@ -117,16 +117,16 @@ def test_inventarios_write_operations(client, mocker):
         side_effect=[{'cantidad': 10}, Exception('no encontrado'), Exception('negativa'), Exception('error generico')]
     )
 
-    response = client.post('/api/inventarios/inv-1/ajustar', json={'ajuste': 3, 'usuario': 'tester'})
+    response = client.post('/inventarios/inv-1/ajustar', json={'ajuste': 3, 'usuario': 'tester'})
     assert response.status_code == 200
     assert response.get_json()['cantidad'] == 10
 
-    response = client.post('/api/inventarios/inv-1/ajustar', json={'ajuste': 3, 'usuario': 'tester'})
+    response = client.post('/inventarios/inv-1/ajustar', json={'ajuste': 3, 'usuario': 'tester'})
     assert response.status_code == 404
 
-    response = client.post('/api/inventarios/inv-1/ajustar', json={'ajuste': 3, 'usuario': 'tester'})
+    response = client.post('/inventarios/inv-1/ajustar', json={'ajuste': 3, 'usuario': 'tester'})
     assert response.status_code == 400
 
-    response = client.post('/api/inventarios/inv-1/ajustar', json={'ajuste': 3, 'usuario': 'tester'})
+    response = client.post('/inventarios/inv-1/ajustar', json={'ajuste': 3, 'usuario': 'tester'})
     assert response.status_code == 500
     ajustar_mock.assert_called()
