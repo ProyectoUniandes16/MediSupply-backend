@@ -26,7 +26,7 @@ def token(app):
         return create_access_token(identity='test-user')
 
 def test_consultar_productos_endpoint():
-    """Test para el endpoint GET /producto que verifica que devuelve los datos provistos por el servicio externo."""
+    """GET /productos debe devolver lo que retorne get_productos_con_inventarios"""
     from src import create_app
 
     app = create_app()
@@ -41,36 +41,38 @@ def test_consultar_productos_endpoint():
         'Content-Type': 'application/json'
     }
 
-    expected = {'items': [{'id': 1, 'nombre': 'Producto A'}], 'total': 1}
+    expected = {
+        'data': [{'id': 1, 'nombre': 'Producto A', 'inventarios': [], 'totalInventario': 0, 'inventariosSource': 'cache'}],
+        'total': 1,
+        'source': 'cache'
+    }
 
-    # Parchear la función que consulta el microservicio externo EN EL MÓDULO DEL BLUEPRINT
-    with patch('src.blueprints.producto.consultar_productos_externo', return_value=expected) as mock_consulta:
-        resp = client.get('/producto', headers=headers)
+    # Parchear la función que agrega inventarios EN EL MÓDULO DEL BLUEPRINT
+    with patch('src.blueprints.producto.get_productos_con_inventarios', return_value=expected) as mock_agregado:
+        resp = client.get('/productos', headers=headers)
 
     assert resp.status_code == 200
     data = resp.get_json()
-    assert 'data' in data
-    # verificar que los items vienen en la respuesta (evita fallar si hay campos adicionales)
-    assert data['data'].get('items') == expected['items']
-    # asegurar que se llamó con los parámetros de query (puede ser vacío)
-    mock_consulta.assert_called()
+    assert data == expected
+    mock_agregado.assert_called()
 
 
 def test_consultar_productos_service_error(mocker, client, token):
-    """Si el servicio externo lanza ProductoServiceError, el blueprint debe propagar su contenido y status."""
-    err = ProductoServiceError({'error': 'servicio caido', 'codigo': 'ERR_SERV'}, 503)
-    mocker.patch('src.blueprints.producto.consultar_productos_externo', side_effect=err)
+    """Si get_productos_con_inventarios lanza InventarioServiceError, el blueprint debe propagar su contenido y status."""
+    from src.services.inventarios import InventarioServiceError
+    err = InventarioServiceError({'error': 'servicio caido', 'codigo': 'ERR_SERV'}, 503)
+    mocker.patch('src.blueprints.producto.get_productos_con_inventarios', side_effect=err)
 
-    resp = client.get('/producto', headers={'Authorization': f'Bearer {token}'})
+    resp = client.get('/productos', headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 503
     assert resp.get_json() == {'error': 'servicio caido', 'codigo': 'ERR_SERV'}
 
 
 def test_consultar_productos_unexpected_exception(mocker, client, token):
     """Si ocurre una excepción no controlada, retornar 500 con codigo ERROR_INESPERADO."""
-    mocker.patch('src.blueprints.producto.consultar_productos_externo', side_effect=Exception('boom'))
+    mocker.patch('src.blueprints.producto.get_productos_con_inventarios', side_effect=Exception('boom'))
 
-    resp = client.get('/producto', headers={'Authorization': f'Bearer {token}'})
+    resp = client.get('/productos', headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 500
     data = resp.get_json()
     assert data.get('codigo') == 'ERROR_INESPERADO'

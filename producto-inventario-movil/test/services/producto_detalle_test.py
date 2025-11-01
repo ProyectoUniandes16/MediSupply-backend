@@ -52,7 +52,8 @@ class TestObtenerDetalleProductoExterno:
 
         # Assert
         assert result == expected_data
-        mock_get.assert_called_once_with('http://localhost:5008/api/productos/1')
+        from src.config.config import Config as CFG
+        mock_get.assert_called_once_with(f"{CFG.PRODUCTO_URL}/api/productos/1")
 
     @patch('src.services.productos.requests.get')
     def test_obtener_detalle_producto_no_encontrado(self, mock_get, app):
@@ -130,7 +131,8 @@ class TestObtenerProductoPorSkuExterno:
 
         # Assert
         assert result == expected_data
-        mock_get.assert_called_once_with('http://localhost:5008/api/productos/sku/TEST-001')
+        from src.config.config import Config as CFG
+        mock_get.assert_called_once_with(f"{CFG.PRODUCTO_URL}/api/productos/sku/TEST-001")
 
     @patch('src.services.productos.requests.get')
     def test_obtener_por_sku_no_encontrado(self, mock_get, app):

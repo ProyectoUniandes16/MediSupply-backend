@@ -13,7 +13,7 @@ from src.services.inventarios import (
 )
 
 # Crear el blueprint para producto
-producto_bp = Blueprint('producto', __name__, url_prefix='/api')
+producto_bp = Blueprint('producto', __name__)
 
 @producto_bp.route('/productos', methods=['GET'])
 @jwt_required()
