@@ -393,6 +393,9 @@ services:
       - PORT=5005
       - AUTH_URL=http://auth-usuario:5001
       - PRODUCTO_URL=http://productos:5008
+      - INVENTARIOS_URL=http://inventarios:5009
+      - REDIS_SERVICE_URL=http://redis_service:5011
+      - CACHE_DEFAULT_TTL=3600
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-jwt-secret-key-change-in-production}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
       - DEBUG=False
@@ -400,6 +403,10 @@ services:
       auth-usuario:
         condition: service_healthy
       productos:
+        condition: service_healthy
+      inventarios:
+        condition: service_healthy
+      redis_service:
         condition: service_healthy
     networks:
       - medisupply-network

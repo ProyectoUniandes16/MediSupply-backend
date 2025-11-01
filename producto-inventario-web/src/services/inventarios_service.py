@@ -334,9 +334,10 @@ class InventariosService:
 
             raw_data = response.json()
             if isinstance(raw_data, dict):
-                productos = raw_data.get('data') or raw_data.get('productos') or raw_data.get('items') or []
+                # El microservicio de productos devuelve: {"productos": [...], "paginacion": {...}}
+                productos = raw_data.get('productos', [])
             else:
-                productos = raw_data
+                productos = raw_data if isinstance(raw_data, list) else []
 
             if not isinstance(productos, list):
                 logger.warning("⚠️ La respuesta de productos no es una lista, se devolverá vacía")
@@ -351,13 +352,33 @@ class InventariosService:
         cache_client = InventariosService._get_cache_client()
         resultado: List[Dict[str, Any]] = []
 
+        logger.info(f"🔍 DEBUG - Tipo de productos: {type(productos)}")
+        logger.info(f"🔍 DEBUG - Cantidad de productos: {len(productos)}")
+        if productos:
+            logger.info(f"🔍 DEBUG - Primer producto tipo: {type(productos[0])}")
+            logger.info(f"🔍 DEBUG - Primer producto: {productos[0]}")
+
         for producto in productos:
-            producto_id = producto.get('id')
+            if isinstance(producto, dict):
+                producto_dict = producto
+            else:
+                logger.warning(f"⚠️ Entrada de producto inválida (no dict), se omite: {producto}")
+                continue
+
+            producto_id = producto_dict.get('id')
             if producto_id is None:
                 logger.warning(f"⚠️ Producto sin ID, se omite: {producto}")
                 continue
 
             inventarios = cache_client.get_inventarios_by_producto(str(producto_id))
+            
+            # Debug: verificar tipo de inventarios del cache
+            if inventarios is not None:
+                logger.info(f"🔍 Inventarios del cache - tipo: {type(inventarios)}, valor: {inventarios}")
+                # Validar que inventarios sea una lista
+                if not isinstance(inventarios, list):
+                    logger.warning(f"⚠️ Inventarios del cache no es una lista (es {type(inventarios)}), se consultará microservicio")
+                    inventarios = None
 
             if inventarios is None:
                 try:
@@ -369,6 +390,10 @@ class InventariosService:
                     if inv_resp.status_code == 200:
                         inv_body = inv_resp.json()
                         inventarios = inv_body.get('inventarios', []) if isinstance(inv_body, dict) else inv_body
+                        # Asegurar que sea una lista
+                        if not isinstance(inventarios, list):
+                            logger.warning(f"⚠️ Respuesta de inventarios no es lista para producto {producto_id}")
+                            inventarios = []
                     else:
                         logger.warning(f"⚠️ Inventarios no disponibles para producto {producto_id}")
                         inventarios = []
@@ -376,10 +401,13 @@ class InventariosService:
                     logger.error(f"❌ Error obteniendo inventarios para producto {producto_id}: {e}")
                     inventarios = []
 
-            total_inventario = sum(inv.get('cantidad', 0) for inv in (inventarios or []))
+            total_inventario = sum(
+                inv.get('cantidad', 0) if isinstance(inv, dict) else 0 
+                for inv in (inventarios or [])
+            )
 
             resultado.append({
-                **producto,
+                **producto_dict,
                 'inventarios': inventarios or [],
                 'totalInventario': total_inventario
             })

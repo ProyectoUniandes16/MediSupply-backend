@@ -4,23 +4,27 @@ import io
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.services.productos import ProductoServiceError
 from src.services.productos import (
-    consultar_productos_externo,
     obtener_detalle_producto_externo,
     obtener_producto_por_sku_externo
 )
+from src.services.inventarios import (
+    InventarioServiceError,
+    get_productos_con_inventarios
+)
 
-# Crear el blueprint para prod  ucto
-producto_bp = Blueprint('producto', __name__)
+# Crear el blueprint para producto
+producto_bp = Blueprint('producto', __name__, url_prefix='/api')
 
-@producto_bp.route('/producto', methods=['GET'])
+@producto_bp.route('/productos', methods=['GET'])
 @jwt_required()
 def consultar_productos():
     try:
-        # Lógica para consultar productos (a implementar)
-        productos = consultar_productos_externo(request.args)
-        return jsonify({'data': productos}), 200
+        params = request.args.to_dict(flat=True) or None
+        resultado = get_productos_con_inventarios(params)
+        return jsonify(resultado), 200
     except ProductoServiceError as e:
-        # Retornar contenido y código del error personalizado
+        return jsonify(e.message), e.status_code
+    except InventarioServiceError as e:
         return jsonify(e.message), e.status_code
     except Exception:
         # Retornar error genérico como JSON con status 500
