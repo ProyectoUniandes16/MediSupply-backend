@@ -92,6 +92,7 @@ def get_planes_venta():
         - vendedor_id: Filtrar por vendedor
         - periodo: Filtrar por periodo (YYYY-MM)
         - estado: Filtrar por estado
+        - nombre_plan: Filtrar por nombre del plan (búsqueda parcial)
         - page: Número de página (default: 1)
         - size: Tamaño de página (default: 10)
         
@@ -102,6 +103,7 @@ def get_planes_venta():
         vendedor_id = request.args.get("vendedor_id")
         periodo = request.args.get("periodo")
         estado = request.args.get("estado")
+        nombre_plan = request.args.get("nombre_plan")
         page = int(request.args.get("page", 1))
         size = int(request.args.get("size", 10))
         
@@ -115,6 +117,7 @@ def get_planes_venta():
             vendedor_id=vendedor_id,
             periodo=periodo,
             estado=estado,
+            nombre_plan=nombre_plan,
             page=page,
             size=size
         )
