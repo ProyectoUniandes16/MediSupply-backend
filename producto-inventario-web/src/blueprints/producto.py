@@ -19,20 +19,27 @@ producto_bp = Blueprint('producto', __name__)
 @jwt_required()
 def crear_producto():
     """
-    Endpoint del BFF para crear un producto.
+    Endpoint del BFF para crear un producto con inventario automático.
     Delega la lógica de negocio al servicio de productos.
+    
+    Campos requeridos en form-data:
+    - nombre, codigo_sku, categoria, precio_unitario
+    - condiciones_almacenamiento, fecha_vencimiento, proveedor_id
+    - ubicacion (para inventario)
+    - cantidad_inicial (para inventario)
+    - certificacion (archivo)
     """
     try:   
         # Obtener datos del formulario
         data = request.form
         files = request.files        
-        # Crear producto usando el servicio
-        nuevo_producto = crear_producto_externo(data, files, get_jwt_identity())
+        # Crear producto e inventario usando el servicio (orquestación)
+        resultado = crear_producto_externo(data, files, get_jwt_identity())
         
-        # Responder con el producto creado
-        print(f"BLUEPRINT - Producto creado: {nuevo_producto}")
+        # Responder con producto e inventario creados
+        print(f"BLUEPRINT - Producto e inventario creados: {resultado}")
         return jsonify({
-            "data": nuevo_producto
+            "data": resultado
         }), 201
 
     except ProductoServiceError as e:

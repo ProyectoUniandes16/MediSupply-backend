@@ -1,0 +1,83 @@
+name: Test y cobertura para inventarios_microservice
+
+on:
+  pull_request:
+    branches:
+      - develop
+    paths:
+      - 'inventarios_microservice/**'
+
+jobs:
+  Test-inventarios-microservice:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_inventarios
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: inventarios_microservice
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-flask
+
+      - name: Ejecutar tests con cobertura
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_inventarios
+          REDIS_SERVICE_URL: http://localhost:5011
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          TESTING: true
+          SECRET_KEY: test-secret-key
+        run: |
+          pytest test/ \
+            --cov=app.models \
+            --cov=app.routes \
+            --cov=app.services \
+            --cov=app.utils \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-fail-under=70 \
+            -v
+
+      - name: Subir reporte de cobertura
+        if: always()
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./inventarios_microservice/coverage.xml
+          flags: inventarios-microservice
+          name: inventarios-microservice-coverage

@@ -1,0 +1,64 @@
+name: Test y cobertura para redis_service
+
+on:
+  pull_request:
+    branches:
+      - develop
+    paths:
+      - 'redis_service/**'
+
+jobs:
+  Test-redis-service:
+    runs-on: ubuntu-latest
+    
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: redis_service
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Ejecutar tests con cobertura
+        env:
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          REDIS_DB: 0
+          TESTING: true
+        run: |
+          pytest tests/ \
+            --cov=app.services \
+            --cov=app.routes \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-fail-under=50
+
+      - name: Subir reporte de cobertura
+        if: always()
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./redis_service/coverage.xml
+          flags: redis-service
+          name: redis-service-coverage

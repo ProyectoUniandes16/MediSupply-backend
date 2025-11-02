@@ -1,4 +1,4 @@
-from flask import Blueprint
+from flask import Blueprint, jsonify
 
 # Crear el blueprint para health check
 health_bp = Blueprint('health', __name__)
@@ -8,4 +8,4 @@ def health_check():
     """
     Health check endpoint - retorna 200 OK
     """
-    return '', 200
+    return jsonify({"status": "healthy", "service": "auth-usuario"}), 200

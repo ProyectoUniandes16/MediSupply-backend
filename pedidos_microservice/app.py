@@ -7,4 +7,4 @@ app = create_app(Config)
 
 if __name__ == '__main__':
     debug = os.environ.get('DEBUG', 'True').lower() == 'true'
-    app.run(host='0.0.0.0', port=5011, debug=debug)
+    app.run(host='0.0.0.0', port=5012, debug=debug)

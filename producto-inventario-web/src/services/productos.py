@@ -14,16 +14,17 @@ class ProductoServiceError(Exception):
 def crear_producto_externo(datos_producto, files, user_id):
     """
     Lógica de negocio para crear un producto a través del microservicio externo.
+    Ahora incluye creación automática de inventario.
 
     Args:
         datos_producto (dict): Datos del producto a crear.
         user_id (str): ID del usuario que realiza la creación.
         files (list): Archivos asociados al producto.
     Returns:
-        dict: Los datos del producto creado.
+        dict: Los datos del producto creado junto con el inventario creado.
 
     Raises:
-        VendedorServiceError: Si ocurre un error de validación, conexión o del microservicio.
+        ProductoServiceError: Si ocurre un error de validación, conexión o del microservicio.
     """
     if not datos_producto:
         raise ProductoServiceError({
@@ -39,7 +40,9 @@ def crear_producto_externo(datos_producto, files, user_id):
         'precio_unitario', 
         'condiciones_almacenamiento', 
         'fecha_vencimiento', 
-        'proveedor_id'
+        'proveedor_id',
+        'ubicacion',  # NUEVO: requerido para inventario
+        'cantidad_inicial'  # NUEVO: requerido para inventario
         ]
     missing_fields = [field for field in required_fields if not datos_producto.get(field)]
     if missing_fields:
@@ -49,9 +52,28 @@ def crear_producto_externo(datos_producto, files, user_id):
             },
               400)
     
+    # Validar que cantidad_inicial sea un número válido
+    try:
+        cantidad_inicial = int(datos_producto.get('cantidad_inicial'))
+        if cantidad_inicial < 0:
+            raise ValueError("La cantidad inicial no puede ser negativa")
+    except (ValueError, TypeError) as e:
+        raise ProductoServiceError({
+            'error': f'La cantidad_inicial debe ser un número entero válido no negativo',
+            'codigo': 'CANTIDAD_INVALIDA'
+        }, 400)
+    
+    # Extraer campos de inventario antes de crear el producto
+    ubicacion = datos_producto.get('ubicacion')
+    
     data = datos_producto.copy()
     data['usuario_registro'] = user_id
+    # Usar cantidad_inicial como cantidad_disponible para el producto
+    data['cantidad_disponible'] = cantidad_inicial
 
+    # Remover campos de inventario del payload de producto
+    data.pop('ubicacion', None)
+    data.pop('cantidad_inicial', None)
 
     _files = {}
     if 'certificacion' in files:
@@ -60,9 +82,9 @@ def crear_producto_externo(datos_producto, files, user_id):
     else:
         raise ProductoServiceError({'error': 'No se proporcionaron archivos de certificación', 'codigo': 'ARCHIVOS_FALTANTES'}, 400)
 
-
     # --- Fin de la validación ---
 
+    # PASO 1: Crear el producto
     url_producto = config.PRODUCTO_URL + '/api/productos'
     response = requests.post(
         url_producto,
@@ -76,8 +98,49 @@ def crear_producto_externo(datos_producto, files, user_id):
         except Exception:
             error_data = {'error': response.text, 'codigo': 'ERROR_INESPERADO'}
         raise ProductoServiceError(error_data, response.status_code)
+    
     datos_respuesta = response.json()
-    return datos_respuesta
+    
+    # El microservicio devuelve: {"mensaje": "...", "producto": {...}}
+    producto_creado = datos_respuesta.get('producto', datos_respuesta)
+    producto_id = producto_creado.get('id')
+    
+    if not producto_id:
+        current_app.logger.error(f"Respuesta del microservicio sin ID: {datos_respuesta}")
+        raise ProductoServiceError({
+            'error': 'El producto fue creado pero no se obtuvo su ID',
+            'codigo': 'PRODUCTO_SIN_ID'
+        }, 500)
+    
+    # PASO 2: Crear el inventario usando InventariosService
+    try:
+        from src.services.inventarios_service import InventariosService
+        
+        inventario_data = {
+            'productoId': producto_id,  # camelCase como espera el microservicio
+            'cantidad': cantidad_inicial,
+            'ubicacion': ubicacion,
+            'usuario': user_id  # 'usuario' en lugar de 'usuario_creacion'
+        }
+        
+        inventario_creado = InventariosService.crear_inventario(inventario_data)
+        
+        # Retornar ambos: producto e inventario
+        return {
+            'producto': producto_creado,
+            'inventario': inventario_creado
+        }
+        
+    except Exception as e:
+        # Si falla la creación del inventario, loguear el error
+        # El producto ya fue creado, así que no podemos hacer rollback
+        # El usuario podría crear el inventario manualmente después
+        current_app.logger.error(f"❌ Error creando inventario para producto {producto_id}: {str(e)}")
+        raise ProductoServiceError({
+            'error': f'El producto fue creado exitosamente, pero falló la creación del inventario: {str(e)}',
+            'codigo': 'ERROR_INVENTARIO',
+            'producto_id': producto_id
+        }, 500)
         
 
 def procesar_producto_batch(file_storage, user_id):
