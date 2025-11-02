@@ -11,7 +11,7 @@ class Config:
     
     # Configuración del servidor
     HOST = '0.0.0.0'
-    PORT = 5011
+    PORT = 5012
     
     # Configuración de base de datos PostgreSQL
     DB_HOST = os.environ.get('DB_HOST', 'localhost')

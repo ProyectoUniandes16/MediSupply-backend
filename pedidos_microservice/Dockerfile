@@ -15,12 +15,12 @@ RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir
 COPY . .
 
 # Exponer puerto
-EXPOSE 5011
+EXPOSE 5012
 
 # Variables de entorno
 ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
-ENV PORT=5010
+ENV PORT=5012
 
 # Comando para ejecutar la aplicación
-CMD ["python", "-m", "gunicorn", "--bind", "0.0.0.0:5011", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "app:app"]
+CMD ["python", "-m", "gunicorn", "--bind", "0.0.0.0:5012", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "app:app"]

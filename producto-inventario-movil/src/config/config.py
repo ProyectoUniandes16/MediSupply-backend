@@ -17,6 +17,8 @@ class Config:
     PRODUCTO_URL = os.environ.get('PRODUCTO_URL', 'http://localhost:5008')
     INVENTARIOS_URL = os.environ.get('INVENTARIOS_URL', 'http://localhost:5009')
     REDIS_SERVICE_URL = os.environ.get('REDIS_SERVICE_URL', 'http://localhost:5011')
+    VENDEDORES_URL = os.environ.get('VENDEDORES_URL', 'http://localhost:5007')
+    PEDIDOS_URL = os.environ.get('PEDIDOS_URL', 'http://localhost:5012')
     CACHE_DEFAULT_TTL = int(os.environ.get('CACHE_DEFAULT_TTL', 300))
     
     # Configuración de JWT (debe coincidir con auth-usuario)
