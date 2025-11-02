@@ -35,7 +35,7 @@ def test_listar_productos_aggregated_ok(client, token, monkeypatch):
 
     monkeypatch.setattr('src.blueprints.producto.get_productos_con_inventarios', lambda params=None: expected)
 
-    resp = client.get('/productos', headers={'Authorization': f'Bearer {token}'})
+    resp = client.get('/producto', headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 200
     data = resp.get_json()
     assert data == expected
@@ -47,11 +47,11 @@ def test_listar_productos_aggregated_propagates_domain_errors(client, token, mon
 
     monkeypatch.setattr('src.blueprints.producto.get_productos_con_inventarios', lambda params=None: (_ for _ in ()).throw(err))
 
-    resp = client.get('/productos', headers={'Authorization': f'Bearer {token}'})
+    resp = client.get('/producto', headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 503
     assert resp.get_json()['codigo'] == 'ERROR_CONEXION'
 
 
 def test_listar_productos_requires_auth(client):
-    resp = client.get('/productos')
+    resp = client.get('/producto')
     assert resp.status_code == 401

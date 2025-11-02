@@ -15,7 +15,7 @@ from src.services.inventarios import (
 # Crear el blueprint para producto
 producto_bp = Blueprint('producto', __name__)
 
-@producto_bp.route('/productos', methods=['GET'])
+@producto_bp.route('/producto', methods=['GET'])
 @jwt_required()
 def consultar_productos():
     try:

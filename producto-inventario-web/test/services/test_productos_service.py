@@ -73,7 +73,9 @@ def test_producto_service_creacion_y_batch(app, mocker):
             'precio_unitario': '10',
             'condiciones_almacenamiento': 'Seco',
             'fecha_vencimiento': '2026-01-01',
-            'proveedor_id': '5'
+            'proveedor_id': '5',
+            'ubicacion': 'Almacen A',
+            'cantidad_inicial': '100'
         }
 
         with pytest.raises(ProductoServiceError) as exc:
@@ -84,9 +86,37 @@ def test_producto_service_creacion_y_batch(app, mocker):
             crear_producto_externo(datos, {}, 'user')
         assert exc.value.status_code == 400
 
+        # Test creación exitosa con inventario automático
+        inventario_creado_mock = mocker.patch('src.services.inventarios_service.InventariosService.crear_inventario', 
+                                              return_value={'id': 10, 'producto_id': 1, 'cantidad': 100, 'ubicacion': 'Almacen A'})
         post_mock.side_effect = [success_resp]
         result = crear_producto_externo(datos, {'certificacion': DummyFile()}, 'user')
-        assert result['id'] == 1
+        assert result['producto']['id'] == 1
+        assert result['inventario']['id'] == 10
+        assert result['inventario']['cantidad'] == 100
+
+        # Test error cuando falta ubicacion
+        datos_sin_ubicacion = datos.copy()
+        datos_sin_ubicacion.pop('ubicacion')
+        with pytest.raises(ProductoServiceError) as exc:
+            crear_producto_externo(datos_sin_ubicacion, {'certificacion': DummyFile()}, 'user')
+        assert exc.value.status_code == 400
+        assert 'ubicacion' in exc.value.message['error'].lower()
+
+        # Test error cuando falta cantidad_inicial
+        datos_sin_cantidad = datos.copy()
+        datos_sin_cantidad.pop('cantidad_inicial')
+        with pytest.raises(ProductoServiceError) as exc:
+            crear_producto_externo(datos_sin_cantidad, {'certificacion': DummyFile()}, 'user')
+        assert exc.value.status_code == 400
+
+        # Test error cuando cantidad_inicial es inválida
+        datos_cantidad_invalida = datos.copy()
+        datos_cantidad_invalida['cantidad_inicial'] = 'abc'
+        with pytest.raises(ProductoServiceError) as exc:
+            crear_producto_externo(datos_cantidad_invalida, {'certificacion': DummyFile()}, 'user')
+        assert exc.value.status_code == 400
+        assert 'cantidad_inicial' in exc.value.message['error'].lower()
 
         post_mock.side_effect = [conflict_resp]
         with pytest.raises(ProductoServiceError) as exc:

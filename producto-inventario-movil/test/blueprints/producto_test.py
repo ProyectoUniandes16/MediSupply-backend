@@ -49,7 +49,7 @@ def test_consultar_productos_endpoint():
 
     # Parchear la función que agrega inventarios EN EL MÓDULO DEL BLUEPRINT
     with patch('src.blueprints.producto.get_productos_con_inventarios', return_value=expected) as mock_agregado:
-        resp = client.get('/productos', headers=headers)
+        resp = client.get('/producto', headers=headers)
 
     assert resp.status_code == 200
     data = resp.get_json()
@@ -63,7 +63,7 @@ def test_consultar_productos_service_error(mocker, client, token):
     err = InventarioServiceError({'error': 'servicio caido', 'codigo': 'ERR_SERV'}, 503)
     mocker.patch('src.blueprints.producto.get_productos_con_inventarios', side_effect=err)
 
-    resp = client.get('/productos', headers={'Authorization': f'Bearer {token}'})
+    resp = client.get('/producto', headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 503
     assert resp.get_json() == {'error': 'servicio caido', 'codigo': 'ERR_SERV'}
 
@@ -72,7 +72,7 @@ def test_consultar_productos_unexpected_exception(mocker, client, token):
     """Si ocurre una excepción no controlada, retornar 500 con codigo ERROR_INESPERADO."""
     mocker.patch('src.blueprints.producto.get_productos_con_inventarios', side_effect=Exception('boom'))
 
-    resp = client.get('/productos', headers={'Authorization': f'Bearer {token}'})
+    resp = client.get('/producto', headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 500
     data = resp.get_json()
     assert data.get('codigo') == 'ERROR_INESPERADO'
