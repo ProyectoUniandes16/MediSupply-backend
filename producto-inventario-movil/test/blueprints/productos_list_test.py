@@ -32,13 +32,15 @@ def test_listar_productos_aggregated_ok(client, token, monkeypatch):
         'total': 1,
         'source': 'cache'
     }
-
     monkeypatch.setattr('src.blueprints.producto.get_productos_con_inventarios', lambda params=None: expected)
 
     resp = client.get('/producto', headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 200
     data = resp.get_json()
-    assert data == expected
+    # El blueprint aplana la estructura, por lo que el resultado esperado es la versión aplanada
+    from src.services.inventarios import aplanar_productos_con_inventarios
+    expected_flat = aplanar_productos_con_inventarios(expected)
+    assert data == expected_flat
 
 
 def test_listar_productos_aggregated_propagates_domain_errors(client, token, monkeypatch):

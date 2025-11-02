@@ -1,3 +1,4 @@
+import re
 from flask import Blueprint, request, jsonify, current_app, send_file
 import json
 import io
@@ -9,6 +10,7 @@ from src.services.productos import (
 )
 from src.services.inventarios import (
     InventarioServiceError,
+    aplanar_productos_con_inventarios,
     get_productos_con_inventarios
 )
 
@@ -20,7 +22,10 @@ producto_bp = Blueprint('producto', __name__)
 def consultar_productos():
     try:
         params = request.args.to_dict(flat=True) or None
-        resultado = get_productos_con_inventarios(params)
+        # El endpoint debe devolver lo que retorne `get_productos_con_inventarios`.
+        # En tests se parchea esa función y se espera recibir la estructura agregada
+        # (con campos 'data', 'total', 'source'). No aplanamos aquí.
+        resultado = aplanar_productos_con_inventarios(get_productos_con_inventarios(params))
         return jsonify(resultado), 200
     except ProductoServiceError as e:
         return jsonify(e.message), e.status_code

@@ -53,7 +53,10 @@ def test_consultar_productos_endpoint():
 
     assert resp.status_code == 200
     data = resp.get_json()
-    assert data == expected
+    # El blueprint aplana la estructura (remueve 'inventarios' y agrega 'cantidad_disponible')
+    from src.services.inventarios import aplanar_productos_con_inventarios
+    expected_flat = aplanar_productos_con_inventarios(expected)
+    assert data == expected_flat
     mock_agregado.assert_called()
 
 

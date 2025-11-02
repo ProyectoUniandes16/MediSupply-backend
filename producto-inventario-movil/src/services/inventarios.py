@@ -5,6 +5,7 @@ Redis Service como cache por producto.
 """
 from __future__ import annotations
 
+from calendar import c
 import logging
 from typing import Any, Dict, Iterable, List, MutableMapping, Optional
 
@@ -206,3 +207,161 @@ def get_productos_con_inventarios(params: Optional[MutableMapping[str, Any]] = N
         }
 
     return response
+
+def aplanar_productos_con_inventarios(data: Dict[str, Any]):
+    """Aplana la estructura de productos con inventarios para sólo retornar productos."""
+    productos = data.get('data', [])
+    resultado = []
+    for producto in productos:
+        if not isinstance(producto, MutableMapping):
+            continue
+        prod_copy = producto.copy()
+        # Remover campos de inventario
+        prod_copy.pop('inventarios', None)
+        prod_copy['cantidad_disponible'] = prod_copy.pop('totalInventario', 0)
+        resultado.append(prod_copy)
+    return {
+        'data': resultado,
+        'source': data.get('source', 'unknown')
+    }
+
+
+def actualizar_inventatrio_externo(producto_id: str, ajuste_cantidad: int) -> bool:
+    """
+    Actualiza el inventario de un producto en el microservicio de inventarios.
+
+    Args:
+        producto_id: ID del producto a actualizar.
+        ajuste_cantidad: Cantidad a ajustar (positiva o negativa).
+
+    Returns:
+        Diccionario con la respuesta del microservicio.
+    Raises:
+        InventarioServiceError: Si ocurre un error de conexión o del microservicio.
+    """
+    inventarios_data = _get_inventarios_by_producto(producto_id)
+    inventarios = inventarios_data.get('data', {}).get('inventarios', [])
+    if not inventarios:
+        raise InventarioServiceError({
+            'error': 'No se encontraron inventarios para el producto',
+            'codigo': 'INVENTARIOS_NO_ENCONTRADOS'
+        }, 404)
+    
+    for inventario in inventarios:
+        if inventario.get('cantidad') + ajuste_cantidad < 0:
+            raise InventarioServiceError({
+                'error': 'No hay suficiente inventario para realizar el ajuste',
+                'codigo': 'INVENTARIO_INSUFICIENTE'
+            }, 400)
+        _actualizar_inventario(str(inventario['id']), {'cantidad': inventario.get('cantidad', 0) + ajuste_cantidad})
+        return True
+    return False
+
+def _actualizar_inventario(inventario_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Actualiza un inventario existente (delega al microservicio).
+    
+    Args:
+        inventario_id: ID del inventario
+        data: Datos a actualizar
+    
+    Returns:
+        Inventario actualizado
+    """
+    try:
+        inventarios_url = current_app.config.get('INVENTARIOS_URL')
+        
+        response = requests.put(
+            f"{inventarios_url}/api/inventarios/{inventario_id}",
+            json=data,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            inventario = response.json()
+            logger.info(f"✅ Inventario actualizado: {inventario_id}")
+            return inventario
+        else:
+            error_data = response.json() if response.content else {}
+            error_msg = error_data.get('error', f'Error {response.status_code}')
+            logger.error(f"❌ Error actualizando inventario: {error_msg}")
+            raise Exception(error_msg)
+            
+    except requests.RequestException as e:
+        logger.error(f"❌ Error de conexión actualizando inventario: {e}")
+        raise Exception(f"Error de conexión: {str(e)}")
+    except Exception as e:
+        logger.error(f"❌ Error actualizando inventario: {e}")
+        raise Exception(f"Error actualizando inventario: {str(e)}")
+
+
+
+def _get_inventarios_by_producto(producto_id: str) -> Dict[str, Any]:
+    """
+    Obtiene inventarios de un producto (cache-first strategy).
+    
+    1. Intenta leer del cache
+    2. Si no está en cache, consulta el microservicio
+    
+    Args:
+        producto_id: ID del producto
+    
+    Returns:
+        Diccionario con inventarios y metadata
+    """
+    cache_client = CacheClient.from_app_config()
+    
+    # Intentar obtener del cache
+    inventarios = cache_client.get_inventarios_by_producto(producto_id)
+    source = 'cache'
+    current_app.logger.info(f"inventarios: {inventarios}")
+    
+    # Si no está en cache, consultar microservicio
+    if inventarios is None:
+        current_app.logger.info(f"📡 Consultando microservicio para producto {producto_id}")
+        inventarios = _get_from_microservice(producto_id)
+        source = 'microservice'
+    
+    # Calcular totales
+    total_cantidad = sum(inv.get('cantidad', 0) for inv in inventarios)
+    
+    return {
+        'data': {
+            'productoId': producto_id,
+            'inventarios': inventarios,
+            'total': len(inventarios),
+            'totalCantidad': total_cantidad,
+            'source': source  # Útil para debugging
+        }
+    }
+def _get_from_microservice(producto_id: str) -> List[Dict[str, Any]]:
+    """
+    Consulta inventarios directamente del microservicio (fallback).
+    
+    Args:
+        producto_id: ID del producto
+    
+    Returns:
+        Lista de inventarios
+    """
+    try:
+        inventarios_url = current_app.config.get('INVENTARIOS_URL')
+        
+        response = requests.get(
+            f"{inventarios_url}/api/inventarios",
+            params={'productoId': producto_id},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            inventarios = data.get('inventarios', [])
+            logger.info(f"✅ Inventarios obtenidos del microservicio: {len(inventarios)} items")
+            return inventarios
+        else:
+            logger.error(f"❌ Error consultando microservicio: {response.status_code}")
+            return []
+            
+    except Exception as e:
+        logger.error(f"❌ Error consultando microservicio de inventarios: {e}")
+        return []
