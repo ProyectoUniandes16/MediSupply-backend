@@ -360,6 +360,7 @@ def listar_planes_venta(
     vendedor_id: str = None,
     periodo: str = None,
     estado: str = None,
+    nombre_plan: str = None,
     page: int = 1,
     size: int = 10
 ) -> Dict[str, Any]:
@@ -372,6 +373,7 @@ def listar_planes_venta(
         vendedor_id: Filtrar por vendedor
         periodo: Filtrar por periodo
         estado: Filtrar por estado
+        nombre_plan: Filtrar por nombre del plan (búsqueda parcial)
         page: Página actual
         size: Tamaño de página
         
@@ -391,6 +393,10 @@ def listar_planes_venta(
     
     if estado:
         query = query.filter(PlanVenta.estado == estado)
+    
+    if nombre_plan:
+        # Búsqueda parcial case-insensitive usando LIKE/ILIKE
+        query = query.filter(PlanVenta.nombre_plan.ilike(f"%{nombre_plan}%"))
     
     # Ordenar por fecha de creación descendente
     query = query.order_by(PlanVenta.fecha_creacion.desc())
