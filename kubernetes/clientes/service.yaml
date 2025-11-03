@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: clientes
+  name: clientes-service
   namespace: medisupply
 spec:
   selector:

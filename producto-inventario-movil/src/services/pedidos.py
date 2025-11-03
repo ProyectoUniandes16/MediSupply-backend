@@ -51,8 +51,17 @@ def crear_pedido_externo(datos_pedido, vendedor_email):
 
         vendedor_id = venndedor_response['items'][0]['id']
 
-        # Crear pedido primero. Si falla la conexión con el microservicio de pedidos
-        # queremos propagar un error 503 (tests unitarios esperan este comportamiento).
+        # Actualizar inventario
+        resultado_validacion = validate_order_against_products(productos, get_productos_con_inventarios())
+        if not resultado_validacion['valid']:
+            raise PedidoServiceError({'error': 'Validación de productos fallida', 'detalles': resultado_validacion['errors']}, 400)
+        
+        for item in productos:
+            resultado_inventario = actualizar_inventatrio_externo(item['id'], -int(item.get('cantidad', 1)))
+            if not resultado_inventario:
+                raise PedidoServiceError({'error': 'Error al actualizar inventario', 'detalles': resultado_inventario.get('error')}, 500)
+            
+
         try:
             response = requests.post(
                 pedidos_url + '/pedido',
@@ -62,7 +71,9 @@ def crear_pedido_externo(datos_pedido, vendedor_email):
                 },
                 headers={'Content-Type': 'application/json'}
             )
-            response.raise_for_status()
+            if (response.status_code != 201):
+                current_app.logger.error(f"Error del microservicio de pedidos: {response.status_code} - {response.text}")
+                raise PedidoServiceError({'error': 'Error al crear el pedido en el microservicio de pedidos', 'codigo': 'ERROR_MICROSERVICIO_PEDIDOS'}, response.status_code)
         except requests.exceptions.RequestException as e:
             current_app.logger.error(f"Error al conectar con el microservicio de pedidos: {str(e)}")
             raise PedidoServiceError({'error': 'Error al conectar con el microservicio de pedidos'}, 503)

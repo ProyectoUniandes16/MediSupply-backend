@@ -20,7 +20,7 @@ def crear_pedido():
         current_app.logger.info(f"Email from token: {email_token}")
         # Llamar a la capa de servicio para manejar la lógica
         datos_respuesta = crear_pedido_externo(datos_pedido, vendedor_email=email_token)
-
+        current_app.logger.info(f"Respuesta del servicio de pedidos: {datos_respuesta}")
         return jsonify(datos_respuesta), 201
 
     except PedidoServiceError as e:
@@ -29,7 +29,8 @@ def crear_pedido():
 
     except Exception as e:
         # Capturar cualquier otro error no esperado
-        current_app.logger.error(f"Error inesperado en el blueprint de pedido: {str(e)}")
+        # usar logger.exception para incluir traceback completo en los logs
+        current_app.logger.exception(f"Error inesperado en el blueprint de pedido: {str(e)}")
         return jsonify({
             'error': 'Error interno del servidor',
             'message': str(e)
