@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-service-deployment
+  namespace: medisupply
+  labels:
+    app: redis-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-service
+  template:
+    metadata:
+      labels:
+        app: redis-service
+    spec:
+      containers:
+      - name: redis-service
+        image: 012146976167.dkr.ecr.us-east-2.amazonaws.com/redis-service:latest
+        ports:
+        - containerPort: 5011
+        imagePullPolicy: Always
+        env:
+          - name: PORT
+            value: "5011"
+          - name: REDIS_HOST
+            value: "redis"
+          - name: REDIS_PORT
+            value: "6379"

@@ -8,3 +8,7 @@ data:
   PROVEEDORES_URL: "http://proveedores-service:5006"
   VENDEDORES_URL: "http://vendedores-service:5007"
   PRODUCTO_URL: "http://productos-service:5008"
+  INVENTARIOS_URL: "http://inventarios-service:5009"
+  CLIENTES_URL: "http://clientes-service:5010"
+  PEDIDOS_URL: "http://pedidos-service:5012"
+  REDIS_SERVICE_URL: "http://redis-service:5011"

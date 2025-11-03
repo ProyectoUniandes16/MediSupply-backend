@@ -241,6 +241,8 @@ def actualizar_inventatrio_externo(producto_id: str, ajuste_cantidad: int) -> bo
     """
     inventarios_data = _get_inventarios_by_producto(producto_id)
     inventarios = inventarios_data.get('data', {}).get('inventarios', [])
+    print(f"Todos los inventarios: {inventarios}")
+
     if not inventarios:
         raise InventarioServiceError({
             'error': 'No se encontraron inventarios para el producto',
@@ -248,12 +250,14 @@ def actualizar_inventatrio_externo(producto_id: str, ajuste_cantidad: int) -> bo
         }, 404)
     
     for inventario in inventarios:
-        if inventario.get('cantidad') + ajuste_cantidad < 0:
+        print(f"Inventario actual: {inventario}")
+        cantidad = int(inventario.get('cantidad', 0))
+        if cantidad + ajuste_cantidad < 0:
             raise InventarioServiceError({
                 'error': 'No hay suficiente inventario para realizar el ajuste',
                 'codigo': 'INVENTARIO_INSUFICIENTE'
             }, 400)
-        _actualizar_inventario(str(inventario['id']), {'cantidad': inventario.get('cantidad', 0) + ajuste_cantidad})
+        _actualizar_inventario(str(inventario['id']), {'cantidad': cantidad + ajuste_cantidad})
         return True
     return False
 
@@ -314,17 +318,39 @@ def _get_inventarios_by_producto(producto_id: str) -> Dict[str, Any]:
     # Intentar obtener del cache
     inventarios = cache_client.get_inventarios_by_producto(producto_id)
     source = 'cache'
-    current_app.logger.info(f"inventarios: {inventarios}")
-    
+    current_app.logger.info(f"inventarios (raw from cache): {inventarios}")
+
     # Si no está en cache, consultar microservicio
     if inventarios is None:
         current_app.logger.info(f"📡 Consultando microservicio para producto {producto_id}")
         inventarios = _get_from_microservice(producto_id)
         source = 'microservice'
-    
-    # Calcular totales
+
+    # Normalizar: el cache o la respuesta upstream puede devolver varias formas
+    # (lista directa o un mapping con clave 'inventarios' u otras). Aseguramos
+    # que `inventarios` sea una lista de mappings antes de operar sobre ella.
+    if isinstance(inventarios, MutableMapping):
+        # intentar extraer la lista de inventarios desde claves comunes
+        for key in ('inventarios', 'data', 'items', 'results'):
+            candidate = inventarios.get(key)
+            if isinstance(candidate, list):
+                inventarios = candidate
+                break
+        else:
+            # no encontramos una lista; dejamos inventarios como vacío
+            inventarios = []
+
+    # A este punto, si no es lista, lo normalizamos a lista vacía
+    if not isinstance(inventarios, list):
+        current_app.logger.warning("Inventarios para producto %s devuelto en formato inesperado: %s", producto_id, type(inventarios))
+        inventarios = []
+
+    # Filtrar sólo items que sean mappings para evitar AttributeError
+    inventarios = [inv for inv in inventarios if isinstance(inv, MutableMapping)]
+
+    # Calcular totales de forma segura
     total_cantidad = sum(inv.get('cantidad', 0) for inv in inventarios)
-    
+
     return {
         'data': {
             'productoId': producto_id,
@@ -346,6 +372,9 @@ def _get_from_microservice(producto_id: str) -> List[Dict[str, Any]]:
     """
     try:
         inventarios_url = current_app.config.get('INVENTARIOS_URL')
+
+        logger.info(f"📡 Consultando microservicio para producto {producto_id}")
+        print(f"{inventarios_url}/api/inventarios")
         
         response = requests.get(
             f"{inventarios_url}/api/inventarios",

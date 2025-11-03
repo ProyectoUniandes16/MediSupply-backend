@@ -11,8 +11,9 @@ docker buildx build -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/productos:la
 docker buildx build -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/vendedores:latest --push ./vendedores_microservice
 docker buildx build -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/proveedores:latest --push ./proveedores_microservice
 
+
 # Create EKS cluster
-eksctl create cluster --name medisupply-cluster-1 --region us-east-2 --nodes 9 --node-type t3.micro
+eksctl create cluster --name medisupply-cluster-1 --region us-east-2 --nodes 15 --node-type t3.micro
 
 # Configure kubectl
 aws eks --region us-east-2 update-kubeconfig --name medisupply-cluster-1
@@ -22,17 +23,31 @@ kubectl apply -f kubernetes/namespace.yaml
 kubectl apply -f kubernetes/configmap.yaml
 kubectl apply -f kubernetes/postgres-secret.yaml
 kubectl apply -f kubernetes/postgres-deployment.yaml
+kubectl apply -f kubernetes/redis-deployment.yaml
+kubectl apply -f kubernetes/redis-service.yaml
 kubectl apply -f kubernetes/postgres-service.yaml
 kubectl apply -f kubernetes/auth-usuario/deployment.yaml
 kubectl apply -f kubernetes/auth-usuario/service.yaml
 kubectl apply -f kubernetes/mediador-web/deployment.yaml
 kubectl apply -f kubernetes/mediador-web/service.yaml
+kubectl apply -f kubernetes/producto-inventario-web/deployment.yaml
+kubectl apply -f kubernetes/producto-inventario-web/service.yaml
+kubectl apply -f kubernetes/mediador-movil/deployment.yaml
+kubectl apply -f kubernetes/mediador-movil/service.yaml
+kubectl apply -f kubernetes/producto-inventario-movil/deployment.yaml
+kubectl apply -f kubernetes/producto-inventario-movil/service.yaml
 kubectl apply -f kubernetes/productos/deployment.yaml
 kubectl apply -f kubernetes/productos/service.yaml
+kubectl apply -f kubernetes/inventarios/deployment.yaml
+kubectl apply -f kubernetes/inventarios/service.yaml
 kubectl apply -f kubernetes/proveedores/deployment.yaml
 kubectl apply -f kubernetes/proveedores/service.yaml
 kubectl apply -f kubernetes/vendedores/deployment.yaml
 kubectl apply -f kubernetes/vendedores/service.yaml
+kubectl apply -f kubernetes/pedidos/deployment.yaml
+kubectl apply -f kubernetes/pedidos/service.yaml
+kubectl apply -f kubernetes/clientes/deployment.yaml
+kubectl apply -f kubernetes/clientes/service.yaml
 kubectl apply -f kubernetes/ingress.yaml
 
 # Agrega el repo de ingress-nginx

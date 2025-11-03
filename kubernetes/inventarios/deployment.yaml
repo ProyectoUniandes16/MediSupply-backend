@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventarios-deployment
+  namespace: medisupply
+  labels:
+    app: inventarios
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventarios
+  template:
+    metadata:
+      labels:
+        app: inventarios
+    spec:
+      initContainers:
+      - name: wait-for-productos-table
+        image: postgres:13
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          until PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres-service -U postgres -d medisupply -c "SELECT 1 FROM productos LIMIT 1" >/dev/null 2>&1; do
+            echo "Esperando tabla productos...";
+            sleep 3;
+          done
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: postgres-password
+      containers:
+      - name: inventarios
+        image: 012146976167.dkr.ecr.us-east-2.amazonaws.com/inventarios:latest
+        ports:
+        - containerPort: 5008
+        imagePullPolicy: Always
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          export DATABASE_URL="postgresql://postgres:$(POSTGRES_PASSWORD)@postgres-service:5432/medisupply"
+          export REDIS_SERVICE_URL="http://redis-service:5011"
+          python run.py
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: postgres-password
