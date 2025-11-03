@@ -25,6 +25,8 @@ def test_crear_pedido_externo_success(monkeypatch):
     from src import create_app
     app = create_app()
     with app.app_context():
+        # evitar que la función real consulte productos (externo)
+        monkeypatch.setattr('src.services.pedidos.get_productos_con_inventarios', lambda params=None: {'data': []})
         res = crear_pedido_externo(data, 'v@e.com')
 
     assert res['id'] == 'pedido-1'

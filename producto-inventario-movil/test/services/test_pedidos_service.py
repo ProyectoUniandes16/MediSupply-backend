@@ -57,9 +57,13 @@ def test_crear_pedido_externo_requests_error():
     mock_vendor = {'items': [{'id': 'v-1'}]}
     with make_app_ctx():
         with patch('src.services.pedidos.listar_vendedores_externo', return_value=mock_vendor):
-            with patch('src.services.pedidos.requests.post', side_effect=requests.exceptions.RequestException('conn fail')):
-                data = {'productos': [{'id': 1}], 'total': 10, 'cliente_id': 1}
-                with pytest.raises(PedidoServiceError) as exc:
-                    crear_pedido_externo(data, 'v@e.com')
+            # evitar consulta real a productos (se parchea para que retorne lista vacía)
+            with patch('src.services.pedidos.get_productos_con_inventarios', return_value={'data': []}):
+                # evitar que la actualización de inventario intente llamadas externas
+                with patch('src.services.pedidos.actualizar_inventatrio_externo', return_value=True):
+                    with patch('src.services.pedidos.requests.post', side_effect=requests.exceptions.RequestException('conn fail')):
+                        data = {'productos': [{'id': 1}], 'total': 10, 'cliente_id': 1}
+                        with pytest.raises(PedidoServiceError) as exc:
+                            crear_pedido_externo(data, 'v@e.com')
 
-    assert exc.value.status_code == 400
+    assert exc.value.status_code == 503
