@@ -25,3 +25,24 @@ def test_decode_jwt_valid_token():
 
         decoded = decode_jwt(app, header)
         assert decoded['user']['email'] == 'user@example.com'
+
+
+def test_decode_jwt_invalid_signature_raises():
+    app = create_app()
+    with app.app_context():
+        # Create a token with a different secret than the app expects
+        app.config['JWT_SECRET_KEY'] = 'app-secret'
+        app.config['JWT_ALGORITHM'] = 'HS256'
+
+        import jwt as pyjwt
+        payload = {'user': {'email': 'user@example.com'}}
+        # encode with a different secret so decoding fails
+        token = pyjwt.encode(payload, 'other-secret', algorithm='HS256')
+        header = f'Bearer {token}'
+
+        try:
+            decode_jwt(app, header)
+            raise AssertionError('decode_jwt should have raised ValueError for invalid token')
+        except ValueError:
+            # expected
+            pass

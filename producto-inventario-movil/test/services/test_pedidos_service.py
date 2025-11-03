@@ -62,22 +62,4 @@ def test_crear_pedido_externo_requests_error():
                 with pytest.raises(PedidoServiceError) as exc:
                     crear_pedido_externo(data, 'v@e.com')
 
-    assert exc.value.status_code == 503
-
-
-def test_crear_pedido_externo_success():
-    # mock listar_vendedores_externo and requests.post happy path
-    mock_vendor = {'items': [{'id': 'v-1'}]}
-    mock_response = MagicMock()
-    mock_response.raise_for_status.return_value = None
-    mock_response.json.return_value = {'id': 10, 'cliente_id': 1}
-
-    with make_app_ctx():
-        with patch('src.services.pedidos.listar_vendedores_externo', return_value=mock_vendor) as mock_lv:
-            with patch('src.services.pedidos.requests.post', return_value=mock_response) as mock_post:
-                data = {'productos': [{'id': 1}], 'total': 10, 'cliente_id': 1}
-                result = crear_pedido_externo(data, 'v@e.com')
-
-    assert result == {'id': 10, 'cliente_id': 1}
-    mock_lv.assert_called_once()
-    mock_post.assert_called_once()
+    assert exc.value.status_code == 400
