@@ -251,10 +251,28 @@ services:
       - PORT=5008
       - DATABASE_URL=postgresql://${POSTGRES_USER:-medisupply_user}:${POSTGRES_PASSWORD:-medisupply_password}@db:5432/${POSTGRES_DB:-medisupply}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      # MinIO Configuration
+      - USE_MINIO=true
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_SECURE=false
+      - MINIO_BUCKET_VIDEOS=medisupply-videos
+      # Redis Configuration
+      - REDIS_SERVICE_URL=http://redis_service:5011
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
     volumes:
       - productos_uploads:/app/uploads
     depends_on:
       db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redis_service:
         condition: service_healthy
     networks:
       - medisupply-network
@@ -458,6 +476,65 @@ services:
       - medisupply-network
     restart: unless-stopped
 
+  # MinIO para almacenamiento de videos
+  minio:
+    image: minio/minio:latest
+    container_name: medisupply-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - medisupply-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Worker de procesamiento de videos
+  worker_videos:
+    build:
+      context: ./productos_microservice
+      dockerfile: Dockerfile
+    container_name: medisupply-worker-videos
+    command: ["python", "worker_videos.py"]
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-medisupply_user}:${POSTGRES_PASSWORD:-medisupply_password}@db:5432/${POSTGRES_DB:-medisupply}
+      # MinIO Configuration
+      - USE_MINIO=true
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_SECURE=false
+      - MINIO_BUCKET_VIDEOS=medisupply-videos
+      # Redis Configuration
+      - REDIS_SERVICE_URL=http://redis_service:5011
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redis_service:
+        condition: service_healthy
+      productos:
+        condition: service_healthy
+    networks:
+      - medisupply-network
+    restart: unless-stopped
+
 networks:
   medisupply-network:
     driver: bridge
@@ -472,3 +549,5 @@ volumes:
     name: medisupply-productos-uploads
   redis_data:
     name: medisupply-redis-data
+  minio_data:
+    name: medisupply-minio-data

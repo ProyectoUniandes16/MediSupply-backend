@@ -6,7 +6,7 @@ class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "clave-secreta")
     
     # Configuración para upload de archivos
-    MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB máximo por archivo
+    MAX_CONTENT_LENGTH = 150 * 1024 * 1024  # 150MB máximo por archivo (videos)
     
     # Usar ruta absoluta para evitar problemas con directorio de trabajo
     # Si la app se ejecuta desde run.py, el cwd será productos_microservice/

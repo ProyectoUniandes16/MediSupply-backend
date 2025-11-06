@@ -168,3 +168,100 @@ def obtener_producto_por_sku_externo(sku):
             'error': 'Error interno al obtener producto por SKU',
             'codigo': 'ERROR_INESPERADO'
         }, 500)
+
+
+def subir_video_producto_externo(producto_id, video_file, descripcion, usuario_registro):
+    """
+    Sube un video de evidencia para un producto al microservicio de productos.
+
+    Args:
+        producto_id (int): ID del producto.
+        video_file: Archivo de video (FileStorage).
+        descripcion (str): Descripción del video.
+        usuario_registro (str): Usuario que sube el video.
+
+    Returns:
+        dict: Respuesta del microservicio con datos del video subido.
+
+    Raises:
+        ProductoServiceError: Si hay error en la validación o subida.
+    """
+    url_video = f"{config.PRODUCTO_URL}/api/productos/{producto_id}/videos"
+
+    try:
+        # Preparar los datos del formulario
+        files = {
+            'video': (video_file.filename, video_file.stream, video_file.content_type)
+        }
+        
+        data = {
+            'descripcion': descripcion,
+            'usuario_registro': usuario_registro
+        }
+
+        current_app.logger.info(f"Subiendo video para producto {producto_id}")
+        
+        # Realizar la petición POST con multipart/form-data
+        response = requests.post(
+            url_video,
+            files=files,
+            data=data,
+            timeout=300  # 5 minutos de timeout para videos grandes
+        )
+
+        if response.status_code == 404:
+            current_app.logger.warning(f"Producto {producto_id} no encontrado")
+            raise ProductoServiceError({
+                'error': f'Producto con ID {producto_id} no encontrado',
+                'codigo': 'PRODUCTO_NO_ENCONTRADO'
+            }, 404)
+
+        if response.status_code == 400:
+            current_app.logger.warning(f"Validación fallida al subir video: {response.text}")
+            try:
+                error_data = response.json()
+            except Exception:
+                error_data = {'error': 'Datos inválidos', 'codigo': 'DATOS_INVALIDOS'}
+            raise ProductoServiceError(error_data, 400)
+
+        if response.status_code == 413:
+            current_app.logger.warning(f"Video muy grande para producto {producto_id}")
+            try:
+                error_data = response.json()
+            except Exception:
+                error_data = {
+                    'error': 'El archivo supera el tamaño máximo permitido (150 MB)',
+                    'codigo': 'ARCHIVO_MUY_GRANDE'
+                }
+            raise ProductoServiceError(error_data, 413)
+
+        if response.status_code != 201:
+            current_app.logger.error(f"Error del microservicio al subir video: {response.text}")
+            try:
+                error_data = response.json()
+            except Exception:
+                error_data = {'error': response.text, 'codigo': 'ERROR_INESPERADO'}
+            raise ProductoServiceError(error_data, response.status_code)
+
+        return response.json()
+
+    except ProductoServiceError:
+        raise
+    except requests.exceptions.Timeout as e:
+        current_app.logger.error(f"Timeout subiendo video para producto {producto_id}: {str(e)}")
+        raise ProductoServiceError({
+            'error': 'El tiempo de espera para subir el video se agotó. Intenta con un archivo más pequeño.',
+            'codigo': 'TIMEOUT'
+        }, 504)
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"Error de conexión subiendo video: {str(e)}")
+        raise ProductoServiceError({
+            'error': 'Error de conexión con el microservicio de productos',
+            'codigo': 'ERROR_CONEXION'
+        }, 503)
+    except Exception as e:
+        current_app.logger.error(f"Error inesperado subiendo video: {str(e)}")
+        raise ProductoServiceError({
+            'error': 'Error interno al subir el video',
+            'codigo': 'ERROR_INESPERADO'
+        }, 500)

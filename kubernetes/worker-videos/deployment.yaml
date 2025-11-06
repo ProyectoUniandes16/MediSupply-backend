@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-videos-deployment
+  namespace: medisupply
+  labels:
+    app: worker-videos
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker-videos
+  template:
+    metadata:
+      labels:
+        app: worker-videos
+    spec:
+      containers:
+      - name: worker-videos
+        image: 012146976167.dkr.ecr.us-east-2.amazonaws.com/productos:latest
+        imagePullPolicy: Always
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          export DATABASE_URL="postgresql://postgres:${POSTGRES_PASSWORD}@postgres-service:5432/medisupply"
+          export REDIS_SERVICE_URL="http://redis-service:5011"
+          export MINIO_ENDPOINT="minio-service:9000"
+          export MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY}"
+          export MINIO_SECRET_KEY="${MINIO_SECRET_KEY}"
+          export MINIO_SECURE="False"
+          python worker_videos.py
+        env:
+        # Credenciales de PostgreSQL
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: postgres-password
+        # Credenciales de MinIO
+        - name: MINIO_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: minio-secret
+              key: minio-access-key
+        - name: MINIO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: minio-secret
+              key: minio-secret-key
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1500m"  # Mayor CPU para procesamiento de videos
+        # Health check básico (el worker no expone HTTP, verificamos que el proceso esté corriendo)
+        livenessProbe:
+          exec:
+            command:
+            - pgrep
+            - -f
+            - worker_videos.py
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3

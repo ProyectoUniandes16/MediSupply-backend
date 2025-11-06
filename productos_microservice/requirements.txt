@@ -17,3 +17,16 @@ coverage==7.3.2
 # AWS Dependencies para procesamiento asíncrono
 boto3==1.34.0
 botocore==1.34.0
+
+# MinIO para almacenamiento de videos
+minio==7.2.0
+
+# Redis para mensajería (pub/sub)
+redis==5.0.1
+
+# Requests para comunicación con Redis Service
+requests==2.31.0
+
+# FFmpeg wrapper (opcional, requiere ffmpeg instalado en el sistema)
+# ffmpeg-python==0.2.0
+
