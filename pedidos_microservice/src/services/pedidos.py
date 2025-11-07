@@ -1,6 +1,4 @@
 
-from calendar import c
-
 from flask import current_app
 from src.models.pedios import Pedido
 from src.models.pedidos_productos import PedidoProducto
@@ -58,3 +56,42 @@ def registrar_pedido(data):
         current_app.logger.error(f"Error al guardar el pedido: {str(e)}")
         raise PedidoServiceError({'error': 'Error al guardar el pedido', 'codigo': 'ERROR_GUARDAR_PEDIDO'}, 500)
     
+
+def listar_pedidos(vendedor_id=None, cliente_id=None):
+    """
+    Lista pedidos. Acepta filtros opcionales por vendedor_id y cliente_id.
+
+    Args:
+        vendedor_id (str|int|None): id del vendedor para filtrar (se compara como string/valor directo)
+        cliente_id (int|None): id del cliente para filtrar
+
+    Returns:
+        list: lista de pedidos como diccionarios
+    """
+    try:
+        query = Pedido.query
+
+        # Apply filters only when provided (not None and not empty string)
+        if vendedor_id is not None and str(vendedor_id) != '':
+            # vendedor_id is stored as string in the model; compare as string
+            query = query.filter(Pedido.vendedor_id == str(vendedor_id))
+
+        if cliente_id is not None and str(cliente_id) != '':
+            try:
+                cliente_int = int(cliente_id)
+            except Exception:
+                # if cannot convert, keep as-is so filter will likely not match
+                cliente_int = cliente_id
+            query = query.filter(Pedido.cliente_id == cliente_int)
+
+        pedidos = query.all()
+        return {
+            "data": [pedido.to_dict() for pedido in pedidos]
+        }
+    except PedidoServiceError:
+        # allow service errors to bubble up
+        raise
+    except Exception as e:
+        current_app.logger.error(f"Error al listar pedidos: {str(e)}")
+        raise PedidoServiceError({'error': 'Error al listar pedidos', 'codigo': 'ERROR_LISTAR_PEDIDOS'}, 500)
+
