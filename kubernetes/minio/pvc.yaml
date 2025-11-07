@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-pvc
+  namespace: medisupply
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi  # 20 GB para almacenar videos
+  # storageClassName: standard  # Descomentar y ajustar según tu proveedor de cloud

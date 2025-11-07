@@ -6,7 +6,8 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.services.productos import ProductoServiceError
 from src.services.productos import (
     obtener_detalle_producto_externo,
-    obtener_producto_por_sku_externo
+    obtener_producto_por_sku_externo,
+    subir_video_producto_externo
 )
 from src.services.inventarios import (
     InventarioServiceError,
@@ -70,6 +71,77 @@ def obtener_producto_por_sku(sku):
         return jsonify(e.message), e.status_code
     except Exception as e:
         current_app.logger.error(f"Error inesperado buscando producto por SKU {sku}: {str(e)}")
+        return jsonify({
+            'error': 'Error interno del servidor',
+            'codigo': 'ERROR_INESPERADO'
+        }), 500
+
+
+@producto_bp.route('/producto/<int:producto_id>/videos', methods=['POST'])
+@jwt_required()
+def subir_video_producto(producto_id):
+    """
+    Endpoint del BFF para subir un video de evidencia para un producto.
+    
+    Validaciones:
+    - Formato: MP4, MOV, AVI
+    - Tamaño máximo: 150 MB
+    - Descripción obligatoria
+    
+    Form-data esperado:
+        - video: Archivo de video
+        - descripcion: Descripción del video (obligatorio)
+        
+    Returns:
+        201: Video subido exitosamente
+        400: Datos inválidos
+        404: Producto no encontrado
+        413: Archivo muy grande
+        500: Error interno
+    """
+    try:
+        # Validar que se envió un archivo
+        if 'video' not in request.files:
+            return jsonify({
+                'error': 'No se proporcionó ningún archivo de video',
+                'codigo': 'ARCHIVO_FALTANTE',
+                'campo_esperado': 'video'
+            }), 400
+        
+        video_file = request.files['video']
+        
+        # Validar nombre de archivo
+        if not video_file.filename or video_file.filename == '':
+            return jsonify({
+                'error': 'El archivo no tiene nombre',
+                'codigo': 'ARCHIVO_INVALIDO'
+            }), 400
+        
+        # Validar descripción
+        descripcion = request.form.get('descripcion', '').strip()
+        if not descripcion:
+            return jsonify({
+                'error': 'La descripción del video es obligatoria',
+                'codigo': 'DESCRIPCION_FALTANTE'
+            }), 400
+        
+        # Obtener usuario del JWT
+        usuario_registro = get_jwt_identity()
+        
+        # Delegar al microservicio de productos
+        resultado = subir_video_producto_externo(
+            producto_id=producto_id,
+            video_file=video_file,
+            descripcion=descripcion,
+            usuario_registro=usuario_registro
+        )
+        
+        return jsonify(resultado), 201
+        
+    except ProductoServiceError as e:
+        return jsonify(e.message), e.status_code
+    except Exception as e:
+        current_app.logger.error(f"Error inesperado subiendo video para producto {producto_id}: {str(e)}")
         return jsonify({
             'error': 'Error interno del servidor',
             'codigo': 'ERROR_INESPERADO'

@@ -4,8 +4,10 @@ FROM python:3.10-slim
 # Establecer directorio de trabajo
 WORKDIR /app
 
-# Instalar curl para health checks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Instalar dependencias del sistema: curl para health checks y ffmpeg para procesamiento de videos
+RUN apt-get update && \
+    apt-get install -y curl ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copiar archivos de dependencias
 COPY requirements.txt .
@@ -16,8 +18,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar el código de la aplicación
 COPY . .
 
-# Crear directorio para uploads
-RUN mkdir -p uploads/certificaciones
+# Crear directorio para uploads y procesamiento temporal
+RUN mkdir -p uploads/certificaciones /tmp/video_processing
 
 # Exponer el puerto 5008
 EXPOSE 5008

@@ -2,6 +2,7 @@ from flask import Flask
 from .extensions import db, ma
 from .config import Config
 from .routes.productos_bp import productos_bp
+from .blueprints.videos_bp import videos_bp
 import os
 
 def create_app():
@@ -26,6 +27,7 @@ def create_app():
 
     # Registrar blueprints
     app.register_blueprint(productos_bp)
+    app.register_blueprint(videos_bp)
 
     # Crear tablas si no existen
     with app.app_context():
