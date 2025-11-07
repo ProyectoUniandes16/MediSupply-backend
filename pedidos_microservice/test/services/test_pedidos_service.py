@@ -3,6 +3,7 @@ import pytest
 from src.services.pedidos import registrar_pedido, PedidoServiceError
 from src.models.pedios import Pedido
 from src.models.pedidos_productos import PedidoProducto
+from src.services.pedidos import listar_pedidos
 
 
 def test_registrar_pedido_none_raises():
@@ -162,3 +163,36 @@ def test_registrar_pedido_productos_vacio_branch():
 
     assert exc.value.status_code == 400
     assert exc.value.message.get('codigo') == 'PRODUCTOS_VACIO'
+
+
+def test_listar_pedidos_no_filters(session):
+    # seed two pedidos
+    p1 = Pedido(cliente_id=1, estado='pendiente', total=10.0, vendedor_id='v1')
+    p2 = Pedido(cliente_id=2, estado='pendiente', total=20.0, vendedor_id='v2')
+    session.add(p1)
+    session.add(p2)
+    session.commit()
+
+    result = listar_pedidos()
+    # Ensure both are returned
+    assert isinstance(result['data'], list)
+    assert len(result['data']) >= 2
+
+
+def test_listar_pedidos_filtrar_por_vendedor(session):
+    # seed pedidos with same vendedor
+    p = Pedido(cliente_id=3, estado='pendiente', total=15.0, vendedor_id='filter_v')
+    session.add(p)
+    session.commit()
+
+    result = listar_pedidos(vendedor_id='filter_v')['data']
+    assert all(r.get('vendedor_id') == 'filter_v' for r in result)
+
+
+def test_listar_pedidos_filtrar_por_cliente(session):
+    p = Pedido(cliente_id=999, estado='pendiente', total=5.0, vendedor_id=None)
+    session.add(p)
+    session.commit()
+
+    result = listar_pedidos(cliente_id=999)['data']
+    assert all(r.get('cliente_id') == 999 for r in result)
