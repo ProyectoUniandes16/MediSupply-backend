@@ -49,15 +49,17 @@ class TestObtenerDetalleProducto:
         # Arrange
         producto_id = 1
         expected_data = {
-            'id': 1,
-            'nombre': 'Paracetamol',
-            'codigo_sku': 'MED-001',
-            'cantidad_disponible': 100,
-            'precio_unitario': 25.50,
-            'certificacion': {
-                'id': 1,
-                'nombre_archivo': 'cert.pdf'
-            }
+            'producto': {
+                    'id': 1,
+                    'nombre': 'Paracetamol',
+                    'codigo_sku': 'MED-001',
+                    'cantidad_disponible': 100,
+                    'precio_unitario': 25.50,
+                    'certificacion': {
+                        'id': 1,
+                        'nombre_archivo': 'cert.pdf'
+                    }
+                }
         }
         
         mocker.patch(
@@ -72,7 +74,7 @@ class TestObtenerDetalleProducto:
         assert response.status_code == 200
         data = response.get_json()
         assert 'data' in data
-        assert data['data'] == expected_data
+        assert data['data'] == expected_data['producto']
 
     def test_obtener_detalle_sin_autenticacion(self, client):
         """Debe retornar 401 si no hay token JWT"""

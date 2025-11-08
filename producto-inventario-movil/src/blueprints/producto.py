@@ -47,7 +47,7 @@ def obtener_detalle_producto(producto_id):
     """
     try:
         detalle = obtener_detalle_producto_externo(producto_id)
-        return jsonify({'data': detalle}), 200
+        return jsonify({'data': detalle['producto']}), 200
     except ProductoServiceError as e:
         return jsonify(e.message), e.status_code
     except Exception as e:
