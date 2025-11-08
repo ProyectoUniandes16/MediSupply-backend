@@ -2,6 +2,7 @@
 Tests para las funciones de servicio de detalle de producto.
 Prueba la comunicación con el microservicio de productos para obtener detalles.
 """
+import re
 import pytest
 from unittest.mock import Mock, patch
 from flask import Flask
@@ -40,20 +41,30 @@ class TestObtenerDetalleProductoExterno:
                 'nombre_archivo': 'cert.pdf'
             }
         }
+
+        response = {
+            'producto': expected_data
+        }
+        response['inventario'] = 'dato que debe ser removido'
         
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = expected_data
+        mock_response.json.return_value = response
         mock_get.return_value = mock_response
 
         # Act
         with app.app_context():
             result = obtener_detalle_producto_externo(producto_id)
 
-        # Assert
-        assert result == expected_data
+        # Assert: la función devuelve el objeto tal cual recibido del microservicio
+        # (se remueve la clave 'inventario' a nivel raíz), por lo que esperamos
+        # {'producto': expected_data}
+        assert result == {'producto': expected_data}
         from src.config.config import Config as CFG
-        mock_get.assert_called_once_with(f"{CFG.PRODUCTO_URL}/api/productos/1")
+        # El mock puede recibir llamadas adicionales (cache / inventarios).
+        # Aseguramos que la primera llamada fue al endpoint de productos.
+        first_call = mock_get.call_args_list[0]
+        assert first_call[0][0] == f"{CFG.PRODUCTO_URL}/api/productos/1"
 
     @patch('src.services.productos.requests.get')
     def test_obtener_detalle_producto_no_encontrado(self, mock_get, app):

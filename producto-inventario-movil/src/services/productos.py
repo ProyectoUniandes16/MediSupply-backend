@@ -1,4 +1,3 @@
-import os
 from venv import logger
 import requests
 import json
@@ -151,8 +150,23 @@ def obtener_detalle_producto_externo(producto_id):
             except Exception:
                 error_data = {'error': response.text, 'codigo': 'ERROR_INESPERADO'}
             raise ProductoServiceError(error_data, response.status_code)
+        
+        producto = response.json()
 
-        return response.json()
+        try:
+            inventarios = _get_inventarios_by_producto(producto_id)
+            producto["producto"]['inventarios'] = inventarios["data"]["inventarios"]
+        except Exception:
+            producto['inventario'] = []
+            current_app.logger.error(f"No se pudieron obtener inventarios para el producto {producto_id}")
+
+        # Eliminar posibles claves 'inventario' tanto en el root como dentro
+        # del objeto anidado 'producto' para normalizar la respuesta.
+        producto.pop('inventario', None)
+        if isinstance(producto.get('producto'), MutableMapping):
+            producto['producto'].pop('inventario', None)
+
+        return producto
 
     except ProductoServiceError:
         raise
