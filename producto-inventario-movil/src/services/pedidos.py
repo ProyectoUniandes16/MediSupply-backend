@@ -3,7 +3,8 @@ from flask import current_app
 import requests
 from src.config.config import Config
 from src.services.vendedores import listar_vendedores_externo
-from src.services.inventarios import actualizar_inventatrio_externo, get_productos_con_inventarios
+from src.services.inventarios import actualizar_inventatrio_externo
+from src.services.productos import get_productos_con_inventarios
 
 
 class PedidoServiceError(Exception):

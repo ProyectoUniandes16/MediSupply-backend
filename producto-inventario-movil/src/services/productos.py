@@ -1,8 +1,10 @@
-import os
+from venv import logger
 import requests
 import json
 from flask import current_app, jsonify
 from src.config.config import Config as config
+from typing import Any, Dict, Iterable, List, MutableMapping, Optional
+from src.services.inventarios import InventarioServiceError, _get_inventarios_by_producto, _actualizar_inventario, obtener_productos_con_inventarios
 
 class ProductoServiceError(Exception):
     """Excepción personalizada para errores en la capa de servicio de productos."""
@@ -10,6 +12,60 @@ class ProductoServiceError(Exception):
         super().__init__(message)
         self.message = message
         self.status_code = status_code
+
+def get_productos_con_inventarios(params: Optional[MutableMapping[str, Any]] = None) -> Dict[str, Any]:
+    """Obtiene los productos y enriquece con inventarios usando cache por producto."""
+    try:
+        productos_payload = consultar_productos_externo(params)
+    except ProductoServiceError:
+        raise
+    except Exception as exc:  # pragma: no cover - defensivo
+        logger.error("Error inesperado consultando microservicio de productos: %s", exc)
+        raise ProductoServiceError({
+            'error': 'Error inesperado consultando productos',
+            'codigo': 'ERROR_INESPERADO'
+        }, 500) from exc
+
+    productos = _extract_productos(productos_payload)
+
+    inventario_response = obtener_productos_con_inventarios(productos)
+
+    if isinstance(productos_payload, MutableMapping):
+        inventario_response['meta'] = {
+            key: productos_payload[key]
+            for key in ('total', 'limit', 'offset', 'count')
+            if key in productos_payload
+        }
+
+    return inventario_response
+    
+
+def _extract_productos(payload: Any) -> List[Dict[str, Any]]:
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, MutableMapping):
+        for key in ('data', 'productos', 'items', 'results'):
+            value = payload.get(key)
+            if isinstance(value, list):
+                return value
+    return []
+
+def aplanar_productos_con_inventarios(data: Dict[str, Any]):
+    """Aplana la estructura de productos con inventarios para sólo retornar productos."""
+    productos = data.get('data', [])
+    resultado = []
+    for producto in productos:
+        if not isinstance(producto, MutableMapping):
+            continue
+        prod_copy = producto.copy()
+        # Remover campos de inventario
+        prod_copy.pop('inventarios', None)
+        prod_copy['cantidad_disponible'] = prod_copy.pop('totalInventario', 0)
+        resultado.append(prod_copy)
+    return {
+        'data': resultado,
+        'source': data.get('source', 'unknown')
+    }
 
 def consultar_productos_externo(params=None):
     """
@@ -94,8 +150,23 @@ def obtener_detalle_producto_externo(producto_id):
             except Exception:
                 error_data = {'error': response.text, 'codigo': 'ERROR_INESPERADO'}
             raise ProductoServiceError(error_data, response.status_code)
+        
+        producto = response.json()
 
-        return response.json()
+        try:
+            inventarios = _get_inventarios_by_producto(producto_id)
+            producto["producto"]['inventarios'] = inventarios["data"]["inventarios"]
+        except Exception:
+            producto['inventario'] = []
+            current_app.logger.error(f"No se pudieron obtener inventarios para el producto {producto_id}")
+
+        # Eliminar posibles claves 'inventario' tanto en el root como dentro
+        # del objeto anidado 'producto' para normalizar la respuesta.
+        producto.pop('inventario', None)
+        if isinstance(producto.get('producto'), MutableMapping):
+            producto['producto'].pop('inventario', None)
+
+        return producto
 
     except ProductoServiceError:
         raise

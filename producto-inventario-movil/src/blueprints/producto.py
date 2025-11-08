@@ -7,12 +7,13 @@ from src.services.productos import ProductoServiceError
 from src.services.productos import (
     obtener_detalle_producto_externo,
     obtener_producto_por_sku_externo,
-    subir_video_producto_externo
+    subir_video_producto_externo,
+    aplanar_productos_con_inventarios,
+    get_productos_con_inventarios
 )
 from src.services.inventarios import (
     InventarioServiceError,
-    aplanar_productos_con_inventarios,
-    get_productos_con_inventarios
+    
 )
 
 # Crear el blueprint para producto
@@ -46,7 +47,7 @@ def obtener_detalle_producto(producto_id):
     """
     try:
         detalle = obtener_detalle_producto_externo(producto_id)
-        return jsonify({'data': detalle}), 200
+        return jsonify({'data': detalle['producto']}), 200
     except ProductoServiceError as e:
         return jsonify(e.message), e.status_code
     except Exception as e:
