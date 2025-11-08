@@ -38,7 +38,7 @@ def test_listar_productos_aggregated_ok(client, token, monkeypatch):
     assert resp.status_code == 200
     data = resp.get_json()
     # El blueprint aplana la estructura, por lo que el resultado esperado es la versión aplanada
-    from src.services.inventarios import aplanar_productos_con_inventarios
+    from src.services.productos import aplanar_productos_con_inventarios
     expected_flat = aplanar_productos_con_inventarios(expected)
     assert data == expected_flat
 

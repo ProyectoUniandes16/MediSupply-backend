@@ -7,12 +7,13 @@ from src.services.productos import ProductoServiceError
 from src.services.productos import (
     obtener_detalle_producto_externo,
     obtener_producto_por_sku_externo,
-    subir_video_producto_externo
+    subir_video_producto_externo,
+    aplanar_productos_con_inventarios,
+    get_productos_con_inventarios
 )
 from src.services.inventarios import (
     InventarioServiceError,
-    aplanar_productos_con_inventarios,
-    get_productos_con_inventarios
+    
 )
 
 # Crear el blueprint para producto

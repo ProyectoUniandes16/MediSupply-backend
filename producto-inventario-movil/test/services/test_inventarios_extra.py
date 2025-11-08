@@ -3,13 +3,13 @@ from flask import Flask
 from unittest.mock import MagicMock
 
 from src.services.inventarios import (
-    aplanar_productos_con_inventarios,
     _get_inventarios_by_producto,
     _get_from_microservice,
     actualizar_inventatrio_externo,
     _actualizar_inventario,
     InventarioServiceError,
 )
+from src.services.productos import aplanar_productos_con_inventarios
 from src.services.cache_client import CacheClient
 
 

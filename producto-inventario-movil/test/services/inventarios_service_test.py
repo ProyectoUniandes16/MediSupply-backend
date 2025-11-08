@@ -4,13 +4,12 @@ from unittest.mock import patch, Mock
 from typing import Any, Dict
 
 from src.services.inventarios import (
-    _extract_productos,
     _resolve_inventarios_from_cache,
     _fetch_inventarios_from_upstream,
     _upsert_cache,
-    get_productos_con_inventarios,
     InventarioServiceError,
 )
+from src.services.productos import get_productos_con_inventarios, _extract_productos
 from src.services.cache_client import CacheClient
 
 
@@ -118,7 +117,7 @@ def test_get_productos_con_inventarios_cache_hit(app, monkeypatch):
         {'id': 2, 'nombre': 'B'}
     ]}
 
-    monkeypatch.setattr('src.services.inventarios.consultar_productos_externo', lambda params=None: productos_payload)
+    monkeypatch.setattr('src.services.productos.consultar_productos_externo', lambda params=None: productos_payload)
 
     class FakeCache(CacheClient):
         def __init__(self): pass
@@ -140,7 +139,7 @@ def test_get_productos_con_inventarios_cache_hit(app, monkeypatch):
 
 def test_get_productos_con_inventarios_cache_miss_fetch_and_store(app, monkeypatch):
     productos_payload = {'productos': [ {'id': 1} ]}
-    monkeypatch.setattr('src.services.inventarios.consultar_productos_externo', lambda params=None: productos_payload)
+    monkeypatch.setattr('src.services.productos.consultar_productos_externo', lambda params=None: productos_payload)
 
     class FakeCache(CacheClient):
         def __init__(self): self.set_calls = []
@@ -171,7 +170,7 @@ def test_get_productos_con_inventarios_cache_miss_fetch_and_store(app, monkeypat
 
 def test_get_productos_con_inventarios_skips_invalid_products(app, monkeypatch):
     productos_payload = {'productos': [ {'id': 1}, 'x', {} ]}
-    monkeypatch.setattr('src.services.inventarios.consultar_productos_externo', lambda params=None: productos_payload)
+    monkeypatch.setattr('src.services.productos.consultar_productos_externo', lambda params=None: productos_payload)
 
     class FakeCache(CacheClient):
         def __init__(self): pass

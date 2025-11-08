@@ -13,7 +13,6 @@ import requests
 from flask import current_app
 
 from src.services.cache_client import CacheClient
-from src.services.productos import ProductoServiceError, consultar_productos_externo
 
 logger = logging.getLogger(__name__)
 
@@ -25,17 +24,6 @@ class InventarioServiceError(Exception):
         super().__init__(message)
         self.message = message
         self.status_code = status_code
-
-
-def _extract_productos(payload: Any) -> List[Dict[str, Any]]:
-    if isinstance(payload, list):
-        return payload
-    if isinstance(payload, MutableMapping):
-        for key in ('data', 'productos', 'items', 'results'):
-            value = payload.get(key)
-            if isinstance(value, list):
-                return value
-    return []
 
 
 def _build_cache_payload(inventarios: Iterable[Dict[str, Any]]) -> Dict[str, Any]:
@@ -136,131 +124,6 @@ def _upsert_cache(cache_client: CacheClient, producto_id: str, payload: Dict[str
     }
     cache_client.set_inventarios_by_producto(producto_id, to_cache)
 
-
-def get_productos_con_inventarios(params: Optional[MutableMapping[str, Any]] = None) -> Dict[str, Any]:
-    """Obtiene los productos y enriquece con inventarios usando cache por producto."""
-    try:
-        productos_payload = consultar_productos_externo(params)
-    except ProductoServiceError:
-        raise
-    except Exception as exc:  # pragma: no cover - defensivo
-        logger.error("Error inesperado consultando microservicio de productos: %s", exc)
-        raise InventarioServiceError({
-            'error': 'Error inesperado consultando productos',
-            'codigo': 'ERROR_INESPERADO'
-        }, 500) from exc
-
-    productos = _extract_productos(productos_payload)
-
-    cache_client = CacheClient.from_app_config()
-    resultado: List[Dict[str, Any]] = []
-    sources: List[str] = []
-
-    for producto in productos:
-        if not isinstance(producto, MutableMapping):
-            continue
-
-        producto_id = producto.get('id') or producto.get('productoId')
-        if producto_id is None:
-            logger.warning("Producto sin ID, se omite: %s", producto)
-            continue
-
-        producto_id_str = str(producto_id)
-        payload = _resolve_inventarios_from_cache(cache_client, producto_id_str)
-
-        if payload is None:
-            try:
-                payload = _fetch_inventarios_from_upstream(producto_id_str)
-            except InventarioServiceError as exc:
-                # Propagamos para que el caller decida si retorna error o lista parcial
-                raise exc
-            _upsert_cache(cache_client, producto_id_str, payload)
-
-        source = payload.get('source', 'cache')
-        sources.append(source)
-
-        resultado.append({
-            **producto,
-            'inventarios': payload.get('inventarios', []),
-            'totalInventario': payload.get('totalInventario', 0),
-            'inventariosSource': source
-        })
-
-    total = len(resultado)
-
-    # Determinar la fuente predominante (si al menos uno viene del microservicio, marcamos microservices)
-    source = 'cache'
-    if any(s != 'cache' for s in sources):
-        source = 'microservices'
-
-    response: Dict[str, Any] = {
-        'data': resultado,
-        'total': total,
-        'source': source
-    }
-
-    if isinstance(productos_payload, MutableMapping):
-        response['meta'] = {
-            key: productos_payload[key]
-            for key in ('total', 'limit', 'offset', 'count')
-            if key in productos_payload
-        }
-
-    return response
-
-def aplanar_productos_con_inventarios(data: Dict[str, Any]):
-    """Aplana la estructura de productos con inventarios para sólo retornar productos."""
-    productos = data.get('data', [])
-    resultado = []
-    for producto in productos:
-        if not isinstance(producto, MutableMapping):
-            continue
-        prod_copy = producto.copy()
-        # Remover campos de inventario
-        prod_copy.pop('inventarios', None)
-        prod_copy['cantidad_disponible'] = prod_copy.pop('totalInventario', 0)
-        resultado.append(prod_copy)
-    return {
-        'data': resultado,
-        'source': data.get('source', 'unknown')
-    }
-
-
-def actualizar_inventatrio_externo(producto_id: str, ajuste_cantidad: int) -> bool:
-    """
-    Actualiza el inventario de un producto en el microservicio de inventarios.
-
-    Args:
-        producto_id: ID del producto a actualizar.
-        ajuste_cantidad: Cantidad a ajustar (positiva o negativa).
-
-    Returns:
-        Diccionario con la respuesta del microservicio.
-    Raises:
-        InventarioServiceError: Si ocurre un error de conexión o del microservicio.
-    """
-    inventarios_data = _get_inventarios_by_producto(producto_id)
-    inventarios = inventarios_data.get('data', {}).get('inventarios', [])
-    print(f"Todos los inventarios: {inventarios}")
-
-    if not inventarios:
-        raise InventarioServiceError({
-            'error': 'No se encontraron inventarios para el producto',
-            'codigo': 'INVENTARIOS_NO_ENCONTRADOS'
-        }, 404)
-    
-    for inventario in inventarios:
-        print(f"Inventario actual: {inventario}")
-        cantidad = int(inventario.get('cantidad', 0))
-        if cantidad + ajuste_cantidad < 0:
-            raise InventarioServiceError({
-                'error': 'No hay suficiente inventario para realizar el ajuste',
-                'codigo': 'INVENTARIO_INSUFICIENTE'
-            }, 400)
-        _actualizar_inventario(str(inventario['id']), {'cantidad': cantidad + ajuste_cantidad})
-        return True
-    return False
-
 def _actualizar_inventario(inventario_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Actualiza un inventario existente (delega al microservicio).
@@ -298,6 +161,41 @@ def _actualizar_inventario(inventario_id: str, data: Dict[str, Any]) -> Dict[str
         logger.error(f"❌ Error actualizando inventario: {e}")
         raise Exception(f"Error actualizando inventario: {str(e)}")
 
+
+def actualizar_inventatrio_externo(producto_id: str, ajuste_cantidad: int) -> bool:
+    """
+    Actualiza el inventario de un producto en el microservicio de inventarios.
+
+    Args:
+        producto_id: ID del producto a actualizar.
+        ajuste_cantidad: Cantidad a ajustar (positiva o negativa).
+
+    Returns:
+        Diccionario con la respuesta del microservicio.
+    Raises:
+        InventarioServiceError: Si ocurre un error de conexión o del microservicio.
+    """
+    inventarios_data = _get_inventarios_by_producto(producto_id)
+    inventarios = inventarios_data.get('data', {}).get('inventarios', [])
+    print(f"Todos los inventarios: {inventarios}")
+
+    if not inventarios:
+        raise InventarioServiceError({
+            'error': 'No se encontraron inventarios para el producto',
+            'codigo': 'INVENTARIOS_NO_ENCONTRADOS'
+        }, 404)
+    
+    for inventario in inventarios:
+        print(f"Inventario actual: {inventario}")
+        cantidad = int(inventario.get('cantidad', 0))
+        if cantidad + ajuste_cantidad < 0:
+            raise InventarioServiceError({
+                'error': 'No hay suficiente inventario para realizar el ajuste',
+                'codigo': 'INVENTARIO_INSUFICIENTE'
+            }, 400)
+        _actualizar_inventario(str(inventario['id']), {'cantidad': cantidad + ajuste_cantidad})
+        return True
+    return False
 
 
 def _get_inventarios_by_producto(producto_id: str) -> Dict[str, Any]:
@@ -394,3 +292,63 @@ def _get_from_microservice(producto_id: str) -> List[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"❌ Error consultando microservicio de inventarios: {e}")
         return []
+    
+
+def obtener_productos_con_inventarios(productos) -> Dict[str, Any]:
+    """
+    Obtiene productos con sus inventarios asociados.
+    
+    Args:
+        producto: Lista de productos obtenidos del microservicio de productos.
+    
+    Returns:
+        Lista de productos con inventarios.
+    """
+    cache_client = CacheClient.from_app_config()
+    resultado: List[Dict[str, Any]] = []
+    sources: List[str] = []
+
+    for producto in productos:
+        if not isinstance(producto, MutableMapping):
+            continue
+
+        producto_id = producto.get('id') or producto.get('productoId')
+        if producto_id is None:
+            logger.warning("Producto sin ID, se omite: %s", producto)
+            continue
+
+        producto_id_str = str(producto_id)
+        payload = _resolve_inventarios_from_cache(cache_client, producto_id_str)
+
+        if payload is None:
+            try:
+                payload = _fetch_inventarios_from_upstream(producto_id_str)
+            except InventarioServiceError as exc:
+                # Propagamos para que el caller decida si retorna error o lista parcial
+                raise exc
+            _upsert_cache(cache_client, producto_id_str, payload)
+
+        source = payload.get('source', 'cache')
+        sources.append(source)
+
+        resultado.append({
+            **producto,
+            'inventarios': payload.get('inventarios', []),
+            'totalInventario': payload.get('totalInventario', 0),
+            'inventariosSource': source
+        })
+
+    total = len(resultado)
+
+    # Determinar la fuente predominante (si al menos uno viene del microservicio, marcamos microservices)
+    source = 'cache'
+    if any(s != 'cache' for s in sources):
+        source = 'microservices'
+
+    response: Dict[str, Any] = {
+        'data': resultado,
+        'total': total,
+        'source': source
+    }
+
+    return response
