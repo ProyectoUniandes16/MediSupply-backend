@@ -1,7 +1,7 @@
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import jwt_required
 from src.utils.token_utils import decode_jwt
-from src.services.pedidos import crear_pedido_externo, PedidoServiceError
+from src.services.pedidos import crear_pedido_externo, PedidoServiceError, listar_pedidos_externo
 
 
 pedidos_bp = Blueprint('pedidos', __name__)
@@ -31,6 +31,29 @@ def crear_pedido():
         # Capturar cualquier otro error no esperado
         # usar logger.exception para incluir traceback completo en los logs
         current_app.logger.exception(f"Error inesperado en el blueprint de pedido: {str(e)}")
+        return jsonify({
+            'error': 'Error interno del servidor',
+            'message': str(e)
+        }), 500
+
+
+@pedidos_bp.route('/pedido', methods=['GET'])
+@jwt_required()
+def listar_pedidos():
+    """Endpoint del BFF para listar pedidos delegando en la capa de servicios."""
+    try:
+        filtros = request.args.to_dict(flat=True) or {}
+        token_data = decode_jwt(current_app, request.headers.get('Authorization'))
+        email_token = None
+        if token_data:
+            email_token = token_data.get('user', {}).get('email')
+
+        datos_respuesta = listar_pedidos_externo(filtros=filtros, vendedor_email=email_token)
+        return jsonify(datos_respuesta), 200
+    except PedidoServiceError as e:
+        return jsonify(e.message), e.status_code
+    except Exception as e:  # pragma: no cover - defensivo
+        current_app.logger.exception(f"Error inesperado listando pedidos: {str(e)}")
         return jsonify({
             'error': 'Error interno del servidor',
             'message': str(e)

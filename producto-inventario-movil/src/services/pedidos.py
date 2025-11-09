@@ -91,6 +91,63 @@ def crear_pedido_externo(datos_pedido, vendedor_email):
         raise PedidoServiceError({'error': 'Error al conectar con el microservicio de pedidos'}, 503)
     
 
+def listar_pedidos_externo(filtros=None, vendedor_email=None):
+    """
+    Consulta pedidos en el microservicio externo aplicando filtros opcionales.
+
+    """
+    filtros = (filtros or {}).copy()
+
+    if vendedor_email:
+        venndedor_response = listar_vendedores_externo(filters={'correo': vendedor_email})
+        items = venndedor_response.get('items', []) if isinstance(venndedor_response, dict) else []
+        if not items:
+            raise PedidoServiceError({'error': 'Vendedor no encontrado', 'codigo': 'VENDEDOR_NO_ENCONTRADO'}, 404)
+        vendedor_id = items[0].get('id')
+        if vendedor_id is None:
+            raise PedidoServiceError({'error': 'Vendedor sin identificador válido', 'codigo': 'VENDEDOR_SIN_ID'}, 404)
+        filtros['vendedor_id'] = vendedor_id
+
+    pedidos_url = Config.PEDIDOS_URL
+    try:
+        response = requests.get(
+            f"{pedidos_url}/pedido",
+            params=filtros or None,
+            headers={'Content-Type': 'application/json'}
+        )
+
+        if response.status_code != 200:
+            current_app.logger.error(
+                "Error del microservicio de pedidos al listar: %s - %s",
+                response.status_code,
+                response.text,
+            )
+            try:
+                error_body = response.json()
+            except ValueError:
+                error_body = {
+                    'error': 'Error al consultar pedidos',
+                    'codigo': 'ERROR_MICROSERVICIO_PEDIDOS'
+                }
+            raise PedidoServiceError(error_body, response.status_code)
+
+        return response.json()
+    except PedidoServiceError:
+        raise
+    except requests.exceptions.RequestException as exc:
+        current_app.logger.error(f"Error al conectar con el microservicio de pedidos: {str(exc)}")
+        raise PedidoServiceError({
+            'error': 'Error al conectar con el microservicio de pedidos',
+            'codigo': 'ERROR_CONEXION_PEDIDOS'
+        }, 503)
+    except Exception as exc:  # pragma: no cover - defensivo
+        current_app.logger.exception("Error inesperado listando pedidos: %s", exc)
+        raise PedidoServiceError({
+            'error': 'Error inesperado al listar pedidos',
+            'codigo': 'ERROR_LISTAR_PEDIDOS'
+        }, 500)
+
+
 from collections import defaultdict
 from typing import List, Dict, Any
 

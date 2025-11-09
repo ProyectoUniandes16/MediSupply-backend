@@ -57,16 +57,18 @@ def registrar_pedido(data):
         raise PedidoServiceError({'error': 'Error al guardar el pedido', 'codigo': 'ERROR_GUARDAR_PEDIDO'}, 500)
     
 
-def listar_pedidos(vendedor_id=None, cliente_id=None):
+def listar_pedidos(vendedor_id=None, cliente_id=None, estado=None):
     """
-    Lista pedidos. Acepta filtros opcionales por vendedor_id y cliente_id.
+    Lista pedidos. Filtros opcionales por vendedor_id, cliente_id y estado.
+    Ordena por fecha_pedido descendente para mostrar historial más reciente primero.
 
     Args:
-        vendedor_id (str|int|None): id del vendedor para filtrar (se compara como string/valor directo)
+        vendedor_id (str|int|None): id del vendedor para filtrar
         cliente_id (int|None): id del cliente para filtrar
+        estado (str|None): estado del pedido (pendiente, en_proceso, despachado, entregado, cancelado)
 
     Returns:
-        list: lista de pedidos como diccionarios
+        dict: {'data': [ ... ]}
     """
     try:
         query = Pedido.query
@@ -84,6 +86,11 @@ def listar_pedidos(vendedor_id=None, cliente_id=None):
                 cliente_int = cliente_id
             query = query.filter(Pedido.cliente_id == cliente_int)
 
+        if estado is not None and str(estado).strip() != '':
+            query = query.filter(Pedido.estado == str(estado).strip())
+
+        # Orden por fecha de creación (desc)
+        query = query.order_by(Pedido.fecha_pedido.desc())
         pedidos = query.all()
         return {
             "data": [pedido.to_dict() for pedido in pedidos]
