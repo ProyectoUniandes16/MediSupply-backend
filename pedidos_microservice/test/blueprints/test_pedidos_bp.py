@@ -65,6 +65,8 @@ def test_obtener_pedidos_filtering(client, session):
 
     p = Pedido(cliente_id=55, estado='pendiente', total=3.0, vendedor_id='X123')
     session.add(p)
+    p2 = Pedido(cliente_id=55, estado='entregado', total=4.0, vendedor_id='X123')
+    session.add(p2)
     session.commit()
 
     # filter by vendedor
@@ -78,3 +80,9 @@ def test_obtener_pedidos_filtering(client, session):
     assert response.status_code == 200
     data = response.get_json()['data']
     assert all(item.get('cliente_id') == 55 for item in data)
+
+    # filter by estado
+    response = client.get('/pedido?estado=entregado')
+    assert response.status_code == 200
+    data = response.get_json()['data']
+    assert all(item.get('estado') == 'entregado' for item in data)

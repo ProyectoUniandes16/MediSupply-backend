@@ -34,8 +34,8 @@ def obtener_pedidos():
     try:
         vendedor_id = request.args.get('vendedor_id')
         cliente_id = request.args.get('cliente_id')
-
-        pedidos = listar_pedidos(vendedor_id=vendedor_id, cliente_id=cliente_id)
+        estado = request.args.get('estado')
+        pedidos = listar_pedidos(vendedor_id=vendedor_id, cliente_id=cliente_id, estado=estado)
         return jsonify(pedidos), 200
     except PedidoServiceError as e:
         return jsonify(e.message), e.status_code

@@ -196,3 +196,33 @@ def test_listar_pedidos_filtrar_por_cliente(session):
 
     result = listar_pedidos(cliente_id=999)['data']
     assert all(r.get('cliente_id') == 999 for r in result)
+
+
+def test_listar_pedidos_filtrar_por_estado(session):
+    p_ok = Pedido(cliente_id=1, estado='pendiente', total=5.0, vendedor_id='v1')
+    p_other = Pedido(cliente_id=1, estado='entregado', total=6.0, vendedor_id='v1')
+    session.add(p_ok)
+    session.add(p_other)
+    session.commit()
+
+    result = listar_pedidos(estado='entregado')['data']
+    assert all(r.get('estado') == 'entregado' for r in result)
+
+
+def test_listar_pedidos_orden_desc_por_fecha(session):
+    # Crear pedidos con fechas diferentes controlando fecha_pedido
+    from datetime import datetime, timedelta
+    base = datetime.utcnow()
+    older = Pedido(cliente_id=2, estado='pendiente', total=1.0, vendedor_id='vZ')
+    newer = Pedido(cliente_id=2, estado='pendiente', total=2.0, vendedor_id='vZ')
+    # Ajustar manualmente fecha_pedido
+    older.fecha_pedido = base - timedelta(days=1)
+    newer.fecha_pedido = base
+    session.add(older)
+    session.add(newer)
+    session.commit()
+
+    data = listar_pedidos(cliente_id=2)['data']
+    # El primero debe ser el más reciente (newer)
+    assert len(data) >= 2
+    assert data[0]['fecha_pedido'] >= data[1]['fecha_pedido']
