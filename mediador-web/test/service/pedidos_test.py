@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 import requests
-from src.services.pedidos import listar_pedidos, PedidoServiceError
+from src.services.pedidos import listar_pedidos, PedidosServiceError
 from flask import Flask
 
 @pytest.fixture
@@ -21,11 +21,10 @@ def provide_app_context(app):
 def test_listar_pedidos_exito(mock_get):
     """Test de listado exitoso de pedidos"""
     mock_response_data = {
-        'items': [
+        'data': [
             {'id': 'ped-1', 'cliente_id': 'cli-1', 'vendedor_id': 'ven-1', 'total': 100.0},
             {'id': 'ped-2', 'cliente_id': 'cli-2', 'vendedor_id': 'ven-2', 'total': 200.0}
-        ],
-        'total': 2
+        ]
     }
     
     mock_response = MagicMock()
@@ -40,10 +39,10 @@ def test_listar_pedidos_exito(mock_get):
 
         result = listar_pedidos()
         
-        assert len(result['items']) == 2
-        assert result['total'] == 2
+        assert 'data' in result
+        assert len(result['data']) == 2
         mock_get.assert_called_once_with(
-            'http://localhost:5008/pedido',
+            'http://localhost:5012/pedido',
             params={},
             headers={'Content-Type': 'application/json'},
             timeout=10
@@ -169,7 +168,7 @@ def test_listar_pedidos_http_error(mock_get):
         mock_logger = MagicMock()
         mock_current_app.logger = mock_logger
 
-        with pytest.raises(PedidoServiceError) as excinfo:
+        with pytest.raises(PedidosServiceError) as excinfo:
             listar_pedidos()
 
         assert excinfo.value.status_code == 500
@@ -184,7 +183,7 @@ def test_listar_pedidos_connection_error(mock_get):
         mock_logger = MagicMock()
         mock_current_app.logger = mock_logger
 
-        with pytest.raises(PedidoServiceError) as excinfo:
+        with pytest.raises(PedidosServiceError) as excinfo:
             listar_pedidos()
 
         assert excinfo.value.status_code == 503
@@ -200,7 +199,7 @@ def test_listar_pedidos_timeout(mock_get):
         mock_logger = MagicMock()
         mock_current_app.logger = mock_logger
 
-        with pytest.raises(PedidoServiceError) as excinfo:
+        with pytest.raises(PedidosServiceError) as excinfo:
             listar_pedidos()
 
         assert excinfo.value.status_code == 503
@@ -214,7 +213,7 @@ def test_listar_pedidos_error_inesperado(mock_get):
         mock_logger = MagicMock()
         mock_current_app.logger = mock_logger
 
-        with pytest.raises(PedidoServiceError) as excinfo:
+        with pytest.raises(PedidosServiceError) as excinfo:
             listar_pedidos()
 
         assert excinfo.value.status_code == 500
@@ -254,7 +253,7 @@ def test_listar_pedidos_respuesta_sin_json(mock_get):
         mock_logger = MagicMock()
         mock_current_app.logger = mock_logger
 
-        with pytest.raises(PedidoServiceError) as excinfo:
+        with pytest.raises(PedidosServiceError) as excinfo:
             listar_pedidos()
 
         assert excinfo.value.status_code == 400

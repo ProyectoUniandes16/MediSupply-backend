@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required
-from src.services.pedidos import listar_pedidos, PedidoServiceError
+from src.services.pedidos import listar_pedidos, PedidosServiceError
 
 # Crear el blueprint para pedidos
 pedidos_bp = Blueprint('pedidos', __name__)
@@ -36,7 +36,7 @@ def listar_pedidos_endpoint():
         
         return jsonify(datos_respuesta), 200
 
-    except PedidoServiceError as e:
+    except PedidosServiceError as e:
         # Capturar errores controlados desde la capa de servicio
         return jsonify(e.message), e.status_code
 

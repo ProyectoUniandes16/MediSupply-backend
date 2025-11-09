@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 from flask import Flask
 from flask_jwt_extended import JWTManager, create_access_token
 from src.blueprints.pedidos import pedidos_bp
-from src.services.pedidos import PedidoServiceError
+from src.services.pedidos import PedidosServiceError
 
 @pytest.fixture
 def app():
@@ -114,7 +114,7 @@ def test_listar_pedidos_con_ambos_filtros(mock_listar, client, access_token):
 @patch('src.blueprints.pedidos.listar_pedidos')
 def test_listar_pedidos_error_servicio(mock_listar, client, access_token):
     """Test de error controlado desde el servicio"""
-    error = PedidoServiceError({'error': 'Error del microservicio'}, 503)
+    error = PedidosServiceError({'error': 'Error del microservicio'}, 503)
     mock_listar.side_effect = error
 
     headers = {'Authorization': f'Bearer {access_token}'}

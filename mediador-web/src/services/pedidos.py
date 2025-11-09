@@ -117,7 +117,7 @@ def listar_pedidos(vendedor_id=None, cliente_id=None, headers=None):
         dict: Lista de pedidos.
 
     Raises:
-        PedidoServiceError: Si ocurre un error de conexión o del microservicio.
+        PedidosServiceError: Si ocurre un error de conexión o del microservicio.
     """
     pedidos_url = os.environ.get('PEDIDOS_URL', 'http://localhost:5012')
     
