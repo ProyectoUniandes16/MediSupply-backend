@@ -7,7 +7,7 @@ def test_crear_cliente_exito(client, mocker):
     payload = {
         'nombre': 'Empresa S.A.',
         'tipo': 'Sociedad',
-        'pais': 'México',
+        'zona': 'Ciudad de México',
         'nombre_contacto': 'Luis García',
         'cargo_contacto': 'Director',
         'correo_contacto': 'luis@empresa.com',

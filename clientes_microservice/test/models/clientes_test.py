@@ -31,7 +31,7 @@ def test_cliente_save_y_to_dict(session):
     cliente = Cliente(
         nombre="Empresa S.A.",
         tipo="Sociedad Anónima",
-        pais="México",
+        zona="Ciudad de México",
         nombre_contacto="Juan Pérez",
         cargo_contacto="Gerente",
         correo_contacto="juan@empresa.com",
@@ -50,7 +50,7 @@ def test_cliente_delete(session):
     cliente = Cliente(
         nombre="Empresa X",
         tipo="Sociedad Limitada",
-        pais="Colombia",
+        zona="Ciudad de México",
         nombre_contacto="Ana Gómez",
         cargo_contacto="Directora",
         correo_contacto="ana@empresa.com",
@@ -69,7 +69,7 @@ def test_cliente_unique_nit(session):
     cliente_1 = Cliente(
         nombre="Uno",
         tipo="Freelancer",
-        pais="Guatemala",
+        zona="Ciudad de México",
         nombre_contacto="Laura Barrera",
         cargo_contacto="Consultor",
         correo_contacto="laura@email.com",
@@ -82,7 +82,7 @@ def test_cliente_unique_nit(session):
     cliente_2 = Cliente(
         nombre="Dos",
         tipo="Empresa",
-        pais="Guatemala",
+        zona="Ciudad de México",
         nombre_contacto="Mario Ruiz",
         cargo_contacto="Director",
         correo_contacto="mario@email.com",
