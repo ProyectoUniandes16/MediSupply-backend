@@ -18,7 +18,7 @@ def minimal_cliente():
     return {
         'nombre': 'Empresa X',
         'tipo': 'SAS',
-        'pais': 'CO',
+        'zona': 'Ciudad de México',
         'nit': '12345',
         'nombre_contacto': 'Contacto',
         'correo_contacto': 'c@x.com',

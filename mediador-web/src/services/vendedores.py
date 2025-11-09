@@ -2,6 +2,9 @@ import os
 import requests
 from flask import current_app
 from src.services.auth import register_user, AuthServiceError
+from src.services.pedidos import obtener_pedidos_vendedor, PedidosServiceError
+from datetime import datetime
+from decimal import Decimal
 
 class VendedorServiceError(Exception):
     """Excepción personalizada para errores en la capa de servicio de vendedores."""
@@ -347,4 +350,144 @@ def obtener_plan_venta_externo(plan_id):
             'error': 'Error interno al obtener detalle del plan de venta',
             'codigo': 'ERROR_INESPERADO'
         }, 500)
+
+
+def generar_reporte_ventas_vendedor(vendedor_id, mes, anio):
+    """
+    Genera datos agregados para el reporte de ventas de un vendedor.
+    Orquesta llamadas a microservicios de vendedores y pedidos.
+    
+    Args:
+        vendedor_id (str): ID del vendedor
+        mes (int): Mes (1-12)
+        anio (int): Año (ej: 2025)
+        
+    Returns:
+        dict: Datos agregados del reporte con:
+            - vendedor: Información del vendedor
+            - periodo: Periodo del reporte
+            - planes: Lista de planes con métricas calculadas
+            - totales: Totales generales
+            
+    Raises:
+        VendedorServiceError: Si ocurre un error al generar el reporte
+    """
+    try:
+        # Validar mes y año
+        if not isinstance(mes, int) or mes < 1 or mes > 12:
+            raise VendedorServiceError({
+                'error': 'El mes debe ser un número entre 1 y 12',
+                'codigo': 'MES_INVALIDO'
+            }, 400)
+        
+        if not isinstance(anio, int) or anio < 2020 or anio > 2050:
+            raise VendedorServiceError({
+                'error': 'El año debe estar entre 2020 y 2050',
+                'codigo': 'ANIO_INVALIDO'
+            }, 400)
+        
+        # 1. Obtener información del vendedor
+        vendedor = obtener_detalle_vendedor_externo(vendedor_id)
+        
+        # 2. Construir periodo en formato YYYY-MM
+        periodo = f"{anio:04d}-{mes:02d}"
+        
+        # 3. Obtener planes de venta del vendedor para ese periodo
+        planes_response = listar_planes_venta_externo(
+            vendedor_id=vendedor_id,
+            periodo=periodo,
+            page=1,
+            size=100  # Asumiendo que un vendedor no tiene más de 100 planes en un mes
+        )
+        
+        planes = planes_response.get('items', [])
+        
+        # 4. Obtener pedidos del vendedor para ese mes/año
+        try:
+            pedidos = obtener_pedidos_vendedor(vendedor_id, mes, anio)
+        except PedidosServiceError as e:
+            current_app.logger.error(f"Error al obtener pedidos: {str(e)}")
+            # Si no se pueden obtener pedidos, continuar con datos vacíos
+            pedidos = []
+        
+        # 5. Calcular métricas
+        # Agrupar pedidos por estado
+        # Incluir todos los pedidos excepto cancelados/rechazados
+        pedidos_completados = [p for p in pedidos if p.get('estado') not in ['cancelado', 'rechazado', 'anulado']]
+        
+        # Clientes únicos
+        clientes_unicos = set(p.get('cliente_id') for p in pedidos_completados if p.get('cliente_id'))
+        
+        # Totales de ventas
+        total_ventas = len(pedidos_completados)
+        monto_total = sum(float(p.get('total', 0)) for p in pedidos_completados)
+        monto_promedio = monto_total / total_ventas if total_ventas > 0 else 0
+        
+        # 6. Calcular métricas por plan y totales generales
+        planes_con_metricas = []
+        meta_ingresos_total = Decimal('0')
+        
+        for plan in planes:
+            meta_ingresos = Decimal(str(plan.get('meta_ingresos', 0)))
+            meta_ingresos_total += meta_ingresos
+            
+            # Calcular cumplimiento
+            cumplimiento = (Decimal(str(monto_total)) / meta_ingresos * 100) if meta_ingresos > 0 else Decimal('0')
+            
+            planes_con_metricas.append({
+                'nombre_plan': plan.get('nombre_plan', 'Sin nombre'),
+                'periodo': plan.get('periodo', periodo),
+                'meta_ingresos': float(meta_ingresos),
+                'meta_visitas': plan.get('meta_visitas', 0),
+                'meta_clientes_nuevos': plan.get('meta_clientes_nuevos', 0),
+            })
+        
+        # Si el vendedor tiene múltiples planes, el cumplimiento es sobre la suma de metas
+        cumplimiento_total = (Decimal(str(monto_total)) / meta_ingresos_total * 100) if meta_ingresos_total > 0 else Decimal('0')
+        
+        return {
+            'vendedor': {
+                'id': vendedor.get('id'),
+                'nombre_completo': f"{vendedor.get('nombre', '')} {vendedor.get('apellidos', '')}".strip(),
+                'correo': vendedor.get('correo'),
+                'zona': vendedor.get('zona', 'N/A')
+            },
+            'periodo': {
+                'mes': mes,
+                'anio': anio,
+                'periodo_formato': periodo,
+                'mes_nombre': _obtener_nombre_mes(mes)
+            },
+            'planes': planes_con_metricas,
+            'metricas': {
+                'ventas_realizadas': total_ventas,
+                'monto_total': round(monto_total, 2),
+                'monto_promedio': round(monto_promedio, 2),
+                'clientes_unicos': len(clientes_unicos),
+                'meta_ingresos_total': float(meta_ingresos_total),
+                'cumplimiento_porcentaje': float(round(cumplimiento_total, 2))
+            },
+            'pedidos_detalle': pedidos_completados  # Para análisis adicional si se necesita
+        }
+        
+    except VendedorServiceError:
+        # Re-lanzar errores de vendedor
+        raise
+    except Exception as e:
+        current_app.logger.error(f"Error inesperado al generar reporte: {str(e)}")
+        raise VendedorServiceError({
+            'error': 'Error interno al generar el reporte de ventas',
+            'codigo': 'ERROR_GENERAR_REPORTE',
+            'detalle': str(e)
+        }, 500)
+
+
+def _obtener_nombre_mes(mes):
+    """Retorna el nombre del mes en español."""
+    meses = {
+        1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
+        5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
+        9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
+    }
+    return meses.get(mes, 'Desconocido')
    
