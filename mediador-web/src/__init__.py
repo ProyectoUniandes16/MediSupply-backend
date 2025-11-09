@@ -6,6 +6,7 @@ from src.blueprints.health import health_bp
 from src.blueprints.proveedores import proveedor_bp
 from src.blueprints.auth import auth_bp
 from src.blueprints.vendedores import vendedores_bp
+from src.blueprints.pedidos import pedidos_bp
 
 def create_app(config_class=Config):
     """
@@ -33,5 +34,6 @@ def create_app(config_class=Config):
     app.register_blueprint(auth_bp)
     app.register_blueprint(proveedor_bp)
     app.register_blueprint(vendedores_bp)
+    app.register_blueprint(pedidos_bp)
 
     return app
