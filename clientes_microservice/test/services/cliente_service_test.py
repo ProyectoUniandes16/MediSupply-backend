@@ -7,7 +7,7 @@ def valid_data():
     return {
         'nombre': 'Empresa S.A.',
         'tipo': 'Sociedad',
-        'pais': 'México',
+        'zona': 'Ciudad de México',
         'nombre_contacto': 'Luis García',
         'cargo_contacto': 'Director',
         'correo_contacto': 'luis@empresa.com',
@@ -28,7 +28,7 @@ def test_datos_no_proporcionados():
 def test_campos_faltantes():
     data = {
         'tipo': 'Sociedad',
-        'pais': 'México',
+        'zona': 'Ciudad de México',
         'nombre_contacto': 'Luis García',
         'cargo_contacto': 'Director',
         'correo_contacto': 'luis@empresa.com',
@@ -46,7 +46,7 @@ def test_formato_email_invalido():
     data = {
         'nombre': 'Empresa S.A.',
         'tipo': 'Sociedad',
-        'pais': 'México',
+        'zona': 'Ciudad de México',
         'nombre_contacto': 'Luis García',
         'cargo_contacto': 'Director',
         'correo_contacto': 'emailinvalido',
@@ -77,7 +77,7 @@ def test_telefono_corto(app, mocker):
     data = {
         'nombre': 'Empresa S.A.',
         'tipo': 'Sociedad',
-        'pais': 'México',
+        'zona': 'Ciudad de México',
         'nombre_contacto': 'Luis García',
         'cargo_contacto': 'Director',
         'correo_contacto': 'luis@empresa.com',
@@ -101,7 +101,7 @@ def test_telefono_no_numerico(app, mocker):
     data = {
         'nombre': 'Empresa S.A.',
         'tipo': 'Sociedad',
-        'pais': 'México',
+        'zona': 'Ciudad de México',
         'nombre_contacto': 'Luis García',
         'cargo_contacto': 'Director',
         'correo_contacto': 'luis@empresa.com',
@@ -124,7 +124,7 @@ def test_nit_corto_o_largo(app, mocker):
     data = {
         'nombre': 'Empresa S.A.',
         'tipo': 'Sociedad',
-        'pais': 'México',
+        'zona': 'Ciudad de México',
         'nombre_contacto': 'Luis García',
         'cargo_contacto': 'Director',
         'correo_contacto': 'luis@empresa.com',

@@ -30,7 +30,7 @@ def crear_cliente_externo(datos_cliente, vendedor_email):
         raise ClienteServiceError({'error': 'No se proporcionaron datos', 'codigo': 'DATOS_VACIOS'}, 400)
 
     # --- Validación de datos de entrada ---
-    required_fields = ['nombre', 'tipo', 'pais', 'nit', 'nombre_contacto', 'correo_contacto', 'telefono_contacto', 'direccion', 'cargo_contacto', 'correo_empresa']
+    required_fields = ['nombre', 'tipo', 'zona', 'nit', 'nombre_contacto', 'correo_contacto', 'telefono_contacto', 'direccion', 'cargo_contacto', 'correo_empresa']
     missing_fields = [field for field in required_fields if not datos_cliente.get(field)]
     if missing_fields:
         raise ClienteServiceError({'error': f"Campos faltantes: {', '.join(missing_fields)}"}, 400)
