@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, Response
 from flask_jwt_extended import jwt_required
 from src.services.vendedores import (
     crear_vendedor_externo, 
@@ -7,8 +7,12 @@ from src.services.vendedores import (
     obtener_detalle_vendedor_externo,
     crear_plan_venta_externo,
     listar_planes_venta_externo,
-    obtener_plan_venta_externo
+    obtener_plan_venta_externo,
+    generar_reporte_ventas_vendedor
 )
+import csv
+import io
+from datetime import datetime
 
 # Crear el blueprint para vendedores
 vendedores_bp = Blueprint('vendedor', __name__)
@@ -107,6 +111,136 @@ def obtener_detalle_vendedor(vendedor_id):
         return jsonify({
             'error': 'Error interno del servidor',
             'codigo': 'ERROR_INESPERADO'
+        }), 500
+
+
+@vendedores_bp.route('/vendedor/<string:vendedor_id>/reporte-ventas', methods=['GET'])
+@jwt_required()
+def generar_reporte_ventas(vendedor_id):
+    """
+    Endpoint del BFF para generar un reporte CSV de ventas de un vendedor.
+    
+    Query params:
+        - mes (int, required): Mes (1-12)
+        - anio (int, required): Año (ej: 2025)
+        - formato (str, optional): 'csv' (default) o 'json'
+        
+    Returns:
+        - CSV file si formato=csv (default)
+        - JSON si formato=json
+    """
+    try:
+        # Obtener y validar parámetros
+        mes = request.args.get('mes')
+        anio = request.args.get('anio')
+        formato = request.args.get('formato', 'csv').lower()
+        
+        # Validar que se proporcionaron mes y año
+        if not mes or not anio:
+            return jsonify({
+                'error': 'Los parámetros mes y anio son requeridos',
+                'codigo': 'PARAMETROS_FALTANTES'
+            }), 400
+        
+        # Convertir a enteros
+        try:
+            mes = int(mes)
+            anio = int(anio)
+        except ValueError:
+            return jsonify({
+                'error': 'Los parámetros mes y anio deben ser números enteros',
+                'codigo': 'PARAMETROS_INVALIDOS'
+            }), 400
+        
+        # Generar el reporte
+        datos_reporte = generar_reporte_ventas_vendedor(vendedor_id, mes, anio)
+        
+        # Si el formato es JSON, retornar los datos directamente
+        if formato == 'json':
+            return jsonify(datos_reporte), 200
+        
+        # Generar CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Información del vendedor
+        vendedor = datos_reporte['vendedor']
+        periodo = datos_reporte['periodo']
+        metricas = datos_reporte['metricas']
+        planes = datos_reporte['planes']
+        
+        # Encabezados del CSV
+        writer.writerow(['REPORTE DE VENTAS'])
+        writer.writerow([])
+        writer.writerow(['Vendedor:', vendedor['nombre_completo']])
+        writer.writerow(['Correo:', vendedor['correo']])
+        writer.writerow(['Zona:', vendedor['zona']])
+        writer.writerow(['Periodo:', f"{periodo['mes_nombre']} {periodo['anio']}"])
+        writer.writerow([])
+        
+        # Resumen general
+        writer.writerow(['RESUMEN GENERAL'])
+        writer.writerow(['Métrica', 'Valor'])
+        writer.writerow(['Ventas Realizadas', metricas['ventas_realizadas']])
+        writer.writerow(['Monto Total Generado', f"${metricas['monto_total']:,.2f}"])
+        writer.writerow(['Monto Promedio por Venta', f"${metricas['monto_promedio']:,.2f}"])
+        writer.writerow(['Clientes Únicos Atendidos', metricas['clientes_unicos']])
+        writer.writerow(['Meta de Ingresos Total', f"${metricas['meta_ingresos_total']:,.2f}"])
+        writer.writerow(['% Cumplimiento', f"{metricas['cumplimiento_porcentaje']:.2f}%"])
+        writer.writerow([])
+        
+        # Detalle por planes
+        if planes:
+            writer.writerow(['DETALLE POR PLANES DE VENTA'])
+            writer.writerow(['Plan', 'Periodo', 'Meta Ingresos', 'Meta Visitas', 'Meta Clientes Nuevos'])
+            
+            for plan in planes:
+                writer.writerow([
+                    plan['nombre_plan'],
+                    plan['periodo'],
+                    f"${plan['meta_ingresos']:,.2f}",
+                    plan['meta_visitas'],
+                    plan['meta_clientes_nuevos']
+                ])
+        else:
+            writer.writerow(['NOTA: No se encontraron planes de venta para este periodo'])
+        
+        writer.writerow([])
+        writer.writerow(['Reporte generado el:', datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
+        
+        # Preparar la respuesta CSV
+        csv_data = output.getvalue()
+        output.close()
+        
+        # Crear nombre de archivo
+        filename = f"reporte_ventas_{vendedor_id}_{anio}_{mes:02d}.csv"
+        
+        # Retornar como archivo descargable
+        return Response(
+            csv_data,
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename={filename}',
+                'Content-Type': 'text/csv; charset=utf-8'
+            }
+        )
+        
+    except VendedorServiceError as e:
+        # Capturar errores controlados desde la capa de servicio
+        return jsonify(e.message), e.status_code
+    except ValueError as e:
+        return jsonify({
+            'error': 'Parámetros inválidos',
+            'codigo': 'PARAMETROS_INVALIDOS',
+            'detalle': str(e)
+        }), 400
+    except Exception as e:
+        # Capturar cualquier otro error no esperado
+        current_app.logger.error(f"Error inesperado al generar reporte de ventas: {str(e)}")
+        return jsonify({
+            'error': 'Error interno del servidor',
+            'codigo': 'ERROR_INESPERADO',
+            'detalle': str(e)
         }), 500
 
 

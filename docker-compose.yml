@@ -65,6 +65,7 @@ services:
       - AUTH_URL=http://auth-usuario:5001
       - PROVEEDORES_URL=http://proveedores:5006
       - VENDEDORES_URL=http://vendedores:5007
+      - PEDIDOS_URL=http://pedidos:5012
       - DEBUG=False
     depends_on:
       auth-usuario:
