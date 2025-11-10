@@ -9,7 +9,7 @@ from src.services.visita_vendedor_service import (
 visitas_bp = Blueprint("visitas", __name__)
 
 
-@visitas_bp.route("/visitas-vendedor", methods=["POST"])
+@visitas_bp.route("/visitas", methods=["POST"])
 @jwt_required()
 def crear_visita_vendedor_endpoint():
     """Endpoint para crear una nueva visita de vendedor a un cliente."""
@@ -32,7 +32,7 @@ def crear_visita_vendedor_endpoint():
         )
 
 
-@visitas_bp.route("/visitas-vendedor/<int:visita_id>", methods=["PATCH"])
+@visitas_bp.route("/visitas/<int:visita_id>", methods=["PATCH"])
 @jwt_required()
 def actualizar_visita_vendedor_endpoint(visita_id):
     """Endpoint para actualizar estado y observación de una visita."""

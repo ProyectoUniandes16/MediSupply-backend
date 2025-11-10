@@ -39,9 +39,6 @@ def test_crear_visita_vendedor_minimo(app, monkeypatch):
     visita = captured["instance"]
     assert visita.cliente_id == 10
     assert visita.vendedor_id == "v-10"
-    assert visita.nombre_contacto is None
-    assert visita.latitud is None
-    assert visita.fecha_fin_visita is None
 
 
 def test_crear_visita_vendedor_con_opcionales(app, monkeypatch):
@@ -60,26 +57,21 @@ def test_crear_visita_vendedor_con_opcionales(app, monkeypatch):
             "vendedor_id": "v-11",
             "fecha_visita": "12/10/2025",
             "estado": "en progreso",
-            "nombre_contacto": "   Ana Perez   ",
-            "latitud": "4.6123456",
-            "longitud": "-74.0723456",
-            "fecha_fin_visita": "2025-10-12 15:30:00",
             "comentarios": "  Buen cliente  ",
         }
 
         resultado = crear_visita_vendedor(payload)
 
     assert resultado["estado"] == "en progreso"
-    assert resultado["nombre_contacto"] == "Ana Perez"
-    assert resultado["latitud"] == pytest.approx(4.6123456, rel=1e-9)
-    assert resultado["longitud"] == pytest.approx(-74.0723456, rel=1e-9)
-    assert resultado["fecha_fin_visita"].startswith("2025-10-12")
     assert resultado["comentarios"] == "Buen cliente"
+    assert "nombre_contacto" not in resultado
+    assert "latitud" not in resultado
+    assert "longitud" not in resultado
+    assert "fecha_fin_visita" not in resultado
 
     visita = captured["instance"]
-    assert visita.fecha_fin_visita == datetime(2025, 10, 12, 15, 30)
-    assert float(visita.latitud) == pytest.approx(4.6123456, rel=1e-9)
-    assert float(visita.longitud) == pytest.approx(-74.0723456, rel=1e-9)
+    assert visita.estado == "en progreso"
+    assert visita.comentarios == "Buen cliente"
 
 
 def test_crear_visita_vendedor_comentarios_normalizados(app, monkeypatch):
@@ -106,24 +98,6 @@ def test_crear_visita_vendedor_comentarios_normalizados(app, monkeypatch):
 
     visita = captured["instance"]
     assert visita.comentarios == "Observación directa"
-
-
-def test_crear_visita_vendedor_geolocalizacion_incompleta(app):
-    with app.app_context():
-        payload = {
-            "cliente_id": 12,
-            "vendedor_id": "v-12",
-            "fecha_visita": "2025-10-12",
-            "latitud": 4.1,
-        }
-
-        with pytest.raises(VisitaVendedorServiceError) as exc:
-            crear_visita_vendedor(payload)
-
-        assert exc.value.status_code == 400
-        assert exc.value.message.get("codigo") == "GEO_INCOMPLETA"
-
-
 def test_crear_visita_vendedor_estado_invalido(app):
     with app.app_context():
         payload = {

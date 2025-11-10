@@ -22,7 +22,7 @@ def test_crear_visita_vendedor_endpoint_success(client, access_token, monkeypatc
     )
 
     headers = {"Authorization": f"Bearer {access_token}"}
-    response = client.post("/visitas-vendedor", json=payload, headers=headers)
+    response = client.post("/visitas", json=payload, headers=headers)
 
     assert response.status_code == 201
     assert response.get_json() == esperado
@@ -37,7 +37,7 @@ def test_crear_visita_vendedor_endpoint_service_error(client, access_token, monk
     monkeypatch.setattr(visitas_blueprint, "crear_visita_vendedor", raise_error)
 
     headers = {"Authorization": f"Bearer {access_token}"}
-    response = client.post("/visitas-vendedor", json={}, headers=headers)
+    response = client.post("/visitas", json={}, headers=headers)
 
     assert response.status_code == 409
     assert response.get_json() == {"error": "duplicado"}
@@ -50,7 +50,7 @@ def test_crear_visita_vendedor_endpoint_unexpected_error(client, access_token, m
     monkeypatch.setattr(visitas_blueprint, "crear_visita_vendedor", raise_exc)
 
     headers = {"Authorization": f"Bearer {access_token}"}
-    response = client.post("/visitas-vendedor", json={}, headers=headers)
+    response = client.post("/visitas", json={}, headers=headers)
 
     assert response.status_code == 500
     body = response.get_json()
@@ -58,7 +58,7 @@ def test_crear_visita_vendedor_endpoint_unexpected_error(client, access_token, m
 
 
 def test_crear_visita_vendedor_endpoint_unauthorized(client):
-    response = client.post("/visitas-vendedor", json={})
+    response = client.post("/visitas", json={})
     assert response.status_code == 401
 
 
@@ -79,7 +79,7 @@ def test_actualizar_visita_vendedor_endpoint_success(client, access_token, monke
 
     headers = {"Authorization": f"Bearer {access_token}"}
     response = client.patch(
-        "/visitas-vendedor/5",
+    "/visitas/5",
         json={"estado": "finalizado", "comentarios": "Visita exitosa"},
         headers=headers,
     )
@@ -98,7 +98,7 @@ def test_actualizar_visita_vendedor_endpoint_service_error(client, access_token,
 
     headers = {"Authorization": f"Bearer {access_token}"}
     response = client.patch(
-        "/visitas-vendedor/123",
+    "/visitas/123",
         json={"estado": "finalizado"},
         headers=headers,
     )
@@ -115,7 +115,7 @@ def test_actualizar_visita_vendedor_endpoint_unexpected_error(client, access_tok
 
     headers = {"Authorization": f"Bearer {access_token}"}
     response = client.patch(
-        "/visitas-vendedor/8",
+    "/visitas/8",
         json={"estado": "en progreso"},
         headers=headers,
     )
@@ -126,5 +126,5 @@ def test_actualizar_visita_vendedor_endpoint_unexpected_error(client, access_tok
 
 
 def test_actualizar_visita_vendedor_endpoint_unauthorized(client):
-    response = client.patch("/visitas-vendedor/1", json={"estado": "pendiente"})
+    response = client.patch("/visitas/1", json={"estado": "pendiente"})
     assert response.status_code == 401

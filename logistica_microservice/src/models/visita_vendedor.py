@@ -15,10 +15,6 @@ class VisitaVendedor(db.Model):
         nullable=False,
         default="pendiente",
     )
-    nombre_contacto = db.Column(db.String(150), nullable=True)
-    latitud = db.Column(db.Numeric(10, 7), nullable=True)
-    longitud = db.Column(db.Numeric(10, 7), nullable=True)
-    fecha_fin_visita = db.Column(db.DateTime, nullable=True)
     comentarios = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(
@@ -44,10 +40,6 @@ class VisitaVendedor(db.Model):
             "vendedor_id": self.vendedor_id,
             "fecha_visita": self.fecha_visita.isoformat(),
             "estado": self.estado,
-            "nombre_contacto": self.nombre_contacto,
-            "latitud": float(self.latitud) if self.latitud is not None else None,
-            "longitud": float(self.longitud) if self.longitud is not None else None,
-            "fecha_fin_visita": self.fecha_fin_visita.isoformat() if self.fecha_fin_visita else None,
             "comentarios": self.comentarios,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

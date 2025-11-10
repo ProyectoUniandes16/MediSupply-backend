@@ -41,45 +41,6 @@ def _parse_fecha_visita(valor):
     )
 
 
-def _parse_fecha_fin(valor):
-    """Parsea fecha/hora de fin si se proporciona."""
-    if valor is None or valor == "":
-        return None
-
-    if isinstance(valor, datetime):
-        return valor
-
-    if not isinstance(valor, str):
-        raise VisitaVendedorServiceError(
-            {"error": "El campo fecha_fin_visita debe ser una cadena o datetime"},
-            400,
-        )
-
-    formatos = (
-        "%Y-%m-%d %H:%M:%S",
-        "%Y-%m-%dT%H:%M:%S",
-        "%Y-%m-%d",
-        "%d/%m/%Y %H:%M:%S",
-        "%d/%m/%Y",
-    )
-    for formato in formatos:
-        try:
-            return datetime.strptime(valor, formato)
-        except ValueError:
-            continue
-
-    try:
-        return datetime.fromisoformat(valor)
-    except ValueError:
-        raise VisitaVendedorServiceError(
-            {
-                "error": "Formato de fecha_fin_visita inválido",
-                "codigo": "FORMATO_FIN_INVALIDO",
-            },
-            400,
-        )
-
-
 def crear_visita_vendedor(data):
     """Crea una nueva visita de vendedor."""
     if data is None:
@@ -132,50 +93,6 @@ def crear_visita_vendedor(data):
             400,
         )
 
-    nombre_contacto = data.get("nombre_contacto")
-    if nombre_contacto is not None:
-        if not isinstance(nombre_contacto, str) or not nombre_contacto.strip():
-            raise VisitaVendedorServiceError(
-                {
-                    "error": "nombre_contacto debe ser una cadena no vacía",
-                    "codigo": "NOMBRE_CONTACTO_INVALIDO",
-                },
-                400,
-            )
-        nombre_contacto = nombre_contacto.strip()
-
-    latitud = data.get("latitud")
-    longitud = data.get("longitud")
-    if latitud is not None or longitud is not None:
-        if latitud is None or longitud is None:
-            raise VisitaVendedorServiceError(
-                {
-                    "error": "Debe proporcionar latitud y longitud juntas",
-                    "codigo": "GEO_INCOMPLETA",
-                },
-                400,
-            )
-        try:
-            latitud = float(latitud)
-            longitud = float(longitud)
-        except (TypeError, ValueError):
-            raise VisitaVendedorServiceError(
-                {
-                    "error": "Latitud y longitud deben ser números",
-                    "codigo": "GEO_INVALIDA",
-                },
-                400,
-            )
-        if not (-90 <= latitud <= 90 and -180 <= longitud <= 180):
-            raise VisitaVendedorServiceError(
-                {
-                    "error": "Latitud/longitud fuera de rango",
-                    "codigo": "GEO_FUERA_RANGO",
-                },
-                400,
-            )
-
-    fecha_fin_visita = _parse_fecha_fin(data.get("fecha_fin_visita"))
     comentarios = data.get("comentarios")
     if comentarios is not None:
         if not isinstance(comentarios, str):
@@ -196,10 +113,6 @@ def crear_visita_vendedor(data):
             vendedor_id=vendedor_id,
             fecha_visita=fecha_visita,
             estado=estado,
-            nombre_contacto=nombre_contacto,
-            latitud=latitud,
-            longitud=longitud,
-            fecha_fin_visita=fecha_fin_visita,
             comentarios=comentarios,
         )
         visita.save()
