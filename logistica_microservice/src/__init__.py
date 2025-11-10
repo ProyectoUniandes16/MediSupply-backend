@@ -5,6 +5,7 @@ from src.models.zona import db
 from src.blueprints.health import health_bp
 from src.blueprints.zonas import zonas_bp
 from src.blueprints.bodegas import bodegas_bp
+from src.blueprints.visitas import visitas_bp
 
 def create_app(config_class=Config):
     """
@@ -26,6 +27,7 @@ def create_app(config_class=Config):
     app.register_blueprint(health_bp)
     app.register_blueprint(zonas_bp)
     app.register_blueprint(bodegas_bp)
+    app.register_blueprint(visitas_bp)
     
     # Crear tablas de la base de datos
     with app.app_context():
