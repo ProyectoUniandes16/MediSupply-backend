@@ -176,7 +176,6 @@ def crear_visita_vendedor(data):
             )
 
     fecha_fin_visita = _parse_fecha_fin(data.get("fecha_fin_visita"))
-
     comentarios = data.get("comentarios")
     if comentarios is not None:
         if not isinstance(comentarios, str):
@@ -236,6 +235,86 @@ def crear_visita_vendedor(data):
             {
                 "error": "Error al guardar la visita",
                 "codigo": "ERROR_GUARDAR_VISITA",
+            },
+            500,
+        )
+
+
+def actualizar_visita_vendedor(visita_id, data):
+    """Actualiza estado y observación de una visita."""
+    if data is None:
+        raise VisitaVendedorServiceError(
+            {"error": "No se proporcionaron datos"},
+            400,
+        )
+
+    estado = data.get("estado")
+    if estado is None:
+        raise VisitaVendedorServiceError(
+            {
+                "error": "Debe proporcionar el estado",
+                "codigo": "ESTADO_REQUERIDO",
+            },
+            400,
+        )
+
+    if estado not in VALID_ESTADOS_VISITA:
+        raise VisitaVendedorServiceError(
+            {
+                "error": "Estado inválido. Valores permitidos: pendiente, en progreso, finalizado",
+                "codigo": "ESTADO_INVALIDO",
+            },
+            400,
+        )
+
+    comentarios_presentes = "comentarios" in data
+    comentarios_actualizados = None
+    if comentarios_presentes:
+        comentarios_actualizados = data.get("comentarios")
+        if comentarios_actualizados is not None and not isinstance(comentarios_actualizados, str):
+            raise VisitaVendedorServiceError(
+                {
+                    "error": "comentarios debe ser una cadena",
+                    "codigo": "COMENTARIOS_INVALIDOS",
+                },
+                400,
+            )
+        if isinstance(comentarios_actualizados, str):
+            comentarios_actualizados = comentarios_actualizados.strip()
+            if comentarios_actualizados == "":
+                comentarios_actualizados = None
+
+    try:
+        visita = db.session.get(VisitaVendedor, visita_id)
+        if visita is None:
+            raise VisitaVendedorServiceError(
+                {
+                    "error": "Visita no encontrada",
+                    "codigo": "VISITA_NO_ENCONTRADA",
+                },
+                404,
+            )
+
+        visita.estado = estado
+        if comentarios_presentes:
+            visita.comentarios = comentarios_actualizados
+
+        db.session.commit()
+        current_app.logger.info(
+            "Visita actualizada: visita_id=%s nuevo_estado=%s",
+            visita_id,
+            estado,
+        )
+        return visita.to_dict()
+    except VisitaVendedorServiceError:
+        raise
+    except Exception as exc:  # pragma: no cover - defensivo
+        db.session.rollback()
+        current_app.logger.error("Error al actualizar visita de vendedor: %s", str(exc))
+        raise VisitaVendedorServiceError(
+            {
+                "error": "Error al actualizar la visita",
+                "codigo": "ERROR_ACTUALIZAR_VISITA",
             },
             500,
         )
