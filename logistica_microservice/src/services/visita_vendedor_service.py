@@ -153,6 +153,86 @@ def crear_visita_vendedor(data):
         )
 
 
+def listar_visitas_vendedor(vendedor_id, fecha_inicio=None, fecha_fin=None):
+    """Lista visitas para un vendedor con opción de filtrar por rango de fechas."""
+    if vendedor_id is None:
+        raise VisitaVendedorServiceError(
+            {
+                "error": "Debe proporcionar el vendedor_id",
+                "codigo": "VENDEDOR_ID_REQUERIDO",
+            },
+            400,
+        )
+
+    if not isinstance(vendedor_id, str) or not vendedor_id.strip():
+        raise VisitaVendedorServiceError(
+            {
+                "error": "vendedor_id debe ser una cadena no vacía",
+                "codigo": "VENDEDOR_ID_INVALIDO",
+            },
+            400,
+        )
+    vendedor_normalizado = vendedor_id.strip()
+
+    fecha_inicio_parseada = None
+    fecha_fin_parseada = None
+    if (fecha_inicio and not fecha_fin) or (fecha_fin and not fecha_inicio):
+        raise VisitaVendedorServiceError(
+            {
+                "error": "Debe proporcionar fecha_inicio y fecha_fin para el rango",
+                "codigo": "RANGO_FECHAS_INCOMPLETO",
+            },
+            400,
+        )
+
+    if fecha_inicio and fecha_fin:
+        fecha_inicio_parseada = _parse_fecha_visita(fecha_inicio)
+        fecha_fin_parseada = _parse_fecha_visita(fecha_fin)
+
+        if fecha_inicio_parseada > fecha_fin_parseada:
+            raise VisitaVendedorServiceError(
+                {
+                    "error": "fecha_inicio no puede ser mayor que fecha_fin",
+                    "codigo": "RANGO_FECHAS_INVALIDO",
+                },
+                400,
+            )
+
+    try:
+        query = VisitaVendedor.query.filter_by(vendedor_id=vendedor_normalizado)
+
+        if fecha_inicio_parseada and fecha_fin_parseada:
+            query = query.filter(VisitaVendedor.fecha_visita >= fecha_inicio_parseada)
+            query = query.filter(VisitaVendedor.fecha_visita <= fecha_fin_parseada)
+
+        visitas = (
+            query.order_by(VisitaVendedor.fecha_visita.asc(), VisitaVendedor.id.asc())
+            .all()
+        )
+
+        return [
+            {
+                "id_visita": visita.id,
+                "cliente_id": visita.cliente_id,
+                "vendedor_id": visita.vendedor_id,
+                "fecha_visita": visita.fecha_visita.isoformat(),
+                "estado": visita.estado,
+            }
+            for visita in visitas
+        ]
+    except VisitaVendedorServiceError:
+        raise
+    except Exception as exc:  # pragma: no cover - defensivo
+        current_app.logger.error("Error al listar visitas de vendedor: %s", str(exc))
+        raise VisitaVendedorServiceError(
+            {
+                "error": "Error al listar las visitas",
+                "codigo": "ERROR_LISTAR_VISITAS",
+            },
+            500,
+        )
+
+
 def actualizar_visita_vendedor(visita_id, data):
     """Actualiza estado y observación de una visita."""
     if data is None:

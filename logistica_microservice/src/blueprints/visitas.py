@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required
 from src.services.visita_vendedor_service import (
     crear_visita_vendedor,
     actualizar_visita_vendedor,
+    listar_visitas_vendedor,
     VisitaVendedorServiceError,
 )
 
@@ -44,6 +45,36 @@ def actualizar_visita_vendedor_endpoint(visita_id):
         return jsonify(err.message), err.status_code
     except Exception as exc:  # pragma: no cover - defensivo
         current_app.logger.error("Error en actualizar visita vendedor: %s", str(exc))
+        return (
+            jsonify(
+                {
+                    "error": "Error interno del servidor",
+                    "codigo": "ERROR_INTERNO_SERVIDOR",
+                }
+            ),
+            500,
+        )
+
+
+@visitas_bp.route("/visitas", methods=["GET"])
+@jwt_required()
+def listar_visitas_vendedor_endpoint():
+    """Endpoint para listar visitas filtradas por vendedor y rango opcional."""
+    try:
+        vendedor_id = request.args.get("vendedor_id")
+        fecha_inicio = request.args.get("fecha_inicio")
+        fecha_fin = request.args.get("fecha_fin")
+
+        visitas = listar_visitas_vendedor(
+            vendedor_id,
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin,
+        )
+        return jsonify({"visitas": visitas}), 200
+    except VisitaVendedorServiceError as err:
+        return jsonify(err.message), err.status_code
+    except Exception as exc:  # pragma: no cover - defensivo
+        current_app.logger.error("Error al listar visitas: %s", str(exc))
         return (
             jsonify(
                 {
