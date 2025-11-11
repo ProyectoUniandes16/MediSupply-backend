@@ -16,10 +16,13 @@ def client(app):
     return app.test_client()
 
 def test_signup_success(client):
-    with patch('src.blueprints.auth.register_user') as mock_register_user:
+    with patch('src.blueprints.auth.crear_cliente_externo') as mock_crear_cliente, \
+         patch('src.blueprints.auth.register_user') as mock_register_user:
+        # evitar llamada real al servicio de clientes y simular registro
+        mock_crear_cliente.return_value = None
         mock_register_user.return_value = {'id': 'user123', 'email': 'test@example.com'}
 
-        response = client.post('/auth/signup', json={'email': 'test@example.com', 'password': 'pass123', 'nombre': 'Test', 'apellido': 'User'})
+        response = client.post('/auth/signup', json={'correo_empresa': 'test@example.com', 'contraseña': 'pass123', 'nombre': 'Test'})
 
         assert response.status_code == 201
         json_data = response.get_json()
@@ -27,21 +30,25 @@ def test_signup_success(client):
 
 def test_signup_auth_service_error(client):
     error = AuthServiceError({'error': 'User exists'}, 409)
-    with patch('src.blueprints.auth.register_user', side_effect=error):
-        response = client.post('/auth/signup', json={'email': 'test@example.com', 'password': 'pass123', 'nombre': 'Test', 'apellido': 'User'})
+    with patch('src.blueprints.auth.crear_cliente_externo') as mock_crear_cliente, \
+         patch('src.blueprints.auth.register_user', side_effect=error):
+        mock_crear_cliente.return_value = None
+        response = client.post('/auth/signup', json={'correo_empresa': 'test@example.com', 'contraseña': 'pass123', 'nombre': 'Test'})
 
         assert response.status_code == 409
         json_data = response.get_json()
         assert 'error' in json_data
 
 def test_signup_unexpected_error(client, app):
-    with patch('src.blueprints.auth.register_user', side_effect=Exception('Unexpected error')):
+    with patch('src.blueprints.auth.crear_cliente_externo') as mock_crear_cliente, \
+         patch('src.blueprints.auth.register_user', side_effect=Exception('Unexpected error')):
+        mock_crear_cliente.return_value = None
         with app.app_context():
             with patch('src.blueprints.auth.current_app') as mock_current_app:
                 mock_logger = MagicMock()
                 mock_current_app.logger = mock_logger
 
-                response = client.post('/auth/signup', json={'email': 'test@example.com', 'password': 'pass123', 'nombre': 'Test', 'apellido': 'User'})
+                response = client.post('/auth/signup', json={'correo_empresa': 'test@example.com', 'contraseña': 'pass123', 'nombre': 'Test'})
 
                 assert response.status_code == 500
                 json_data = response.get_json()

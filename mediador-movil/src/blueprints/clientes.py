@@ -27,7 +27,11 @@ def crear_cliente():
         ## Asociar el cliente creado al vendedor
         cliente_id = datos_respuesta['data']['cliente']['id']
         if email_token and cliente_id:
-            asociar_cliente_a_vendedor(email_token, cliente_id)
+            try:
+                asociar_cliente_a_vendedor(email_token, cliente_id)
+            except VendedorServiceError as e:
+                # Loguear el error pero no impedir la creación del cliente en el BFF
+                current_app.logger.error(f"Error al asociar cliente a vendedor: {e.message}")
         
         ## Registrar el cliente como usuario en el sistema de autenticación
         registro_payload = {
@@ -36,7 +40,13 @@ def crear_cliente():
             'nombre': datos_cliente.get('nombre'),
         }
         
-        register_user(registro_payload)
+        try:
+            register_user(registro_payload)
+        except AuthServiceError as e:
+            # No queremos que un fallo en el servicio de autenticación impida la creación del cliente
+            current_app.logger.error(f"Error al registrar usuario: {e.message}")
+        except Exception as e:
+            current_app.logger.error(f"Error al registrar usuario: {str(e)}")
 
         return jsonify(datos_respuesta), 201
 

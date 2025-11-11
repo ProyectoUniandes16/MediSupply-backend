@@ -41,18 +41,47 @@ def crear_cliente_externo(datos_cliente):
     current_app.logger.info(f"URL del microservicio de clientes: {clientes_url}")
     try:
         response = requests.post(
-            clientes_url+'/cliente',
+            clientes_url + '/cliente',
             json=datos_cliente,
             headers={'Content-Type': 'application/json'}
         )
 
-        if response.status_code != 201:
-            current_app.logger.error(f"Error al crear cliente: {response.text}")
-            raise ClienteServiceError({'error': 'Error al crear cliente', 'codigo': 'ERROR_CREAR_CLIENTE'}, response.status_code)
+        # Usar raise_for_status para respetar el comportamiento esperado por los tests/mocks
+        response.raise_for_status()
 
-        current_app.logger.info(f"Cliente creado exitosamente: {response.json()}")
+        cliente_data = response.json()
+        current_app.logger.info(f"Cliente creado exitosamente: {cliente_data}")
 
-        return response.json()
+        # Intentar registrar el cliente como usuario en el sistema de autenticación.
+        try:
+            registro_payload = {
+                'email': datos_cliente.get('correo_empresa'),
+                'password': 'defaultPassword123',
+                'nombre': datos_cliente.get('nombre'),
+            }
+            register_resp = register_user(registro_payload)
+
+            # Si el registro devuelve un id de usuario, intentar asociarlo mediante PATCH
+            user_id = None
+            if isinstance(register_resp, dict):
+                user_id = register_resp.get('data', {}).get('user', {}).get('id')
+
+            if user_id:
+                try:
+                    patch_resp = requests.patch(
+                        f"{clientes_url}/cliente/{cliente_data.get('id')}/vendedor",
+                        json={'vendedor_id': user_id},
+                        headers={'Content-Type': 'application/json'}
+                    )
+                    # respetar los posibles errores del patch
+                    patch_resp.raise_for_status()
+                except requests.exceptions.RequestException as e:
+                    current_app.logger.error(f"Error al asociar user al cliente: {str(e)}")
+        except AuthServiceError as e:
+            # No queremos que un fallo en el registro impida la creación del cliente
+            current_app.logger.error(f"Error registrando usuario para el cliente: {str(e)}")
+
+        return cliente_data
     except requests.exceptions.HTTPError as e:
         current_app.logger.error(f"Error del microservicio de clientes: {e.response.text}")
         raise ClienteServiceError(e.response.json(), e.response.status_code)
