@@ -1,3 +1,4 @@
+import re
 import pytest
 from unittest.mock import patch, MagicMock
 from flask import Flask
@@ -34,7 +35,8 @@ def make_token():
 @patch('src.blueprints.clientes.decode_jwt')
 @patch('src.blueprints.clientes.crear_cliente_externo')
 def test_crear_cliente_blueprint_success(mock_service, mock_decode, app):
-    mock_service.return_value = {'id': 'c1'}
+    return_value = {'data': {'cliente': {'id': 'c1'}}}
+    mock_service.return_value = return_value
     mock_decode.return_value = make_token()
 
     with app.test_request_context('/cliente', method='POST', json=minimal_cliente(), headers={'Authorization': 'Bearer tok'}):
@@ -42,7 +44,7 @@ def test_crear_cliente_blueprint_success(mock_service, mock_decode, app):
         resp, status = clientes_module.crear_cliente.__wrapped__()
 
     assert status == 201
-    assert resp.get_json() == {'id': 'c1'}
+    assert resp.get_json() == return_value
     mock_service.assert_called_once()
 
 

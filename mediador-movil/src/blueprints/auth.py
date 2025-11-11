@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.services.auth import register_user, login_user, AuthServiceError
+from src.services.clientes import crear_cliente_externo, ClienteServiceError
 
 # Crear el blueprint para autenticación
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
@@ -11,10 +12,20 @@ def signup():
     Endpoint para registrar un nuevo usuario
     """
     try:
-        data = request.get_json()
+        data_cliente = request.get_json()
+        crear_cliente_externo(data_cliente)
+        data = {
+            'email': data_cliente.get('correo_empresa'),
+            'password': data_cliente.get('contraseña'),
+            'role': 'cliente',
+            'nombre': data_cliente.get('nombre'),
+        }
+        
         response_data = register_user(data)
-        return jsonify(response_data), 201
 
+        return jsonify(response_data), 201
+    except ClienteServiceError as e:
+        return jsonify(e.message), e.status_code
     except AuthServiceError as e:
         return jsonify(e.message), e.status_code
     except Exception as e:
