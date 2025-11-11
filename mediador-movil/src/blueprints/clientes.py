@@ -32,6 +32,9 @@ def crear_cliente():
             except VendedorServiceError as e:
                 # Loguear el error pero no impedir la creación del cliente en el BFF
                 current_app.logger.error(f"Error al asociar cliente a vendedor: {e.message}")
+            except Exception as e:
+                # Capturar excepciones de requests u otras inesperadas y solo loguearlas
+                current_app.logger.error(f"Error al asociar cliente a vendedor (no crítico): {str(e)}")
         
         ## Registrar el cliente como usuario en el sistema de autenticación
         registro_payload = {
