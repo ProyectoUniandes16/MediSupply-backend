@@ -6,6 +6,8 @@ from typing import Any, Dict, Optional
 import requests
 from flask import current_app
 
+from src.services.vendedores import listar_vendedores_externo, VendedorServiceError
+
 
 VALID_ESTADOS_VISITA = {"pendiente", "en progreso", "finalizado"}
 
@@ -79,6 +81,107 @@ def _validar_entrada(visita_id: Optional[int], payload: Optional[Dict[str, Any]]
         )
 
     return _normalizar_payload(payload)
+
+
+def listar_visitas_logistica(
+    filtros: Optional[Dict[str, Any]] = None,
+    vendedor_email: Optional[str] = None,
+    headers: Optional[Dict[str, str]] = None,
+) -> Dict[str, Any]:
+    """Consulta visitas en logística aplicando filtros y resolviendo el vendedor desde el token."""
+    filtros_seguro: Dict[str, Any] = dict(filtros or {})
+
+    if vendedor_email:
+        try:
+            vendedores_response = listar_vendedores_externo(filters={"correo": vendedor_email})
+        except VendedorServiceError as exc:
+            raise LogisticaServiceError(
+                {
+                    "error": "Error al consultar vendedor",
+                    "codigo": "ERROR_VENDEDOR",
+                },
+                exc.status_code,
+            ) from exc
+
+        items = vendedores_response.get("items") if isinstance(vendedores_response, dict) else None
+        if not items:
+            raise LogisticaServiceError(
+                {
+                    "error": "Vendedor no encontrado",
+                    "codigo": "VENDEDOR_NO_ENCONTRADO",
+                },
+                404,
+            )
+
+        vendedor_id = items[0].get("id")
+        if not vendedor_id:
+            raise LogisticaServiceError(
+                {
+                    "error": "Vendedor sin identificador válido",
+                    "codigo": "VENDEDOR_SIN_ID",
+                },
+                404,
+            )
+        filtros_seguro["vendedor_id"] = vendedor_id
+
+    logistica_url = os.environ.get("LOGISTICA_URL", "http://localhost:5013")
+    request_headers = {"Content-Type": "application/json"}
+    if headers:
+        request_headers.update(headers)
+
+    try:
+        response = requests.get(
+            f"{logistica_url}/visitas",
+            params=filtros_seguro or None,
+            headers=request_headers,
+            timeout=10,
+        )
+
+        if response.status_code != 200:
+            _safe_log_error(
+                f"Error del microservicio de logistica al listar: {response.status_code} - {response.text}"
+            )
+            try:
+                error_body = response.json()
+            except ValueError:
+                error_body = {
+                    "error": "Error al listar visitas en logística",
+                    "codigo": "ERROR_LOGISTICA",
+                }
+            raise LogisticaServiceError(error_body, response.status_code)
+
+        try:
+            return response.json()
+        except ValueError as exc:
+            _safe_log_error("Respuesta sin JSON del microservicio de logistica al listar visitas")
+            raise LogisticaServiceError(
+                {
+                    "error": "Respuesta inválida del microservicio de logistica",
+                    "codigo": "RESPUESTA_INVALIDA",
+                },
+                502,
+            ) from exc
+
+    except requests.exceptions.RequestException as exc:
+        _safe_log_error(f"Error de conexion con logistica al listar visitas: {str(exc)}")
+        raise LogisticaServiceError(
+            {
+                "error": "Error de conexion con el microservicio de logistica",
+                "codigo": "ERROR_CONEXION",
+            },
+            503,
+        ) from exc
+    except LogisticaServiceError:
+        raise
+    except Exception as exc:  # pragma: no cover - defensivo
+        _safe_log_error(f"Error inesperado listando visitas en logistica: {str(exc)}")
+        raise LogisticaServiceError(
+            {
+                "error": "Error interno al listar visitas",
+                "codigo": "ERROR_INESPERADO",
+            },
+            500,
+        ) from exc
 
 
 def actualizar_visita_logistica(

@@ -3,7 +3,11 @@ from unittest.mock import MagicMock, patch
 import requests
 from flask import Flask
 
-from src.services.logistica import actualizar_visita_logistica, LogisticaServiceError
+from src.services.logistica import (
+    actualizar_visita_logistica,
+    listar_visitas_logistica,
+    LogisticaServiceError,
+)
 
 
 @pytest.fixture
@@ -153,3 +157,124 @@ def test_actualizar_visita_logistica_entorno_personalizado(mock_patch):
         headers={"Content-Type": "application/json"},
         timeout=10,
     )
+
+
+@patch("src.services.logistica.listar_vendedores_externo")
+@patch("src.services.logistica.requests.get")
+def test_listar_visitas_logistica_exito(mock_get, mock_listar_vendedores):
+    mock_listar_vendedores.return_value = {"items": [{"id": "ven-1"}]}
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"visitas": []}
+    mock_get.return_value = mock_response
+
+    resultado = listar_visitas_logistica(
+        filtros={"fecha_inicio": "2025-11-01", "fecha_fin": "2025-11-15"},
+        vendedor_email="v@test.com",
+        headers={"Authorization": "Bearer token"},
+    )
+
+    assert resultado == {"visitas": []}
+    mock_listar_vendedores.assert_called_once()
+    mock_get.assert_called_once()
+    _, kwargs = mock_get.call_args
+    assert kwargs["params"]["vendedor_id"] == "ven-1"
+    assert kwargs["headers"]["Authorization"] == "Bearer token"
+
+
+@patch("src.services.logistica.listar_vendedores_externo")
+def test_listar_visitas_logistica_vendedor_no_encontrado(mock_listar_vendedores):
+    mock_listar_vendedores.return_value = {"items": []}
+
+    with pytest.raises(LogisticaServiceError) as exc:
+        listar_visitas_logistica(vendedor_email="v@test.com")
+
+    assert exc.value.status_code == 404
+    assert exc.value.message["codigo"] == "VENDEDOR_NO_ENCONTRADO"
+
+
+@patch("src.services.logistica.listar_vendedores_externo")
+def test_listar_visitas_logistica_vendedor_sin_id(mock_listar_vendedores):
+    mock_listar_vendedores.return_value = {"items": [{}]}
+
+    with pytest.raises(LogisticaServiceError) as exc:
+        listar_visitas_logistica(vendedor_email="v@test.com")
+
+    assert exc.value.status_code == 404
+    assert exc.value.message["codigo"] == "VENDEDOR_SIN_ID"
+
+
+@patch("src.services.logistica.listar_vendedores_externo")
+def test_listar_visitas_logistica_error_vendedor(mock_listar_vendedores):
+    from src.services.vendedores import VendedorServiceError
+
+    mock_listar_vendedores.side_effect = VendedorServiceError("fallo", 500)
+
+    with pytest.raises(LogisticaServiceError) as exc:
+        listar_visitas_logistica(vendedor_email="v@test.com")
+
+    assert exc.value.status_code == 500
+    assert exc.value.message["codigo"] == "ERROR_VENDEDOR"
+
+
+@patch("src.services.logistica.listar_vendedores_externo")
+@patch("src.services.logistica.requests.get")
+def test_listar_visitas_logistica_http_error(mock_get, mock_listar_vendedores):
+    mock_listar_vendedores.return_value = {"items": [{"id": "ven-1"}]}
+    mock_response = MagicMock()
+    mock_response.status_code = 500
+    mock_response.text = "Error"
+    mock_response.json.return_value = {"error": "fallo"}
+    mock_get.return_value = mock_response
+
+    with pytest.raises(LogisticaServiceError) as exc:
+        listar_visitas_logistica(vendedor_email="v@test.com")
+
+    assert exc.value.status_code == 500
+    assert exc.value.message["error"] == "fallo"
+
+
+@patch("src.services.logistica.listar_vendedores_externo")
+@patch("src.services.logistica.requests.get")
+def test_listar_visitas_logistica_http_error_sin_json(mock_get, mock_listar_vendedores):
+    mock_listar_vendedores.return_value = {"items": [{"id": "ven-1"}]}
+    mock_response = MagicMock()
+    mock_response.status_code = 400
+    mock_response.text = "Bad request"
+    mock_response.json.side_effect = ValueError("no json")
+    mock_get.return_value = mock_response
+
+    with pytest.raises(LogisticaServiceError) as exc:
+        listar_visitas_logistica(vendedor_email="v@test.com")
+
+    assert exc.value.status_code == 400
+    assert exc.value.message["codigo"] == "ERROR_LOGISTICA"
+
+
+@patch("src.services.logistica.listar_vendedores_externo")
+@patch("src.services.logistica.requests.get")
+def test_listar_visitas_logistica_respuesta_invalida(mock_get, mock_listar_vendedores):
+    mock_listar_vendedores.return_value = {"items": [{"id": "ven-1"}]}
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.side_effect = ValueError("invalid")
+    mock_get.return_value = mock_response
+
+    with pytest.raises(LogisticaServiceError) as exc:
+        listar_visitas_logistica(vendedor_email="v@test.com")
+
+    assert exc.value.status_code == 502
+    assert exc.value.message["codigo"] == "RESPUESTA_INVALIDA"
+
+
+@patch("src.services.logistica.listar_vendedores_externo")
+@patch("src.services.logistica.requests.get")
+def test_listar_visitas_logistica_error_conexion(mock_get, mock_listar_vendedores):
+    mock_listar_vendedores.return_value = {"items": [{"id": "ven-1"}]}
+    mock_get.side_effect = requests.exceptions.ConnectionError("fail")
+
+    with pytest.raises(LogisticaServiceError) as exc:
+        listar_visitas_logistica(vendedor_email="v@test.com")
+
+    assert exc.value.status_code == 503
+    assert exc.value.message["codigo"] == "ERROR_CONEXION"
