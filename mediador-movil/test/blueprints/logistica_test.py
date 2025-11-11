@@ -68,6 +68,10 @@ def test_actualizar_visita_logistica_error_inesperado(mock_actualizar, client, a
     with app.app_context():
         with patch("src.blueprints.logistica.current_app") as mock_current_app:
             mock_current_app.logger = mock_logger
+            mock_current_app.config = {
+                "JWT_SECRET_KEY": "test-secret",
+                "JWT_ALGORITHM": "HS256",
+            }
             headers = {"Authorization": f"Bearer {access_token}"}
             response = client.patch(
                 "/visitas/1",
@@ -97,6 +101,7 @@ def test_listar_visitas_logistica_exito(mock_listar, client, access_token):
     args, kwargs = mock_listar.call_args
     assert "filtros" in kwargs
     assert kwargs["headers"]["Authorization"].startswith("Bearer ")
+    assert kwargs["vendedor_email"] == "user-test"
 
 
 @patch("src.blueprints.logistica.listar_visitas_logistica")
@@ -119,6 +124,10 @@ def test_listar_visitas_logistica_error_inesperado(mock_listar, client, access_t
     with app.app_context():
         with patch("src.blueprints.logistica.current_app") as mock_current_app:
             mock_current_app.logger = mock_logger
+            mock_current_app.config = {
+                "JWT_SECRET_KEY": "test-secret",
+                "JWT_ALGORITHM": "HS256",
+            }
             headers = {"Authorization": f"Bearer {access_token}"}
             response = client.get("/visitas", headers=headers)
 
@@ -130,3 +139,15 @@ def test_listar_visitas_logistica_error_inesperado(mock_listar, client, access_t
 def test_listar_visitas_logistica_sin_token(client):
     response = client.get("/visitas")
     assert response.status_code == 401
+
+
+@patch("src.blueprints.logistica.decode_jwt")
+def test_listar_visitas_logistica_token_invalido(mock_decode, client, access_token):
+    mock_decode.side_effect = ValueError("Token inválido")
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    response = client.get("/visitas", headers=headers)
+
+    assert response.status_code == 401
+    body = response.get_json()
+    assert body["codigo"] == "TOKEN_INVALIDO"

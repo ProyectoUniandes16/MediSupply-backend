@@ -31,6 +31,15 @@ def actualizar_visita_logistica_endpoint(visita_id):
             "Error inesperado actualizando visita logistica (movil): %s",
             str(exc),
         )
+        return (
+            jsonify(
+                {
+                    "error": "Error interno del servidor",
+                    "codigo": "ERROR_INTERNO_SERVIDOR",
+                }
+            ),
+            500,
+        )
 
 
 @logistica_bp.route("/visitas", methods=["GET"])
@@ -45,8 +54,27 @@ def listar_visitas_logistica_endpoint():
         if auth_header:
             headers["Authorization"] = auth_header
 
-        token_data = decode_jwt(current_app, auth_header)
-        vendedor_email = token_data.get("user", {}).get("email") if token_data else None
+        vendedor_email = None
+        if auth_header:
+            try:
+                token_data = decode_jwt(current_app, auth_header)
+                if token_data:
+                    vendedor_email = (
+                        token_data.get("user", {}).get("email")
+                        or token_data.get("email")
+                        or token_data.get("sub")
+                    )
+            except ValueError:
+                current_app.logger.error("No se pudo decodificar el token JWT para visitas")
+                return (
+                    jsonify(
+                        {
+                            "error": "Token inválido",
+                            "codigo": "TOKEN_INVALIDO",
+                        }
+                    ),
+                    401,
+                )
 
         visitas = listar_visitas_logistica(
             filtros=filtros,
@@ -60,15 +88,6 @@ def listar_visitas_logistica_endpoint():
         current_app.logger.error(
             "Error inesperado listando visitas de logística (móvil): %s",
             str(exc),
-        )
-        return (
-            jsonify(
-                {
-                    "error": "Error interno del servidor",
-                    "codigo": "ERROR_INTERNO_SERVIDOR",
-                }
-            ),
-            500,
         )
         return (
             jsonify(
