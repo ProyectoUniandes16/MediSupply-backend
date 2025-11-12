@@ -51,36 +51,7 @@ def crear_cliente_externo(datos_cliente):
 
         cliente_data = response.json()
         current_app.logger.info(f"Cliente creado exitosamente: {cliente_data}")
-
-        # Intentar registrar el cliente como usuario en el sistema de autenticación.
-        try:
-            registro_payload = {
-                'email': datos_cliente.get('correo_empresa'),
-                'password': 'defaultPassword123',
-                'nombre': datos_cliente.get('nombre'),
-            }
-            register_resp = register_user(registro_payload)
-
-            # Si el registro devuelve un id de usuario, intentar asociarlo mediante PATCH
-            user_id = None
-            if isinstance(register_resp, dict):
-                user_id = register_resp.get('data', {}).get('user', {}).get('id')
-
-            if user_id:
-                try:
-                    patch_resp = requests.patch(
-                        f"{clientes_url}/cliente/{cliente_data.get('id')}/vendedor",
-                        json={'vendedor_id': user_id},
-                        headers={'Content-Type': 'application/json'}
-                    )
-                    # respetar los posibles errores del patch
-                    patch_resp.raise_for_status()
-                except requests.exceptions.RequestException as e:
-                    current_app.logger.error(f"Error al asociar user al cliente: {str(e)}")
-        except AuthServiceError as e:
-            # No queremos que un fallo en el registro impida la creación del cliente
-            current_app.logger.error(f"Error registrando usuario para el cliente: {str(e)}")
-
+        
         return cliente_data
     except requests.exceptions.HTTPError as e:
         current_app.logger.error(f"Error del microservicio de clientes: {e.response.text}")
