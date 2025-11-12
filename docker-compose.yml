@@ -66,6 +66,7 @@ services:
       - PROVEEDORES_URL=http://proveedores:5006
       - VENDEDORES_URL=http://vendedores:5007
       - PEDIDOS_URL=http://pedidos:5012
+      - LOGISTICA_URL=http://logistica:5013
       - DEBUG=False
     depends_on:
       auth-usuario:
