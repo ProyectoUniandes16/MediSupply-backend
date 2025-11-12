@@ -119,3 +119,119 @@ def crear_visita_logistica(
             },
             500,
         )
+
+
+def optimizar_ruta(
+    payload: Optional[Dict[str, Any]],
+    formato: str = "json",
+) -> Any:
+    """
+    Invoca el microservicio de logística para optimizar una ruta de entrega.
+    
+    Args:
+        payload: Diccionario con 'bodega' (coordenadas) y 'destinos' (lista de coordenadas)
+        formato: 'json' o 'html' (por defecto 'json')
+        
+    Returns:
+        Diccionario con la ruta optimizada o HTML del mapa según el formato
+    """
+    if not isinstance(payload, dict) or not payload:
+        raise LogisticaServiceError(
+            {"error": "No se proporcionaron datos", "codigo": "DATOS_VACIOS"},
+            400,
+        )
+    
+    if not payload.get("bodega"):
+        raise LogisticaServiceError(
+            {"error": "Campo 'bodega' es requerido", "codigo": "BODEGA_REQUERIDA"},
+            400,
+        )
+    
+    if not payload.get("destinos"):
+        raise LogisticaServiceError(
+            {"error": "Campo 'destinos' es requerido", "codigo": "DESTINOS_REQUERIDOS"},
+            400,
+        )
+    
+    logistica_url = os.environ.get("LOGISTICA_URL", "http://localhost:5013")
+    
+    try:
+        response = requests.post(
+            f"{logistica_url}/ruta-optima",
+            json=payload,
+            params={"formato": formato},
+            headers={"Content-Type": "application/json"},
+            timeout=30,  # Mayor timeout por el procesamiento de rutas
+        )
+        response.raise_for_status()
+        
+        # Si el formato es HTML, retornar el texto directamente
+        if formato == "html":
+            return response.text
+        
+        # Para JSON, parsear la respuesta
+        try:
+            return response.json()
+        except ValueError:
+            _safe_log_error(
+                "Respuesta sin JSON del microservicio de logística al optimizar ruta",
+            )
+            raise LogisticaServiceError(
+                {
+                    "error": "Respuesta inválida del microservicio de logística",
+                    "codigo": "RESPUESTA_INVALIDA",
+                },
+                502,
+            )
+    
+    except requests.exceptions.HTTPError as exc:
+        status_code = exc.response.status_code if exc.response else 500
+        detalle = exc.response.text if exc.response else str(exc)
+        _safe_log_error(
+            f"Error HTTP del microservicio de logística al optimizar ruta: {detalle}"
+        )
+        error_body: Dict[str, Any]
+        if exc.response is not None:
+            try:
+                error_body = exc.response.json()
+            except ValueError:
+                error_body = {
+                    "error": exc.response.text or "Error HTTP en logística",
+                    "codigo": "ERROR_HTTP",
+                }
+        else:
+            error_body = {"error": "Error HTTP en logística", "codigo": "ERROR_HTTP"}
+        raise LogisticaServiceError(error_body, status_code)
+    
+    except requests.exceptions.Timeout:
+        _safe_log_error("Timeout al optimizar ruta en logística")
+        raise LogisticaServiceError(
+            {
+                "error": "Timeout al procesar la optimización de ruta",
+                "codigo": "TIMEOUT",
+            },
+            504,
+        )
+    
+    except requests.exceptions.RequestException as exc:
+        _safe_log_error(f"Error de conexión con logística al optimizar ruta: {str(exc)}")
+        raise LogisticaServiceError(
+            {
+                "error": "Error de conexión con el microservicio de logística",
+                "codigo": "ERROR_CONEXION",
+            },
+            503,
+        )
+    
+    except LogisticaServiceError:
+        raise
+    
+    except Exception as exc:  # pragma: no cover - defensivo
+        _safe_log_error(f"Error inesperado al optimizar ruta: {str(exc)}")
+        raise LogisticaServiceError(
+            {
+                "error": "Error interno al optimizar ruta",
+                "codigo": "ERROR_INESPERADO",
+            },
+            500,
+        )
