@@ -66,6 +66,7 @@ services:
       - PROVEEDORES_URL=http://proveedores:5006
       - VENDEDORES_URL=http://vendedores:5007
       - PEDIDOS_URL=http://pedidos:5012
+      - LOGISTICA_URL=http://logistica:5013
       - DEBUG=False
     depends_on:
       auth-usuario:
@@ -230,6 +231,7 @@ services:
       - DB_PASSWORD=${POSTGRES_PASSWORD:-medisupply_password}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-jwt-secret-key-change-in-production}
+      - ORS_API_KEY=eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjQ5M2RlMmQzNDkzOTRjZGU4ZWYyY2YxZmRhYTlhZDBlIiwiaCI6Im11cm11cjY0In0=
       - DEBUG=False
     depends_on:
       db:
