@@ -6,7 +6,7 @@ from src.services.clientes import crear_cliente_externo, ClienteServiceError
 # Crear el blueprint para autenticación
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
-@auth_bp.route(rule='/signup', methods=['POST'])
+@auth_bp.route(rule='/signup/cliente', methods=['POST'])
 def signup():
     """
     Endpoint para registrar un nuevo usuario

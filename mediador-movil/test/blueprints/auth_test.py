@@ -22,7 +22,7 @@ def test_signup_success(client):
         mock_crear_cliente.return_value = None
         mock_register_user.return_value = {'id': 'user123', 'email': 'test@example.com'}
 
-        response = client.post('/auth/signup', json={'correo_empresa': 'test@example.com', 'contraseña': 'pass123', 'nombre': 'Test'})
+        response = client.post('/auth/signup/cliente', json={'correo_empresa': 'test@example.com', 'contraseña': 'pass123', 'nombre': 'Test'})
 
         assert response.status_code == 201
         json_data = response.get_json()
@@ -33,7 +33,7 @@ def test_signup_auth_service_error(client):
     with patch('src.blueprints.auth.crear_cliente_externo') as mock_crear_cliente, \
          patch('src.blueprints.auth.register_user', side_effect=error):
         mock_crear_cliente.return_value = None
-        response = client.post('/auth/signup', json={'correo_empresa': 'test@example.com', 'contraseña': 'pass123', 'nombre': 'Test'})
+        response = client.post('/auth/signup/cliente', json={'correo_empresa': 'test@example.com', 'contraseña': 'pass123', 'nombre': 'Test'})
 
         assert response.status_code == 409
         json_data = response.get_json()
@@ -48,7 +48,7 @@ def test_signup_unexpected_error(client, app):
                 mock_logger = MagicMock()
                 mock_current_app.logger = mock_logger
 
-                response = client.post('/auth/signup', json={'correo_empresa': 'test@example.com', 'contraseña': 'pass123', 'nombre': 'Test'})
+                response = client.post('/auth/signup/cliente', json={'correo_empresa': 'test@example.com', 'contraseña': 'pass123', 'nombre': 'Test'})
 
                 assert response.status_code == 500
                 json_data = response.get_json()
