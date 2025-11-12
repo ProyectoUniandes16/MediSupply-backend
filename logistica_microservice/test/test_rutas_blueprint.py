@@ -71,7 +71,7 @@ def test_ruta_optima_exito_formato_html(client):
         assert response.status_code == 200
         assert 'text/html' in response.content_type
         assert b'Ruta' in response.data  # Verificar que contiene contenido HTML
-        assert b'km' in response.data  # Verificar estadísticas
+        assert b'min' in response.data  # Verificar estadísticas de tiempo
 
 
 def test_ruta_optima_sin_bodega(client):
