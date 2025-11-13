@@ -31,7 +31,7 @@ def minimal_cliente():
 
 def test_crear_cliente_no_datos():
     with pytest.raises(ClienteServiceError) as excinfo:
-        crear_cliente_externo(None, vendedor_email='v@e.com')
+        crear_cliente_externo(None)
     assert excinfo.value.status_code == 400
     assert 'No se proporcionaron datos' in excinfo.value.message['error']
 
@@ -40,7 +40,7 @@ def test_crear_cliente_missing_fields():
     datos = minimal_cliente()
     del datos['correo_contacto']
     with pytest.raises(ClienteServiceError) as excinfo:
-        crear_cliente_externo(datos, vendedor_email='v@e.com')
+        crear_cliente_externo(datos)
     assert excinfo.value.status_code == 400
     assert 'Campos faltantes' in excinfo.value.message['error']
 
@@ -64,32 +64,10 @@ def test_crear_cliente_success(mock_register, mock_patch, mock_post, app):
     mock_patch.return_value = mock_patch_resp
 
     with app.app_context():
-        result = crear_cliente_externo(minimal_cliente(), vendedor_email='v@e.com')
+        result = crear_cliente_externo(minimal_cliente())
 
     assert result == cliente_resp
     mock_post.assert_called_once()
-    mock_register.assert_called_once()
-    mock_patch.assert_called_once()
-
-
-@patch('src.services.clientes.requests.post')
-@patch('src.services.clientes.register_user')
-def test_crear_cliente_register_user_fails_but_returns(mock_register, mock_post, app):
-    cliente_resp = {'id': 'c1', 'nombre': 'Empresa X'}
-
-    mock_response = MagicMock()
-    mock_response.raise_for_status = MagicMock()
-    mock_response.json.return_value = cliente_resp
-    mock_post.return_value = mock_response
-
-    # register_user raises AuthServiceError but should be swallowed
-    mock_register.side_effect = AuthServiceError({'error': 'algo'}, 400)
-
-    with app.app_context():
-        result = crear_cliente_externo(minimal_cliente(), vendedor_email='v@e.com')
-
-    assert result == cliente_resp
-    mock_register.assert_called_once()
 
 
 @patch('src.services.clientes.requests.post')
@@ -104,7 +82,7 @@ def test_crear_cliente_http_error(mock_post, app):
 
     with app.app_context():
         with pytest.raises(ClienteServiceError) as excinfo:
-            crear_cliente_externo(minimal_cliente(), vendedor_email='v@e.com')
+            crear_cliente_externo(minimal_cliente())
 
     assert excinfo.value.status_code == 400
     assert excinfo.value.message == mock_resp.json.return_value
@@ -116,7 +94,7 @@ def test_crear_cliente_connection_error(mock_post, app):
 
     with app.app_context():
         with pytest.raises(ClienteServiceError) as excinfo:
-            crear_cliente_externo(minimal_cliente(), vendedor_email='v@e.com')
+            crear_cliente_externo(minimal_cliente())
 
     assert excinfo.value.status_code == 503
     assert excinfo.value.message['codigo'] == 'ERROR_CONEXION'

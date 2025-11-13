@@ -3,6 +3,8 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from jwt import decode
 from src.services.clientes import crear_cliente_externo, ClienteServiceError, listar_clientes_vendedor_externo
 from src.utils.token_utils import decode_jwt
+from src.services.vendedores import VendedorServiceError, asociar_cliente_a_vendedor
+from src.services.auth import AuthServiceError, register_user
 
 # Crear el blueprint para clientes
 clientes_bp = Blueprint('cliente', __name__)
@@ -20,7 +22,34 @@ def crear_cliente():
         email_token = token_data.get('user').get('email') if token_data else None
         current_app.logger.info(f"Email from token: {email_token}")
         # Llamar a la capa de servicio para manejar la lógica
-        datos_respuesta = crear_cliente_externo(datos_cliente, vendedor_email=email_token)
+        datos_respuesta = crear_cliente_externo(datos_cliente)
+        
+        ## Asociar el cliente creado al vendedor
+        cliente_id = datos_respuesta['data']['cliente']['id']
+        if email_token and cliente_id:
+            try:
+                asociar_cliente_a_vendedor(email_token, cliente_id)
+            except VendedorServiceError as e:
+                # Loguear el error pero no impedir la creación del cliente en el BFF
+                current_app.logger.error(f"Error al asociar cliente a vendedor: {e.message}")
+            except Exception as e:
+                # Capturar excepciones de requests u otras inesperadas y solo loguearlas
+                current_app.logger.error(f"Error al asociar cliente a vendedor (no crítico): {str(e)}")
+        
+        ## Registrar el cliente como usuario en el sistema de autenticación
+        registro_payload = {
+            'email': datos_cliente.get('correo_empresa'),
+            'password': 'defaultPassword123',  # Contraseña por defecto, se recomienda cambiarla luego
+            'nombre': datos_cliente.get('nombre'),
+        }
+        
+        try:
+            register_user(registro_payload)
+        except AuthServiceError as e:
+            # No queremos que un fallo en el servicio de autenticación impida la creación del cliente
+            current_app.logger.error(f"Error al registrar usuario: {e.message}")
+        except Exception as e:
+            current_app.logger.error(f"Error al registrar usuario: {str(e)}")
 
         return jsonify(datos_respuesta), 201
 

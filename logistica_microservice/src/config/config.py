@@ -26,3 +26,6 @@ class Config:
     # Configuración de JWT
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-key-change-in-production'
     JWT_ACCESS_TOKEN_EXPIRES = False  # Token no expira
+    
+    # Configuración de OpenRouteService API
+    ORS_API_KEY = os.environ.get('ORS_API_KEY', 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjQ5M2RlMmQzNDkzOTRjZGU4ZWYyY2YxZmRhYTlhZDBlIiwiaCI6Im11cm11cjY0In0=')

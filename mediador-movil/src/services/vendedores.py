@@ -50,3 +50,24 @@ def listar_vendedores_externo(zona: str = None, estado: str = None, page: int = 
         raise VendedorServiceError("Error al listar los vendedores", response.status_code)
 
     return response.json()
+
+def asociar_cliente_a_vendedor(vendedor_email: str, cliente_id: str) -> dict:
+    """Asocia un cliente a un vendedor."""
+    vendedores_url = Config.VENDEDORES_URL
+
+    payload = {
+        "vendedor_email": vendedor_email,
+        "cliente_id": cliente_id
+    }
+
+    response = requests.patch(
+        f"{vendedores_url}/v1/vendedores/clientes",
+        json=payload,
+        headers={'Content-Type': 'application/json'}
+    )
+
+    if response.status_code != 200 and response.status_code != 201:
+        print(f"Error al asociar cliente a vendedor: {response.text}")
+        raise VendedorServiceError({"error": "Error al asociar el cliente al vendedor", "codigo": "ERROR_ASOCIAR_CLIENTE"}, response.status_code)
+    
+    return response.json()

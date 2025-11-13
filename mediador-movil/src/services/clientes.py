@@ -13,7 +13,7 @@ class ClienteServiceError(Exception):
         self.message = message
         self.status_code = status_code
 
-def crear_cliente_externo(datos_cliente, vendedor_email):
+def crear_cliente_externo(datos_cliente):
     """
     Lógica de negocio para crear un cliente a través del microservicio externo.
 
@@ -41,67 +41,18 @@ def crear_cliente_externo(datos_cliente, vendedor_email):
     current_app.logger.info(f"URL del microservicio de clientes: {clientes_url}")
     try:
         response = requests.post(
-            clientes_url+'/cliente',
+            clientes_url + '/cliente',
             json=datos_cliente,
             headers={'Content-Type': 'application/json'}
         )
-        response.raise_for_status()  # Lanza HTTPError para respuestas 4xx/5xx
 
-        current_app.logger.info(f"Cliente creado exitosamente: {response.json()}")
-        cliente_response = response.json()
-    
-        try:
-            datos_signup_cliente = {
-                'email': datos_cliente['correo_empresa'],
-                'password': 'defaultPassword123',  # Contraseña por defecto o generada
-                'nombre': datos_cliente['nombre'],
-                'apellido': "",
-                'rol': 'cliente'
-            }
+        # Usar raise_for_status para respetar el comportamiento esperado por los tests/mocks
+        response.raise_for_status()
 
-            registro_response = register_user(datos_signup_cliente)
-            current_app.logger.info(f"Usuario de cliente registrado exitosamente: {registro_response}")
-            current_app.logger.info(f"Registro response: {registro_response}")
-            # Determinar el cliente_id. Algunos microservicios devuelven el cliente
-            # dentro de {'data': {'cliente': {'id': ...}}} mientras que en tests
-            # o en otras configuraciones el registro de usuario devuelve el id
-            # que debemos usar para asociar.
-            cliente_id = None
-            try:
-                cliente_id = cliente_response.get('data', {}).get('cliente', {}).get('id')
-            except Exception:
-                cliente_id = None
-
-            # Si no encontramos cliente_id en la respuesta del microservicio de clientes,
-            # intentamos obtenerlo del registro de usuario (registro_response)
-            if not cliente_id:
-                try:
-                    cliente_id = registro_response.get('data', {}).get('user', {}).get('id')
-                except Exception:
-                    cliente_id = None
-
-            current_app.logger.info(f"Cliente registrado (cliente_id={cliente_id}), procediendo a asociar con vendedor...")
-            vendedores_url = Config.VENDEDORES_URL
-            # Log adicional para depuración: URL usada y payload que se enviará al microservicio de vendedores
-            current_app.logger.info(f"VENDEDORES_URL: {vendedores_url}")
-            payload_asociacion = {
-                'vendedor_email': vendedor_email,
-                'cliente_id': cliente_id
-            }
-            current_app.logger.info(f"Payload para asociar cliente a vendedor: {payload_asociacion}")
-
-            asociar_response = requests.patch(
-                url=f'{vendedores_url}/v1/vendedores/clientes',
-                json=payload_asociacion,
-                headers={'Content-Type': 'application/json'},
-            )
-            asociar_response.raise_for_status()
-            current_app.logger.info(f"Cliente asociado al vendedor exitosamente: {asociar_response.json()}")
-        except AuthServiceError as e:
-            current_app.logger.info(f"Error al crear la cuenta de usuario de cliente: {e.message} el registro del cliente fue exitoso.")
-        except Exception as e:
-            current_app.logger.info(f"Error al asociar el cliente al vendedor: {str(e)} el registro del cliente fue exitoso.")
-        return cliente_response
+        cliente_data = response.json()
+        current_app.logger.info(f"Cliente creado exitosamente: {cliente_data}")
+        
+        return cliente_data
     except requests.exceptions.HTTPError as e:
         current_app.logger.error(f"Error del microservicio de clientes: {e.response.text}")
         raise ClienteServiceError(e.response.json(), e.response.status_code)
