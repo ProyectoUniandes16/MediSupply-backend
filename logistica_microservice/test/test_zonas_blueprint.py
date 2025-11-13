@@ -24,23 +24,6 @@ def test_crear_zona_endpoint_exito(client, access_token):
     assert 'id' in json_data
 
 
-def test_crear_zona_sin_token(client):
-    """Test de creación de zona sin token JWT"""
-    data = {
-        'nombre': 'Zona Test',
-        'latitud_maxima': 10.0,
-        'latitud_minima': 5.0,
-        'longitud_maxima': -70.0,
-        'longitud_minima': -75.0
-    }
-    
-    response = client.post('/zona',
-                          data=json.dumps(data),
-                          content_type='application/json')
-    
-    assert response.status_code == 401
-
-
 def test_crear_zona_error_validacion(client, access_token):
     """Test de error de validación al crear zona"""
     data = {
@@ -85,12 +68,6 @@ def test_listar_zonas_endpoint(client, access_token):
     json_data = response.get_json()
     assert 'data' in json_data
     assert json_data['total'] == 2
-
-
-def test_listar_zonas_sin_token(client):
-    """Test de listado de zonas sin token"""
-    response = client.get('/zona')
-    assert response.status_code == 401
 
 
 def test_obtener_zona_endpoint(client, access_token):

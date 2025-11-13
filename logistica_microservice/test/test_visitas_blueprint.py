@@ -57,11 +57,6 @@ def test_crear_visita_vendedor_endpoint_unexpected_error(client, access_token, m
     assert body.get("codigo") == "ERROR_INTERNO_SERVIDOR"
 
 
-def test_crear_visita_vendedor_endpoint_unauthorized(client):
-    response = client.post("/visitas", json={})
-    assert response.status_code == 401
-
-
 def test_actualizar_visita_vendedor_endpoint_success(client, access_token, monkeypatch):
     esperado = {
         "id": 5,
@@ -123,8 +118,3 @@ def test_actualizar_visita_vendedor_endpoint_unexpected_error(client, access_tok
     assert response.status_code == 500
     body = response.get_json()
     assert body.get("codigo") == "ERROR_INTERNO_SERVIDOR"
-
-
-def test_actualizar_visita_vendedor_endpoint_unauthorized(client):
-    response = client.patch("/visitas/1", json={"estado": "pendiente"})
-    assert response.status_code == 401

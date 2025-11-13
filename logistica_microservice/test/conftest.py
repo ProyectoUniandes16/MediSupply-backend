@@ -37,3 +37,12 @@ def access_token(app):
     with app.app_context():
         token = create_access_token(identity='test-user-id')
         return token
+
+
+@pytest.fixture
+def auth_headers(access_token):
+    """Fixture para generar headers de autenticación"""
+    return {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json'
+    }

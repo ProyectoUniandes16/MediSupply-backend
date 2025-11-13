@@ -1,5 +1,4 @@
 from flask import Blueprint, request, jsonify, current_app
-from flask_jwt_extended import jwt_required
 from src.services.visita_vendedor_service import (
     crear_visita_vendedor,
     actualizar_visita_vendedor,
@@ -10,7 +9,6 @@ visitas_bp = Blueprint("visitas", __name__)
 
 
 @visitas_bp.route("/visitas", methods=["POST"])
-@jwt_required()
 def crear_visita_vendedor_endpoint():
     """Endpoint para crear una nueva visita de vendedor a un cliente."""
     try:
@@ -33,7 +31,6 @@ def crear_visita_vendedor_endpoint():
 
 
 @visitas_bp.route("/visitas/<int:visita_id>", methods=["PATCH"])
-@jwt_required()
 def actualizar_visita_vendedor_endpoint(visita_id):
     """Endpoint para actualizar estado y observación de una visita."""
     try:
