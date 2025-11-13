@@ -91,13 +91,23 @@ def test_actualizar_visita_logistica_sin_token(client):
 
 @patch("src.blueprints.logistica.listar_visitas_logistica")
 def test_listar_visitas_logistica_exito(mock_listar, client, access_token):
-    mock_listar.return_value = {"visitas": []}
+    mock_listar.return_value = {
+        "visitas": [
+            {
+                "id_visita": 1,
+                "cliente_id": 5,
+                "vendedor_id": "ven-1",
+                "estado": "pendiente",
+                "cliente": {"nombre": "Cliente Uno"},
+            }
+        ]
+    }
     headers = {"Authorization": f"Bearer {access_token}"}
 
     response = client.get("/visitas?vendedor_id=filtro", headers=headers)
 
     assert response.status_code == 200
-    assert response.get_json() == {"visitas": []}
+    assert response.get_json()["visitas"][0]["cliente"]["nombre"] == "Cliente Uno"
     args, kwargs = mock_listar.call_args
     assert "filtros" in kwargs
     assert kwargs["headers"]["Authorization"].startswith("Bearer ")

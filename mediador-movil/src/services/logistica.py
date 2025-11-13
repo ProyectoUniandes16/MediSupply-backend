@@ -1,12 +1,13 @@
 """Servicios para interactuar con el microservicio de logistica desde el BFF movil."""
 import logging
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Iterable
 
 import requests
 from flask import current_app
 
 from src.services.vendedores import listar_vendedores_externo, VendedorServiceError
+from src.config.config import Config
 
 
 VALID_ESTADOS_VISITA = {"pendiente", "en progreso", "finalizado"}
@@ -151,7 +152,7 @@ def listar_visitas_logistica(
             raise LogisticaServiceError(error_body, response.status_code)
 
         try:
-            return response.json()
+            data = response.json()
         except ValueError as exc:
             _safe_log_error("Respuesta sin JSON del microservicio de logistica al listar visitas")
             raise LogisticaServiceError(
@@ -161,6 +162,21 @@ def listar_visitas_logistica(
                 },
                 502,
             ) from exc
+
+        visitas = data.get("visitas") if isinstance(data, dict) else None
+        if isinstance(visitas, list) and visitas:
+            cliente_ids = {
+                visita.get("cliente_id")
+                for visita in visitas
+                if visita.get("cliente_id") is not None
+            }
+            if cliente_ids:
+                clientes_map = _obtener_clientes_por_ids(cliente_ids, headers=headers)
+                for visita in visitas:
+                    cliente_id = visita.get("cliente_id")
+                    visita["cliente"] = clientes_map.get(str(cliente_id)) if cliente_id is not None else None
+
+        return data
 
     except requests.exceptions.RequestException as exc:
         _safe_log_error(f"Error de conexion con logistica al listar visitas: {str(exc)}")
@@ -253,3 +269,88 @@ def actualizar_visita_logistica(
             },
             500,
         )
+
+
+def _obtener_clientes_por_ids(
+    cliente_ids: Iterable[Any],
+    headers: Optional[Dict[str, str]] = None,
+) -> Dict[str, Dict[str, Any]]:
+    ids_list = [cid for cid in cliente_ids if cid is not None]
+    if not ids_list:
+        return {}
+
+    clientes_url = Config.CLIENTES_URL
+    request_headers = {"Content-Type": "application/json"}
+    if headers:
+        request_headers.update(headers)
+
+    try:
+        response = requests.get(
+            f"{clientes_url}/cliente",
+            params={"ids": ",".join(str(cid) for cid in ids_list)},
+            headers=request_headers,
+            timeout=10,
+        )
+        response.raise_for_status()
+        try:
+            data = response.json()
+        except ValueError as exc:
+            _safe_log_error("Respuesta sin JSON del microservicio de clientes al obtener detalles")
+            raise LogisticaServiceError(
+                {
+                    "error": "Respuesta inválida del microservicio de clientes",
+                    "codigo": "RESPUESTA_CLIENTES_INVALIDA",
+                },
+                502,
+            ) from exc
+
+        clientes = data.get("data") if isinstance(data, dict) else None
+        if not isinstance(clientes, list):
+            clientes = []
+
+        mapa: Dict[str, Dict[str, Any]] = {}
+        for cliente in clientes:
+            cliente_id = cliente.get("id")
+            if cliente_id is None:
+                continue
+            mapa[str(cliente_id)] = cliente
+        return mapa
+
+    except requests.exceptions.HTTPError as exc:
+        status_code = exc.response.status_code if exc.response else 500
+        detalle = exc.response.text if exc.response else str(exc)
+        _safe_log_error(f"Error HTTP del microservicio de clientes: {detalle}")
+        if exc.response is not None:
+            try:
+                error_body = exc.response.json()
+            except ValueError:
+                error_body = {
+                    "error": "Error del microservicio de clientes",
+                    "codigo": "ERROR_CLIENTES_HTTP",
+                }
+        else:
+            error_body = {
+                "error": "Error del microservicio de clientes",
+                "codigo": "ERROR_CLIENTES_HTTP",
+            }
+        raise LogisticaServiceError(error_body, status_code) from exc
+    except requests.exceptions.RequestException as exc:
+        _safe_log_error(f"Error de conexion con el microservicio de clientes: {str(exc)}")
+        raise LogisticaServiceError(
+            {
+                "error": "Error de conexion con el microservicio de clientes",
+                "codigo": "ERROR_CLIENTES_CONEXION",
+            },
+            503,
+        ) from exc
+    except LogisticaServiceError:
+        raise
+    except Exception as exc:  # pragma: no cover - defensivo
+        _safe_log_error(f"Error inesperado obteniendo clientes: {str(exc)}")
+        raise LogisticaServiceError(
+            {
+                "error": "Error interno obteniendo clientes",
+                "codigo": "ERROR_CLIENTES_INESPERADO",
+            },
+            500,
+        ) from exc
