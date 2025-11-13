@@ -1,5 +1,4 @@
 from flask import Blueprint, request, jsonify, current_app
-from flask_jwt_extended import jwt_required
 from src.services.bodega_service import (
     crear_bodega, 
     listar_bodegas, 
@@ -12,7 +11,6 @@ bodegas_bp = Blueprint('bodegas', __name__)
 
 
 @bodegas_bp.route('/bodega', methods=['POST'])
-@jwt_required()
 def crear_bodega_endpoint():
     """
     Endpoint para crear una nueva bodega en una zona
@@ -32,7 +30,6 @@ def crear_bodega_endpoint():
 
 
 @bodegas_bp.route('/bodega', methods=['GET'])
-@jwt_required()
 def listar_bodegas_endpoint():
     """
     Endpoint para listar todas las bodegas
@@ -51,7 +48,6 @@ def listar_bodegas_endpoint():
 
 
 @bodegas_bp.route('/bodega/<bodega_id>', methods=['GET'])
-@jwt_required()
 def obtener_bodega_endpoint(bodega_id):
     """
     Endpoint para obtener una bodega por ID

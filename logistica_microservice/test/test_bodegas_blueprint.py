@@ -38,19 +38,8 @@ def test_crear_bodega_endpoint_exito(client, access_token):
     assert 'id' in json_data
 
 
-def test_crear_bodega_sin_token(client):
-    """Test de creación de bodega sin token JWT"""
-    data = {
-        'nombre': 'Bodega Test',
-        'ubicacion': 'Test',
-        'zona_id': 'test-id'
-    }
-    
-    response = client.post('/bodega',
-                          data=json.dumps(data),
-                          content_type='application/json')
-    
-    assert response.status_code == 401
+# Test eliminado: El microservicio de logística no requiere autenticación
+# def test_crear_bodega_sin_token(client):
 
 
 def test_crear_bodega_error_validacion(client, access_token):
@@ -111,10 +100,8 @@ def test_listar_bodegas_endpoint(client, access_token):
     assert json_data['total'] == 2
 
 
-def test_listar_bodegas_sin_token(client):
-    """Test de listado de bodegas sin token"""
-    response = client.get('/bodega')
-    assert response.status_code == 401
+# Test eliminado: El microservicio de logística no requiere autenticación
+# def test_listar_bodegas_sin_token(client):
 
 
 def test_obtener_bodega_endpoint(client, access_token):

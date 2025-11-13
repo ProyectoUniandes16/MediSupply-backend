@@ -14,6 +14,9 @@ class Bodega(db.Model):
     ubicacion = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    # Relación con camiones
+    camiones = db.relationship('Camion', back_populates='bodega', lazy=True)
 
     def __init__(self, nombre, ubicacion):
         self.nombre = nombre
@@ -36,6 +39,17 @@ class Bodega(db.Model):
             'nombre': self.nombre,
             'ubicacion': self.ubicacion,
             'zonas': [zona.to_dict() for zona in self.zonas.all()],
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat()
+        }
+    
+    def to_dict_with_camiones(self):
+        """Convierte la bodega a diccionario incluyendo sus camiones"""
+        return {
+            'id': self.id,
+            'nombre': self.nombre,
+            'ubicacion': self.ubicacion,
+            'camiones': [camion.to_dict_with_tipo() for camion in self.camiones],
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
