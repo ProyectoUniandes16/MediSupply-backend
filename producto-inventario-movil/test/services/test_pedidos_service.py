@@ -51,7 +51,8 @@ def test_listar_pedidos_externo_success(monkeypatch):
     from src import create_app
     app = create_app()
     with app.app_context():
-        result = listar_pedidos_externo(filtros={'cliente_id': '10'}, vendedor_email='v@e.com')
+        # ahora la función usa los parámetros (filtros, email, rol)
+        result = listar_pedidos_externo(filtros={'cliente_id': '10'}, email='v@e.com', rol='vendedor')
 
     assert result['data'][0]['id'] == 1
     assert captured['params']['cliente_id'] == '10'
@@ -66,7 +67,7 @@ def test_listar_pedidos_externo_vendedor_no_encontrado(monkeypatch):
     app = create_app()
     with app.app_context():
         with pytest.raises(PedidoServiceError) as exc:
-            listar_pedidos_externo(vendedor_email='v@e.com')
+            listar_pedidos_externo(email='v@e.com', rol='vendedor')
 
     assert exc.value.status_code == 404
     assert exc.value.message.get('codigo') == 'VENDEDOR_NO_ENCONTRADO'
@@ -79,7 +80,7 @@ def test_listar_pedidos_externo_vendedor_sin_id(monkeypatch):
     app = create_app()
     with app.app_context():
         with pytest.raises(PedidoServiceError) as exc:
-            listar_pedidos_externo(vendedor_email='v@e.com')
+            listar_pedidos_externo(email='v@e.com', rol='vendedor')
 
     assert exc.value.status_code == 404
     assert exc.value.message.get('codigo') == 'VENDEDOR_SIN_ID'
@@ -101,7 +102,7 @@ def test_listar_pedidos_externo_error_backend(monkeypatch):
     app = create_app()
     with app.app_context():
         with pytest.raises(PedidoServiceError) as exc:
-            listar_pedidos_externo(vendedor_email='v@e.com')
+            listar_pedidos_externo(email='v@e.com', rol='vendedor')
 
     assert exc.value.status_code == 400
     assert exc.value.message.get('error') == 'bad'
@@ -119,7 +120,7 @@ def test_listar_pedidos_externo_error_conexion(monkeypatch):
     app = create_app()
     with app.app_context():
         with pytest.raises(PedidoServiceError) as exc:
-            listar_pedidos_externo(vendedor_email='v@e.com')
+            listar_pedidos_externo(email='v@e.com', rol='vendedor')
 
     assert exc.value.status_code == 503
     assert exc.value.message.get('codigo') == 'ERROR_CONEXION_PEDIDOS'

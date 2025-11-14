@@ -64,7 +64,7 @@ def test_listar_pedidos_blueprint_success():
 
     assert resp.status_code == 200
     assert resp.get_json() == datos_esperados
-    mock_listar.assert_called_once_with(filtros={'cliente_id': '5'}, vendedor_email='v@e.com')
+    mock_listar.assert_called_once_with(filtros={'cliente_id': '5'}, email='v@e.com', rol=None)
 
 
 def test_listar_pedidos_blueprint_service_error():
