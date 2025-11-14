@@ -28,3 +28,15 @@ class TipoCamion(db.Model):
     
     def __repr__(self):
         return f'<TipoCamion {self.nombre}>'
+
+    # Métodos utilitarios para consistencia con otros modelos
+    def save(self):
+        """Guarda el tipo de camión en la base de datos"""
+        db.session.add(self)
+        db.session.commit()
+        return self
+
+    def delete(self):
+        """Elimina el tipo de camión de la base de datos"""
+        db.session.delete(self)
+        db.session.commit()

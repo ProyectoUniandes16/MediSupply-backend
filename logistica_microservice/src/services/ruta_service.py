@@ -5,6 +5,11 @@ import os
 import requests
 import folium
 from flask import current_app
+from src.models.ruta import Ruta, DetalleRuta
+from src.models.zona import db
+from src.models.bodega import Bodega
+from src.models.camion import Camion
+from src.models.zona import Zona
 
 
 class RutaServiceError(Exception):
@@ -280,5 +285,104 @@ def optimizar_ruta(bodega, destinos):
         raise RutaServiceError({
             'error': 'Error inesperado al optimizar ruta',
             'codigo': 'ERROR_INESPERADO',
+            'detalle': str(e)
+        }, 500)
+
+
+def crear_ruta_entrega(bodega_id, camion_id, zona_id, estado, puntos_ruta):
+    """
+    Crea una nueva ruta de entrega en la base de datos.
+    
+    Args:
+        bodega_id: ID de la bodega
+        camion_id: ID del camión asignado
+        zona_id: ID de la zona
+        estado: Estado inicial de la ruta
+        puntos_ruta: Lista de puntos de la ruta con formato:
+            [
+                {
+                    "ubicacion": [longitud, latitud],
+                    "pedido_id": "uuid"
+                },
+                ...
+            ]
+    
+    Returns:
+        Ruta: Objeto de ruta creado con sus detalles
+        
+    Raises:
+        RutaServiceError: Si ocurre un error al crear la ruta
+    """
+    try:
+        # Validar que existan los recursos relacionados
+        bodega = Bodega.query.get(bodega_id)
+        if not bodega:
+            raise RutaServiceError({
+                'error': f'La bodega con ID {bodega_id} no existe',
+                'codigo': 'BODEGA_NO_ENCONTRADA'
+            }, 404)
+        
+        camion = Camion.query.get(camion_id)
+        if not camion:
+            raise RutaServiceError({
+                'error': f'El camión con ID {camion_id} no existe',
+                'codigo': 'CAMION_NO_ENCONTRADO'
+            }, 404)
+        
+        zona = Zona.query.get(zona_id)
+        if not zona:
+            raise RutaServiceError({
+                'error': f'La zona con ID {zona_id} no existe',
+                'codigo': 'ZONA_NO_ENCONTRADA'
+            }, 404)
+        
+        # Verificar disponibilidad del camión (estado debe ser 'disponible')
+        if not camion.disponible:
+            raise RutaServiceError({
+                'error': f'El camión {camion.placa} no está disponible',
+                'codigo': 'CAMION_NO_DISPONIBLE'
+            }, 400)
+        
+        # Crear la ruta
+        nueva_ruta = Ruta(
+            bodega_id=bodega_id,
+            camion_id=camion_id,
+            zona_id=zona_id,
+            estado=estado
+        )
+        
+        # Guardar la ruta primero para obtener su ID
+        nueva_ruta.save()
+        
+        # Crear los detalles de la ruta (el orden es el índice en el array)
+        for i, punto in enumerate(puntos_ruta, start=1):
+            detalle = DetalleRuta(
+                ruta_id=nueva_ruta.id,
+                orden=i,
+                pedido_id=punto['pedido_id'],
+                longitud=punto['ubicacion'][0],
+                latitud=punto['ubicacion'][1]
+            )
+            detalle.save()
+        
+        # Actualizar estado del camión si la ruta está iniciada o en progreso
+        if estado in ['iniciado', 'en_progreso']:
+            camion.disponible = False  # setter ajusta estado a 'en_ruta'
+            db.session.commit()
+        
+        current_app.logger.info(f"Ruta {nueva_ruta.id} creada exitosamente con {len(puntos_ruta)} puntos")
+        
+        return nueva_ruta
+        
+    except RutaServiceError:
+        # Re-lanzar errores de servicio tal cual
+        raise
+    
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error inesperado al crear ruta: {str(e)}")
+        raise RutaServiceError({
+            'error': 'Error inesperado al crear la ruta',
+            'codigo': 'ERROR_CREACION_RUTA',
             'detalle': str(e)
         }, 500)
