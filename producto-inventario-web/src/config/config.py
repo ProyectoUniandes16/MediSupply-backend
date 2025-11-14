@@ -17,6 +17,7 @@ class Config:
     PRODUCTO_URL = os.environ.get('PRODUCTO_URL', 'http://localhost:5008')
     INVENTARIOS_URL = os.environ.get('INVENTARIOS_URL', 'http://localhost:5009')
     REDIS_SERVICE_URL = os.environ.get('REDIS_SERVICE_URL', 'http://localhost:5011')
+    LOGISTICA_URL = os.environ.get('LOGISTICA_URL', 'http://localhost:5013')
     
     # Configuración de JWT (debe coincidir con auth-usuario)
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-key-change-in-production'

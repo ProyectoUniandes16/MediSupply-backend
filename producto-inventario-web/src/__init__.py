@@ -4,6 +4,7 @@ from src.config.config import Config
 from src.blueprints.health import health_bp
 from src.blueprints.producto import producto_bp
 from src.blueprints.inventarios import inventarios_bp
+from src.blueprints.logistica import logistica_bp
 
 def create_app(config_class=Config):
     """
@@ -19,5 +20,6 @@ def create_app(config_class=Config):
     app.register_blueprint(health_bp)
     app.register_blueprint(producto_bp)
     app.register_blueprint(inventarios_bp)
+    app.register_blueprint(logistica_bp)
     
     return app

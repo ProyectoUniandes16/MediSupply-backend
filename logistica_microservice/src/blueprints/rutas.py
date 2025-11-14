@@ -2,7 +2,9 @@
 Blueprint para la optimización de rutas de entrega
 """
 from flask import Blueprint, request, jsonify, current_app, Response
-from src.services.ruta_service import optimizar_ruta, RutaServiceError
+from src.services.ruta_service import optimizar_ruta, RutaServiceError, crear_ruta_entrega
+from src.models.ruta import Ruta, DetalleRuta
+from src.models.zona import db
 
 
 # Crear el blueprint para rutas
@@ -255,3 +257,109 @@ def generar_ruta_optima():
             'codigo': 'ERROR_INTERNO_SERVIDOR',
             'detalle': str(e)
         }), 500
+
+
+@rutas_bp.route('/rutas', methods=['POST'])
+def crear_ruta():
+    """
+    Endpoint para crear una nueva ruta de entrega.
+    
+    Request Body:
+        {
+            "ruta": [
+                {
+                    "ubicacion": [-74.1475, 4.6165],
+                    "pedido_id": "20f7a15a-069e-4019-afbd-dae3ca0914a1"
+                },
+                {
+                    "ubicacion": [-74.0445, 4.6760],
+                    "pedido_id": "20f7a15a-069e-4019-afbd-dae3ca0914a1"
+                }
+            ],
+            "bodega_id": "20f7a15a-069e-4019-afbd-dae3ca0914a1",
+            "camion_id": "74c716fd-1e05-4291-8935-4ac8904c6964",
+            "zona_id": "74c716fd-1e05-4291-8935-4ac8904c6964",
+            "estado": "iniciado"
+        }
+    
+    Returns:
+        JSON con los datos de la ruta creada
+    """
+    try:
+        # Obtener datos del request
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'error': 'No se proporcionaron datos',
+                'codigo': 'DATOS_FALTANTES'
+            }), 400
+        
+        # Validar campos requeridos
+        campos_requeridos = ['ruta', 'bodega_id', 'camion_id', 'zona_id', 'estado']
+        campos_faltantes = [campo for campo in campos_requeridos if campo not in data]
+        
+        if campos_faltantes:
+            return jsonify({
+                'error': f'Campos requeridos faltantes: {", ".join(campos_faltantes)}',
+                'codigo': 'CAMPOS_REQUERIDOS',
+                'campos_faltantes': campos_faltantes
+            }), 400
+        
+        # Validar que ruta sea una lista y no esté vacía
+        if not isinstance(data['ruta'], list) or len(data['ruta']) == 0:
+            return jsonify({
+                'error': 'El campo "ruta" debe ser una lista con al menos un elemento',
+                'codigo': 'RUTA_INVALIDA'
+            }), 400
+        
+        # Validar cada punto de la ruta
+        for i, punto in enumerate(data['ruta']):
+            if 'ubicacion' not in punto or 'pedido_id' not in punto:
+                return jsonify({
+                    'error': f'El punto {i+1} de la ruta debe contener: ubicacion y pedido_id',
+                    'codigo': 'PUNTO_RUTA_INVALIDO',
+                    'punto_indice': i
+                }), 400
+            
+            if not isinstance(punto['ubicacion'], list) or len(punto['ubicacion']) != 2:
+                return jsonify({
+                    'error': f'La ubicación del punto {i+1} debe ser [longitud, latitud]',
+                    'codigo': 'UBICACION_INVALIDA',
+                    'punto_indice': i
+                }), 400
+        
+        # Validar estados permitidos
+        estados_validos = ['pendiente', 'iniciado', 'en_progreso', 'completado', 'cancelado']
+        if data['estado'] not in estados_validos:
+            return jsonify({
+                'error': f'Estado inválido. Estados permitidos: {", ".join(estados_validos)}',
+                'codigo': 'ESTADO_INVALIDO',
+                'estados_validos': estados_validos
+            }), 400
+        
+        # Llamar al servicio para crear la ruta
+        nueva_ruta = crear_ruta_entrega(
+            bodega_id=data['bodega_id'],
+            camion_id=data['camion_id'],
+            zona_id=data['zona_id'],
+            estado=data['estado'],
+            puntos_ruta=data['ruta']
+        )
+        
+        return jsonify({
+            'mensaje': 'Ruta creada exitosamente',
+            'ruta': nueva_ruta.to_dict_with_details()
+        }), 201
+    
+    except RutaServiceError as e:
+        return jsonify(e.message), e.status_code
+    
+    except Exception as e:
+        current_app.logger.error(f"Error inesperado al crear ruta: {str(e)}")
+        return jsonify({
+            'error': 'Error interno del servidor',
+            'codigo': 'ERROR_INTERNO_SERVIDOR',
+            'detalle': str(e)
+        }), 500
+
