@@ -45,3 +45,33 @@ def test_crear_cliente_unexpected_error(client, mocker):
     assert resp.status_code == 500
     data = resp.get_json()
     assert data['codigo'] == 'ERROR_INTERNO_SERVIDOR'
+
+
+def test_listar_clientes_exito(client, mocker):
+    mock_response = {'data': [{'id': 1, 'nombre': 'Empresa S.A.'}]}
+    mocker.patch('src.blueprints.clientes.list_clientes', return_value=mock_response)
+
+    resp = client.get('/cliente')
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert 'data' in data
+    assert isinstance(data['data'], list)
+
+
+def test_listar_clientes_service_error(client, mocker):
+    err = ClienteServiceError({'error': 'Fallo listado'}, 422)
+    mocker.patch('src.blueprints.clientes.list_clientes', side_effect=err)
+
+    resp = client.get('/cliente')
+    assert resp.status_code == 422
+    data = resp.get_json()
+    assert data['error'] == 'Fallo listado'
+
+
+def test_listar_clientes_unexpected_error(client, mocker):
+    mocker.patch('src.blueprints.clientes.list_clientes', side_effect=Exception('boom'))
+
+    resp = client.get('/cliente')
+    assert resp.status_code == 500
+    data = resp.get_json()
+    assert data['codigo'] == 'ERROR_INTERNO_SERVIDOR'

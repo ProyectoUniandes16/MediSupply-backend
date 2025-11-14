@@ -128,6 +128,11 @@ def list_clientes(filtros=None):  # -> dict[str, list]:
             if cliente_ids:
                 query = query.filter(Cliente.id.in_(cliente_ids))
 
+        if filtros.get('correo_empresa'):
+            correo = filtros['correo_empresa'].strip().lower()
+            print(f"Filtrando por correo_empresa: {correo}")
+            query = query.filter(Cliente.correo_empresa.ilike(f"%{correo}%"))
+
         clientes = query.all()
 
         return {
