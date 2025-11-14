@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from src.services.visita_vendedor_service import (
     crear_visita_vendedor,
     actualizar_visita_vendedor,
+    listar_visitas_vendedor,
     VisitaVendedorServiceError,
 )
 from src.models.visita_vendedor import VisitaVendedor
@@ -232,3 +233,81 @@ def test_actualizar_visita_vendedor_estado_faltante(app):
 
         assert exc.value.status_code == 400
         assert exc.value.message.get("codigo") == "ESTADO_REQUERIDO"
+
+
+def test_listar_visitas_vendedor_sin_rango(app):
+    with app.app_context():
+        visita_1 = VisitaVendedor(
+            cliente_id=1,
+            vendedor_id="v-30",
+            fecha_visita=datetime(2025, 11, 10).date(),
+            estado="pendiente",
+        )
+        visita_2 = VisitaVendedor(
+            cliente_id=2,
+            vendedor_id="v-30",
+            fecha_visita=datetime(2025, 11, 12).date(),
+            estado="en progreso",
+        )
+        db.session.add_all([visita_1, visita_2])
+        db.session.commit()
+
+        resultado = listar_visitas_vendedor("v-30")
+
+        assert len(resultado) == 2
+        assert resultado[0]["id_visita"] == visita_1.id
+        assert resultado[1]["estado"] == "en progreso"
+
+
+def test_listar_visitas_vendedor_con_rango(app):
+    with app.app_context():
+        visitas = [
+            VisitaVendedor(
+                cliente_id=1,
+                vendedor_id="v-31",
+                fecha_visita=datetime(2025, 11, 10).date(),
+                estado="pendiente",
+            ),
+            VisitaVendedor(
+                cliente_id=2,
+                vendedor_id="v-31",
+                fecha_visita=datetime(2025, 11, 12).date(),
+                estado="en progreso",
+            ),
+            VisitaVendedor(
+                cliente_id=3,
+                vendedor_id="v-31",
+                fecha_visita=datetime(2025, 11, 20).date(),
+                estado="finalizado",
+            ),
+        ]
+        db.session.add_all(visitas)
+        db.session.commit()
+
+        resultado = listar_visitas_vendedor(
+            "v-31",
+            fecha_inicio="2025-11-11",
+            fecha_fin="2025-11-20",
+        )
+
+        assert len(resultado) == 2
+        assert all(item["fecha_visita"] >= "2025-11-11" for item in resultado)
+        assert resultado[-1]["estado"] == "finalizado"
+
+
+def test_listar_visitas_vendedor_rango_incompleto(app):
+    with app.app_context():
+        with pytest.raises(VisitaVendedorServiceError) as exc:
+            listar_visitas_vendedor("v-32", fecha_inicio="2025-11-11")
+
+        assert exc.value.status_code == 400
+        assert exc.value.message.get("codigo") == "RANGO_FECHAS_INCOMPLETO"
+
+
+def test_listar_visitas_vendedor_sin_vendedor_id(app):
+    with app.app_context():
+        with pytest.raises(VisitaVendedorServiceError) as exc:
+            listar_visitas_vendedor(None)
+
+        assert exc.value.status_code == 400
+        assert exc.value.message.get("codigo") == "VENDEDOR_ID_REQUERIDO"

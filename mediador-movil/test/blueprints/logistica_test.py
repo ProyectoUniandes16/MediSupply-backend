@@ -68,6 +68,10 @@ def test_actualizar_visita_logistica_error_inesperado(mock_actualizar, client, a
     with app.app_context():
         with patch("src.blueprints.logistica.current_app") as mock_current_app:
             mock_current_app.logger = mock_logger
+            mock_current_app.config = {
+                "JWT_SECRET_KEY": "test-secret",
+                "JWT_ALGORITHM": "HS256",
+            }
             headers = {"Authorization": f"Bearer {access_token}"}
             response = client.patch(
                 "/visitas/1",
@@ -83,3 +87,77 @@ def test_actualizar_visita_logistica_error_inesperado(mock_actualizar, client, a
 def test_actualizar_visita_logistica_sin_token(client):
     response = client.patch("/visitas/3", json={"estado": "pendiente"})
     assert response.status_code == 401
+
+
+@patch("src.blueprints.logistica.listar_visitas_logistica")
+def test_listar_visitas_logistica_exito(mock_listar, client, access_token):
+    mock_listar.return_value = {
+        "visitas": [
+            {
+                "id_visita": 1,
+                "cliente_id": 5,
+                "vendedor_id": "ven-1",
+                "estado": "pendiente",
+                "cliente": {"nombre": "Cliente Uno"},
+            }
+        ]
+    }
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    response = client.get("/visitas?vendedor_id=filtro", headers=headers)
+
+    assert response.status_code == 200
+    assert response.get_json()["visitas"][0]["cliente"]["nombre"] == "Cliente Uno"
+    args, kwargs = mock_listar.call_args
+    assert "filtros" in kwargs
+    assert kwargs["headers"]["Authorization"].startswith("Bearer ")
+    assert kwargs["vendedor_email"] == "user-test"
+
+
+@patch("src.blueprints.logistica.listar_visitas_logistica")
+def test_listar_visitas_logistica_error_controlado(mock_listar, client, access_token):
+    error = LogisticaServiceError({"error": "fallo"}, 400)
+    mock_listar.side_effect = error
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+    response = client.get("/visitas", headers=headers)
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "fallo"
+
+
+@patch("src.blueprints.logistica.listar_visitas_logistica")
+def test_listar_visitas_logistica_error_inesperado(mock_listar, client, access_token, app):
+    mock_listar.side_effect = RuntimeError("boom")
+    mock_logger = MagicMock()
+
+    with app.app_context():
+        with patch("src.blueprints.logistica.current_app") as mock_current_app:
+            mock_current_app.logger = mock_logger
+            mock_current_app.config = {
+                "JWT_SECRET_KEY": "test-secret",
+                "JWT_ALGORITHM": "HS256",
+            }
+            headers = {"Authorization": f"Bearer {access_token}"}
+            response = client.get("/visitas", headers=headers)
+
+    assert response.status_code == 500
+    assert response.get_json()["codigo"] == "ERROR_INTERNO_SERVIDOR"
+    mock_logger.error.assert_called_once()
+
+
+def test_listar_visitas_logistica_sin_token(client):
+    response = client.get("/visitas")
+    assert response.status_code == 401
+
+
+@patch("src.blueprints.logistica.decode_jwt")
+def test_listar_visitas_logistica_token_invalido(mock_decode, client, access_token):
+    mock_decode.side_effect = ValueError("Token inválido")
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    response = client.get("/visitas", headers=headers)
+
+    assert response.status_code == 401
+    body = response.get_json()
+    assert body["codigo"] == "TOKEN_INVALIDO"

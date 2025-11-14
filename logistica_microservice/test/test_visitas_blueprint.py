@@ -118,3 +118,67 @@ def test_actualizar_visita_vendedor_endpoint_unexpected_error(client, access_tok
     assert response.status_code == 500
     body = response.get_json()
     assert body.get("codigo") == "ERROR_INTERNO_SERVIDOR"
+
+
+def test_actualizar_visita_vendedor_endpoint_unauthorized(client):
+    response = client.patch("/visitas/1", json={"estado": "pendiente"})
+    assert response.status_code == 401
+
+
+def test_listar_visitas_vendedor_endpoint_success(client, access_token, monkeypatch):
+    esperado = [
+        {
+            "id_visita": 1,
+            "cliente_id": 10,
+            "vendedor_id": "v-40",
+            "fecha_visita": "2025-11-12",
+            "estado": "pendiente",
+        }
+    ]
+
+    monkeypatch.setattr(
+        visitas_blueprint,
+        "listar_visitas_vendedor",
+        lambda vendedor_id, fecha_inicio=None, fecha_fin=None: esperado,
+    )
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+    response = client.get("/visitas?vendedor_id=v-40", headers=headers)
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["visitas"] == esperado
+
+
+def test_listar_visitas_vendedor_endpoint_service_error(client, access_token, monkeypatch):
+    error = VisitaVendedorServiceError({"error": "falta vendedor"}, 400)
+
+    def raise_error(_vendedor_id, fecha_inicio=None, fecha_fin=None):
+        raise error
+
+    monkeypatch.setattr(visitas_blueprint, "listar_visitas_vendedor", raise_error)
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+    response = client.get("/visitas", headers=headers)
+
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "falta vendedor"}
+
+
+def test_listar_visitas_vendedor_endpoint_unexpected_error(client, access_token, monkeypatch):
+    def raise_exc(_vendedor_id, fecha_inicio=None, fecha_fin=None):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(visitas_blueprint, "listar_visitas_vendedor", raise_exc)
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+    response = client.get("/visitas?vendedor_id=v-41", headers=headers)
+
+    assert response.status_code == 500
+    body = response.get_json()
+    assert body.get("codigo") == "ERROR_INTERNO_SERVIDOR"
+
+
+def test_listar_visitas_vendedor_endpoint_unauthorized(client):
+    response = client.get("/visitas?vendedor_id=v-41")
+    assert response.status_code == 401
