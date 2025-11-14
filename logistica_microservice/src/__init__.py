@@ -42,6 +42,7 @@ def create_app(config_class=Config):
         from src.models.bodega import Bodega
         from src.models.tipo_camion import TipoCamion
         from src.models.camion import Camion
+        from src.models.ruta import Ruta, DetalleRuta
         
         db.create_all()
     

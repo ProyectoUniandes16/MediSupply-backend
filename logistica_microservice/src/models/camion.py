@@ -57,3 +57,24 @@ class Camion(db.Model):
     
     def __repr__(self):
         return f'<Camion {self.placa}>'
+
+    # Métodos utilitarios similares a otros modelos
+    def save(self):
+        """Guarda el camión en la base de datos"""
+        db.session.add(self)
+        db.session.commit()
+        return self
+
+    def delete(self):
+        """Elimina el camión de la base de datos"""
+        db.session.delete(self)
+        db.session.commit()
+
+    @property
+    def disponible(self):
+        """Compatibilidad: considera disponible cuando estado == 'disponible'"""
+        return self.estado == 'disponible'
+
+    @disponible.setter
+    def disponible(self, value: bool):
+        self.estado = 'disponible' if value else 'en_ruta'
