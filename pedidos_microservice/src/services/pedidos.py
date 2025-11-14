@@ -1,7 +1,7 @@
 
 from flask import current_app
-from src.models.pedios import Pedido
 from src.models.pedidos_productos import PedidoProducto
+from src.models.pedios import Pedido
 
 
 class PedidoServiceError(Exception):
@@ -92,9 +92,13 @@ def listar_pedidos(vendedor_id=None, cliente_id=None, estado=None):
         # Orden por fecha de creación (desc)
         query = query.order_by(Pedido.fecha_pedido.desc())
         pedidos = query.all()
-        return {
-            "data": [pedido.to_dict() for pedido in pedidos]
-        }
+        resultado = []
+        for pedido in pedidos:
+            item = pedido.to_dict()
+            pedido_productos = PedidoProducto.query.filter(PedidoProducto.pedido_id == pedido.id).count()
+            item['total_productos'] = pedido_productos
+            resultado.append(item)
+        return {'data': resultado}
     except PedidoServiceError:
         # allow service errors to bubble up
         raise

@@ -1,3 +1,4 @@
+from math import e
 from unittest import result
 from flask import current_app
 import requests
@@ -5,6 +6,7 @@ from src.config.config import Config
 from src.services.vendedores import listar_vendedores_externo
 from src.services.inventarios import actualizar_inventatrio_externo
 from src.services.productos import get_productos_con_inventarios
+from src.services.clientes import listar_clientes_externo
 
 
 class PedidoServiceError(Exception):
@@ -91,22 +93,33 @@ def crear_pedido_externo(datos_pedido, vendedor_email):
         raise PedidoServiceError({'error': 'Error al conectar con el microservicio de pedidos'}, 503)
     
 
-def listar_pedidos_externo(filtros=None, vendedor_email=None):
+def listar_pedidos_externo(filtros=None, email=None, rol=None):
     """
     Consulta pedidos en el microservicio externo aplicando filtros opcionales.
 
     """
     filtros = (filtros or {}).copy()
 
-    if vendedor_email:
-        venndedor_response = listar_vendedores_externo(filters={'correo': vendedor_email})
-        items = venndedor_response.get('items', []) if isinstance(venndedor_response, dict) else []
-        if not items:
-            raise PedidoServiceError({'error': 'Vendedor no encontrado', 'codigo': 'VENDEDOR_NO_ENCONTRADO'}, 404)
-        vendedor_id = items[0].get('id')
-        if vendedor_id is None:
-            raise PedidoServiceError({'error': 'Vendedor sin identificador válido', 'codigo': 'VENDEDOR_SIN_ID'}, 404)
-        filtros['vendedor_id'] = vendedor_id
+    if rol == 'vendedor':
+        if email:
+            venndedor_response = listar_vendedores_externo(filters={'correo': email})
+            items = venndedor_response.get('items', []) if isinstance(venndedor_response, dict) else []
+            if not items:
+                raise PedidoServiceError({'error': 'Vendedor no encontrado', 'codigo': 'VENDEDOR_NO_ENCONTRADO'}, 404)
+            vendedor_id = items[0].get('id')
+            if vendedor_id is None:
+                raise PedidoServiceError({'error': 'Vendedor sin identificador válido', 'codigo': 'VENDEDOR_SIN_ID'}, 404)
+            filtros['vendedor_id'] = vendedor_id
+    elif rol == 'cliente':
+        if email:
+            cliente_response = listar_clientes_externo(email)
+            items = cliente_response.get('data', []) if isinstance(cliente_response, dict) else []
+            if not items:
+                raise PedidoServiceError({'error': 'Cliente no encontrado', 'codigo': 'CLIENTE_NO_ENCONTRADO'}, 404)
+            cliente_ids = [item.get('id') for item in items if item.get('id') is not None]
+            if not cliente_ids:
+                raise PedidoServiceError({'error': 'Cliente sin identificador válido', 'codigo': 'CLIENTE_SIN_ID'}, 404)
+            filtros['cliente_id'] = ','.join(str(cid) for cid in cliente_ids)
 
     pedidos_url = Config.PEDIDOS_URL
     try:
