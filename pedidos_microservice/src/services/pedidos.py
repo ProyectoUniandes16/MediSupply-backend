@@ -106,3 +106,31 @@ def listar_pedidos(vendedor_id=None, cliente_id=None, estado=None):
         current_app.logger.error(f"Error al listar pedidos: {str(e)}")
         raise PedidoServiceError({'error': 'Error al listar pedidos', 'codigo': 'ERROR_LISTAR_PEDIDOS'}, 500)
 
+
+def detalle_pedido(pedido_id):
+    """
+    Obtiene el detalle de un pedido por su ID.
+    Args:
+        pedido_id (int): ID del pedido
+    Returns:
+        dict: {'data': ...}
+    """
+    try:
+
+        query = Pedido.query.filter(Pedido.id == pedido_id)
+        pedido = query.first()
+        resultado = {}
+        resultado = pedido.to_dict()
+        pedido_productos = PedidoProducto.query.filter(PedidoProducto.pedido_id == pedido.id).all()
+        productos_list = []
+        for pp in pedido_productos:
+            productos_list.append(pp.to_dict())
+        resultado['productos'] = productos_list
+        return {'data': resultado}
+    except PedidoServiceError:
+        # allow service errors to bubble up
+        raise
+    except Exception as e:
+        current_app.logger.error(f"Error al listar pedidos: {str(e)}")
+        raise PedidoServiceError({'error': 'Error al listar pedidos', 'codigo': 'ERROR_LISTAR_PEDIDOS'}, 500)
+
