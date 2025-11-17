@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 
-from src.services.pedidos import PedidoServiceError, registrar_pedido, listar_pedidos
+from src.services.pedidos import PedidoServiceError, detalle_pedido, registrar_pedido, listar_pedidos
 
 # Crear el blueprint para clientes
 pedidos_bp = Blueprint('pedido', __name__)
@@ -41,6 +41,23 @@ def obtener_pedidos():
         return jsonify(e.message), e.status_code
     except Exception as e:
         current_app.logger.error(f"Error en obtener pedidos: {str(e)}")
+        return jsonify({
+            'error': 'Error interno del servidor',
+            'codigo': 'ERROR_INTERNO_SERVIDOR',
+        }), 500
+    
+@pedidos_bp.route('/pedido/<int:pedido_id>', methods=['GET'])
+def obtener_detalle_pedido(pedido_id):
+    """
+    Endpoint para obtener el detalle de un pedido por su ID
+    """
+    try:
+        pedido = detalle_pedido(pedido_id)
+        return jsonify(pedido), 200
+    except PedidoServiceError as e:
+        return jsonify(e.message), e.status_code
+    except Exception as e:
+        current_app.logger.error(f"Error en obtener detalle de pedido: {str(e)}")
         return jsonify({
             'error': 'Error interno del servidor',
             'codigo': 'ERROR_INTERNO_SERVIDOR',

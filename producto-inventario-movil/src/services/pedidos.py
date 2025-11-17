@@ -267,3 +267,53 @@ def validate_order_against_products(
         'requested': dict(requested),
         'available': available_map,
     }
+
+def detalle_pedido_externo(pedido_id):
+    """
+    Consulta el detalle de un pedido específico en el microservicio externo.
+
+    Args:
+        pedido_id (int|str): Identificador del pedido a consultar.
+
+    Returns:
+        dict: Los datos del pedido consultado.
+    Raises:
+        PedidoServiceError: Si ocurre un error de conexión o del microservicio.
+    """
+    pedidos_url = Config.PEDIDOS_URL
+    try:
+        response = requests.get(
+            f"{pedidos_url}/pedido/{pedido_id}",
+            headers={'Content-Type': 'application/json'}
+        )
+
+        if response.status_code != 200:
+            current_app.logger.error(
+                "Error del microservicio de pedidos al obtener detalle: %s - %s",
+                response.status_code,
+                response.text,
+            )
+            try:
+                error_body = response.json()
+            except ValueError:
+                error_body = {
+                    'error': 'Error al consultar detalle del pedido',
+                    'codigo': 'ERROR_MICROSERVICIO_PEDIDOS'
+                }
+            raise PedidoServiceError(error_body, response.status_code)
+
+        return response.json()
+    except PedidoServiceError:
+        raise
+    except requests.exceptions.RequestException as exc:
+        current_app.logger.error(f"Error al conectar con el microservicio de pedidos: {str(exc)}")
+        raise PedidoServiceError({
+            'error': 'Error al conectar con el microservicio de pedidos',
+            'codigo': 'ERROR_CONEXION_PEDIDOS'
+        }, 503)
+    except Exception as exc:  # pragma: no cover - defensivo
+        current_app.logger.exception("Error inesperado obteniendo detalle del pedido: %s", exc)
+        raise PedidoServiceError({
+            'error': 'Error inesperado al obtener detalle del pedido',
+            'codigo': 'ERROR_DETALLE_PEDIDO'
+        }, 500)

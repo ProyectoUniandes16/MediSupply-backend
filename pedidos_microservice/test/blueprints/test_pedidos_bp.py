@@ -86,3 +86,36 @@ def test_obtener_pedidos_filtering(client, session):
     assert response.status_code == 200
     data = response.get_json()['data']
     assert all(item.get('estado') == 'entregado' for item in data)
+
+
+def test_obtener_detalle_pedido_success(client, session):
+    from src.models.pedios import Pedido
+    from src.models.pedidos_productos import PedidoProducto
+
+    # crear pedido y producto asociado
+    p = Pedido(cliente_id=200, estado='pendiente', total=9.0, vendedor_id='V1')
+    session.add(p)
+    session.commit()
+
+    pp = PedidoProducto(pedido_id=p.id, producto_id=10, cantidad=3, precio=2.5)
+    session.add(pp)
+    session.commit()
+
+    resp = client.get(f'/pedido/{p.id}')
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data['data']['id'] == p.id
+    assert isinstance(data['data']['productos'], list)
+    assert data['data']['productos'][0]['producto_id'] == 10
+    assert data['data']['productos'][0]['cantidad'] == 3
+
+
+def test_obtener_detalle_pedido_service_error(client, monkeypatch):
+    # parchear la función detalle_pedido para lanzar un error controlado
+    def raise_service(pedido_id):
+        raise PedidoServiceError({'error': 'No encontrado'}, 404)
+
+    monkeypatch.setattr(pedidos_bp_module, 'detalle_pedido', raise_service)
+    resp = client.get('/pedido/999')
+    assert resp.status_code == 404
+    assert resp.get_json() == {'error': 'No encontrado'}
