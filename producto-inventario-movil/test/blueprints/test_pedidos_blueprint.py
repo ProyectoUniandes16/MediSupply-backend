@@ -64,7 +64,7 @@ def test_listar_pedidos_blueprint_success():
 
     assert resp.status_code == 200
     assert resp.get_json() == datos_esperados
-    mock_listar.assert_called_once_with(filtros={'cliente_id': '5'}, vendedor_email='v@e.com')
+    mock_listar.assert_called_once_with(filtros={'cliente_id': '5'}, email='v@e.com', rol=None)
 
 
 def test_listar_pedidos_blueprint_service_error():
@@ -96,3 +96,37 @@ def test_listar_pedidos_blueprint_unexpected_error():
 
     assert resp.status_code == 500
     assert 'Error interno del servidor' in resp.get_json().get('error', '')
+
+
+def test_detalle_pedido_blueprint_success():
+    app = create_app()
+    client = app.test_client()
+
+    detalle = {
+        'data': {
+            'id': 1,
+            'productos': [
+                {'producto_id': 10, 'cantidad': 2}
+            ]
+        }
+    }
+
+    with patch('src.blueprints.pedidos.detalle_pedido_externo', return_value=detalle):
+        with patch('src.blueprints.pedidos.obtener_detalle_producto_externo', return_value={'producto': {'id': 10, 'nombre': 'Producto X'}}):
+            resp = client.get('/pedido/1')
+
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data['data']['productos'][0]['cantidad'] == 2
+    assert data['data']['productos'][0]['producto']['id'] == 10
+
+
+def test_detalle_pedido_blueprint_unexpected_error():
+    app = create_app()
+    client = app.test_client()
+
+    with patch('src.blueprints.pedidos.detalle_pedido_externo', side_effect=Exception('boom')):
+        resp = client.get('/pedido/123')
+
+    assert resp.status_code == 500
+    assert resp.get_json().get('error') == 'Error interno del servidor'

@@ -1,3 +1,4 @@
+from math import e
 from unittest import result
 from flask import current_app
 import requests
@@ -5,6 +6,7 @@ from src.config.config import Config
 from src.services.vendedores import listar_vendedores_externo
 from src.services.inventarios import actualizar_inventatrio_externo
 from src.services.productos import get_productos_con_inventarios
+from src.services.clientes import listar_clientes_externo
 
 
 class PedidoServiceError(Exception):
@@ -91,22 +93,33 @@ def crear_pedido_externo(datos_pedido, vendedor_email):
         raise PedidoServiceError({'error': 'Error al conectar con el microservicio de pedidos'}, 503)
     
 
-def listar_pedidos_externo(filtros=None, vendedor_email=None):
+def listar_pedidos_externo(filtros=None, email=None, rol=None):
     """
     Consulta pedidos en el microservicio externo aplicando filtros opcionales.
 
     """
     filtros = (filtros or {}).copy()
 
-    if vendedor_email:
-        venndedor_response = listar_vendedores_externo(filters={'correo': vendedor_email})
-        items = venndedor_response.get('items', []) if isinstance(venndedor_response, dict) else []
-        if not items:
-            raise PedidoServiceError({'error': 'Vendedor no encontrado', 'codigo': 'VENDEDOR_NO_ENCONTRADO'}, 404)
-        vendedor_id = items[0].get('id')
-        if vendedor_id is None:
-            raise PedidoServiceError({'error': 'Vendedor sin identificador válido', 'codigo': 'VENDEDOR_SIN_ID'}, 404)
-        filtros['vendedor_id'] = vendedor_id
+    if rol == 'vendedor':
+        if email:
+            venndedor_response = listar_vendedores_externo(filters={'correo': email})
+            items = venndedor_response.get('items', []) if isinstance(venndedor_response, dict) else []
+            if not items:
+                raise PedidoServiceError({'error': 'Vendedor no encontrado', 'codigo': 'VENDEDOR_NO_ENCONTRADO'}, 404)
+            vendedor_id = items[0].get('id')
+            if vendedor_id is None:
+                raise PedidoServiceError({'error': 'Vendedor sin identificador válido', 'codigo': 'VENDEDOR_SIN_ID'}, 404)
+            filtros['vendedor_id'] = vendedor_id
+    elif rol == 'cliente':
+        if email:
+            cliente_response = listar_clientes_externo(email)
+            items = cliente_response.get('data', []) if isinstance(cliente_response, dict) else []
+            if not items:
+                raise PedidoServiceError({'error': 'Cliente no encontrado', 'codigo': 'CLIENTE_NO_ENCONTRADO'}, 404)
+            cliente_ids = [item.get('id') for item in items if item.get('id') is not None]
+            if not cliente_ids:
+                raise PedidoServiceError({'error': 'Cliente sin identificador válido', 'codigo': 'CLIENTE_SIN_ID'}, 404)
+            filtros['cliente_id'] = ','.join(str(cid) for cid in cliente_ids)
 
     pedidos_url = Config.PEDIDOS_URL
     try:
@@ -254,3 +267,53 @@ def validate_order_against_products(
         'requested': dict(requested),
         'available': available_map,
     }
+
+def detalle_pedido_externo(pedido_id):
+    """
+    Consulta el detalle de un pedido específico en el microservicio externo.
+
+    Args:
+        pedido_id (int|str): Identificador del pedido a consultar.
+
+    Returns:
+        dict: Los datos del pedido consultado.
+    Raises:
+        PedidoServiceError: Si ocurre un error de conexión o del microservicio.
+    """
+    pedidos_url = Config.PEDIDOS_URL
+    try:
+        response = requests.get(
+            f"{pedidos_url}/pedido/{pedido_id}",
+            headers={'Content-Type': 'application/json'}
+        )
+
+        if response.status_code != 200:
+            current_app.logger.error(
+                "Error del microservicio de pedidos al obtener detalle: %s - %s",
+                response.status_code,
+                response.text,
+            )
+            try:
+                error_body = response.json()
+            except ValueError:
+                error_body = {
+                    'error': 'Error al consultar detalle del pedido',
+                    'codigo': 'ERROR_MICROSERVICIO_PEDIDOS'
+                }
+            raise PedidoServiceError(error_body, response.status_code)
+
+        return response.json()
+    except PedidoServiceError:
+        raise
+    except requests.exceptions.RequestException as exc:
+        current_app.logger.error(f"Error al conectar con el microservicio de pedidos: {str(exc)}")
+        raise PedidoServiceError({
+            'error': 'Error al conectar con el microservicio de pedidos',
+            'codigo': 'ERROR_CONEXION_PEDIDOS'
+        }, 503)
+    except Exception as exc:  # pragma: no cover - defensivo
+        current_app.logger.exception("Error inesperado obteniendo detalle del pedido: %s", exc)
+        raise PedidoServiceError({
+            'error': 'Error inesperado al obtener detalle del pedido',
+            'codigo': 'ERROR_DETALLE_PEDIDO'
+        }, 500)

@@ -17,6 +17,7 @@ class Config:
     CLIENTES_URL = os.environ.get('CLIENTES_URL', 'http://localhost:5010')
     VENDEDORES_URL = os.environ.get('VENDEDORES_URL', 'http://localhost:5007')
     PEDIDOS_URL = os.environ.get('PEDIDOS_URL', 'http://localhost:5012')
+    LOGISTICA_URL = os.environ.get('LOGISTICA_URL', 'http://localhost:5013')
     
     # Configuración de JWT (debe coincidir con auth-usuario)
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-key-change-in-production'
