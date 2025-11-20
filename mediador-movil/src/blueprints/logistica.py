@@ -81,7 +81,11 @@ def listar_visitas_logistica_endpoint():
             vendedor_email=vendedor_email,
             headers=headers,
         )
-        return jsonify(visitas), 200
+        return jsonify(
+            {
+                "data": visitas["visitas"],
+            }
+        ), 200
     except LogisticaServiceError as err:
         return jsonify(err.message), err.status_code
     except Exception as exc:  # pragma: no cover - defensivo
