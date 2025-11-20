@@ -27,7 +27,7 @@ def test_crear_pedido_externo_success(monkeypatch):
     with app.app_context():
         # evitar que la función real consulte productos (externo)
         monkeypatch.setattr('src.services.pedidos.get_productos_con_inventarios', lambda params=None: {'data': []})
-        res = crear_pedido_externo(data, 'v@e.com')
+        res = crear_pedido_externo(data, 'v@e.com', 'vendedor')
 
     assert res['id'] == 'pedido-1'
 
@@ -48,4 +48,4 @@ def test_crear_pedido_externo_inventory_update_failure_propagates(monkeypatch):
     app = create_app()
     with app.app_context():
         with pytest.raises(Exception):
-            crear_pedido_externo(data, 'v@e.com')
+            crear_pedido_externo(data, 'v@e.com', 'vendedor')
