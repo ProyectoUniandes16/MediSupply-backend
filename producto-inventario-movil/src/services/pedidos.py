@@ -1,6 +1,7 @@
+from calendar import c
 from math import e
 from unittest import result
-from flask import current_app
+from flask import cli, current_app
 import requests
 from src.config.config import Config
 from src.services.vendedores import listar_vendedores_externo
@@ -16,7 +17,7 @@ class PedidoServiceError(Exception):
         self.message = message
         self.status_code = status_code
 
-def crear_pedido_externo(datos_pedido, vendedor_email):
+def crear_pedido_externo(datos_pedido, email, rol):
     """
     Lógica de negocio para crear un pedido a través del microservicio externo.
 
@@ -28,12 +29,15 @@ def crear_pedido_externo(datos_pedido, vendedor_email):
         dict: Los datos del pedido creado.
     Raises:
         PedidoServiceError: Si ocurre un error de validación, conexión o del microservicio.
+
+    if es vendedor llamas al listar vendedores_externo con el email del vendedor
+    si es cliente llamas al listar clientes_externo con el email del cliente
     """
     if not datos_pedido:
         raise PedidoServiceError({'error': 'No se proporcionaron datos', 'codigo': 'DATOS_VACIOS'}, 400)
 
     # --- Validación de datos de entrada ---
-    required_fields = ['productos', 'total', 'cliente_id']
+    required_fields = ['productos', 'total']
     missing_fields = [field for field in required_fields if not datos_pedido.get(field)]
     if missing_fields:
         raise PedidoServiceError({'error': f"Campos faltantes: {', '.join(missing_fields)}"}, 400)
@@ -45,14 +49,22 @@ def crear_pedido_externo(datos_pedido, vendedor_email):
     # --- Fin de la validación ---
     pedidos_url = Config.PEDIDOS_URL
     current_app.logger.info(f"URL del microservicio de pedidos: {pedidos_url}")
+    vendedor_id = ""
+    cliente_id = datos_pedido.get('cliente_id')
     try:
 
-        venndedor_response = listar_vendedores_externo(filters={'correo': vendedor_email})
+        if rol == 'vendedor':
+            venndedor_response = listar_vendedores_externo(filters={'correo': email})
 
-        if not venndedor_response.get('items') or len(venndedor_response['items']) == 0:
-            raise PedidoServiceError({'error': 'Vendedor no encontrado', 'codigo': 'VENDEDOR_NO_ENCONTRADO'}, 404)
+            if not venndedor_response.get('items') or len(venndedor_response['items']) == 0:
+                raise PedidoServiceError({'error': 'Vendedor no encontrado', 'codigo': 'VENDEDOR_NO_ENCONTRADO'}, 404)
 
-        vendedor_id = venndedor_response['items'][0]['id']
+            vendedor_id = venndedor_response['items'][0]['id']
+        elif rol == 'cliente':
+            cliente_response = listar_clientes_externo(email)
+            if not cliente_response.get('data') or len(cliente_response['data']) == 0:
+                raise PedidoServiceError({'error': 'Cliente no encontrado', 'codigo': 'CLIENTE_NO_ENCONTRADO'}, 404)
+            cliente_id = cliente_response['data'][0]['id']
 
         # Actualizar inventario
         resultado_validacion = validate_order_against_products(productos, get_productos_con_inventarios())
@@ -64,14 +76,13 @@ def crear_pedido_externo(datos_pedido, vendedor_email):
             if not resultado_inventario:
                 raise PedidoServiceError({'error': 'Error al actualizar inventario', 'detalles': resultado_inventario.get('error')}, 500)
             
-
+        payload = datos_pedido.copy()
+        payload['vendedor_id'] = vendedor_id
+        payload['cliente_id'] = cliente_id
         try:
             response = requests.post(
                 pedidos_url + '/pedido',
-                json={
-                    'vendedor_id': vendedor_id,
-                    **datos_pedido
-                },
+                json=payload,
                 headers={'Content-Type': 'application/json'}
             )
             if (response.status_code != 201):
