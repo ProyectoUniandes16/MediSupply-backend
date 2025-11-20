@@ -22,6 +22,7 @@ Microservicio encargado de la gestión de productos médicos para el sistema Med
 - **Validación**: Validadores customizados
 - **Testing**: pytest con coverage
 - **Upload**: Werkzeug para manejo seguro de archivos
+- **Procesamiento asíncrono**: Redis (pub/sub) + worker local
 
 ## 📋 Requisitos
 
@@ -56,6 +57,16 @@ python run.py
 
 El servidor estará disponible en:
 - http://localhost:5008
+
+### 4. Ejecutar worker de importación asíncrona
+
+El worker escucha el canal Redis `productos_import_csv` y procesa los CSV guardados en `local_imports/`:
+
+```bash
+python app/workers/sqs_worker.py
+```
+
+> Asegúrate de que `redis_service` esté corriendo (por docker-compose o localmente) y que el contenedor del worker comparta el directorio `local_imports/` con la app.
 
 ## 🧪 Ejecutar Tests
 
@@ -118,6 +129,18 @@ productos_microservice/
 ├── run.py                      # Punto de entrada
 └── README.md                   # Este archivo
 ```
+
+## 🔄 Importación Masiva (CSV)
+
+- Los archivos CSV se almacenan en `local_imports/` inmediatamente después del upload.
+- Se publica un mensaje en Redis vía `redis_service` (`POST /api/queue/publish`) con los datos del job.
+- El worker (`app/workers/sqs_worker.py`) consume el canal `productos_import_csv`, lee el archivo local y ejecuta `CSVProductoService`.
+- El progreso y los errores se registran en la tabla `import_jobs`.
+
+### Variables relevantes
+
+- `REDIS_SERVICE_URL`: URL HTTP del microservicio Redis (por defecto `http://localhost:5011`).
+- `REDIS_IMPORT_CHANNEL`: Canal pub/sub utilizado para importaciones (por defecto `productos_import_csv`).
 
 ## 🚦 Health Check
 

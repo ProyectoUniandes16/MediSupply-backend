@@ -380,9 +380,8 @@ def importar_productos_csv():
     """
     import io
     import csv
-    from app.config.aws_config import AWSConfig
-    from app.services.s3_service import S3Service
-    from app.services.sqs_service import SQSService
+    from app.services.local_import_service import LocalImportService
+    from app.services.redis_import_queue_service import RedisImportQueueService
     from app.models.import_job import ImportJob
     
     try:
@@ -424,14 +423,6 @@ def importar_productos_csv():
         UMBRAL_ASINCRONO = 100
         usar_asincrono = num_filas >= UMBRAL_ASINCRONO or forzar_asincrono
         
-        # Verificar si AWS está habilitado para procesamiento asíncrono
-        if usar_asincrono and not AWSConfig.USE_AWS:
-            return jsonify({
-                "error": "Procesamiento asíncrono no disponible (AWS no configurado)",
-                "codigo": "AWS_NO_DISPONIBLE",
-                "sugerencia": "Configure AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY, o use un CSV más pequeño"
-            }), 503
-        
         # ============================================
         # PROCESAMIENTO SÍNCRONO (CSV pequeño)
         # ============================================
@@ -469,19 +460,18 @@ def importar_productos_csv():
         # ============================================
         logger.info(f"Procesamiento ASÍNCRONO: {num_filas} filas")
         
-        # 1. Subir archivo a S3
+        # 1. Guardar archivo localmente
         archivo.stream.seek(0)
-        s3_key, nombre_archivo = S3Service.subir_csv(archivo, usuario_importacion)
+        local_path, nombre_archivo = LocalImportService.guardar_csv(archivo, usuario_importacion)
         
         # 2. Crear job de importación
         job = ImportJob(
             nombre_archivo=nombre_archivo,
-            s3_key=s3_key,
-            s3_bucket=AWSConfig.S3_BUCKET_CSV,
+            local_path=local_path,
             estado='PENDIENTE',
             total_filas=num_filas,
             usuario_registro=usuario_importacion,
-            metadata={
+            extra_metadata={
                 'umbral_usado': UMBRAL_ASINCRONO,
                 'forzado': forzar_asincrono
             }
@@ -489,30 +479,29 @@ def importar_productos_csv():
         db.session.add(job)
         db.session.commit()
         
-        # 3. Enviar mensaje a SQS
+        # 3. Publicar mensaje en Redis
         try:
-            sqs_response = SQSService.enviar_job_a_cola(
+            publicado = RedisImportQueueService.publicar_import_job(
                 job_id=job.id,
-                s3_key=s3_key,
+                local_path=local_path,
                 nombre_archivo=nombre_archivo,
                 usuario_registro=usuario_importacion,
                 metadata={'total_filas': num_filas}
             )
-            
-            # Actualizar job con info de SQS
-            job.sqs_message_id = sqs_response['MessageId']
+            if not publicado:
+                raise Exception('Redis import queue no aceptó el mensaje')
+
             job.estado = 'EN_COLA'
             db.session.commit()
-            
         except Exception as e:
-            logger.error(f"Error enviando a SQS: {str(e)}")
+            logger.error(f"Error publicando en Redis: {str(e)}")
             job.estado = 'FALLIDO'
             job.mensaje_error = f"Error enviando a cola: {str(e)}"
             db.session.commit()
             
             return jsonify({
                 "error": "Error enviando job a cola de procesamiento",
-                "codigo": "ERROR_SQS",
+                "codigo": "ERROR_REDIS_QUEUE",
                 "detalles": str(e),
                 "job_id": job.id
             }), 500
@@ -526,7 +515,6 @@ def importar_productos_csv():
             "nombre_archivo": nombre_archivo,
             "total_filas_estimadas": num_filas,
             "url_status": f"/api/productos/importar-csv/status/{job.id}",
-            "sqs_message_id": sqs_response['MessageId'],
             "nota": f"El CSV tiene {num_filas} filas. Se procesará de forma asíncrona."
         }
         
