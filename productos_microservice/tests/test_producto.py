@@ -57,6 +57,45 @@ class TestProductoModel:
             assert producto.estado == "Activo"
             assert producto.esta_activo() == True
 
+    def test_producto_stock_y_certificacion(self, app):
+        """Test helpers de stock y certificación"""
+        with app.app_context():
+            producto = Producto(
+                nombre="Test Cert",
+                codigo_sku="TEST-003",
+                categoria="medicamento",
+                precio_unitario=15.0,
+                condiciones_almacenamiento="Test",
+                fecha_vencimiento=datetime(2027, 1, 1).date(),
+                proveedor_id=1,
+                usuario_registro="test@test.com",
+                cantidad_disponible=0
+            )
+            db.session.add(producto)
+            db.session.flush()
+
+            assert producto.tiene_stock_disponible() is False
+            assert producto.tiene_certificacion_valida() is False
+            assert producto.certificacion_activa() is False
+
+            producto.cantidad_disponible = 5
+            assert producto.tiene_stock_disponible() is True
+
+            certificacion = CertificacionProducto(
+                producto_id=producto.id,
+                tipo_certificacion='INVIMA',
+                nombre_archivo='cert.pdf',
+                ruta_archivo='/tmp/cert.pdf',
+                tamaño_archivo=1024,
+                fecha_vencimiento_cert=datetime(2028, 1, 1).date()
+            )
+            db.session.add(certificacion)
+            db.session.flush()
+
+            db.session.refresh(producto)
+            assert producto.tiene_certificacion_valida() is True
+            assert producto.certificacion_activa() is True
+
 
 class TestProductoValidator:
     """Tests para validadores de producto"""

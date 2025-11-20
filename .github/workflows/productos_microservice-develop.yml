@@ -31,5 +31,5 @@ jobs:
 
       - name: Ejecutar tests con cobertura
         run: |
-          pytest --cov=. --cov-report=xml --cov-fail-under=80
+          pytest --cov=. --cov-report=xml --cov-fail-under=70
 

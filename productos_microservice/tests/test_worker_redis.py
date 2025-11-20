@@ -1,6 +1,7 @@
 """Tests para el worker de importación basado en Redis"""
 from pathlib import Path
 from unittest.mock import patch
+import json
 
 import pytest
 
@@ -173,4 +174,5 @@ class TestRedisWorker:
             assert resultado is False
             db.session.refresh(job)
             assert job.estado == 'FALLIDO'
-            assert 'CSV inválido' in job.mensaje_error
+            error_payload = json.loads(job.mensaje_error)
+            assert error_payload['error'] == 'CSV inválido'

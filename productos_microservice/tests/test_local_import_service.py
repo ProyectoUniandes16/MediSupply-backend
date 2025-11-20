@@ -34,3 +34,15 @@ def test_guardar_csv_with_file_like(monkeypatch, tmp_path):
     assert nombre_archivo == "simple.csv"
     assert os.path.exists(local_path)
     assert LocalImportService.leer_csv(local_path).startswith("a,b,c")
+
+
+def test_guardar_csv_crea_directorio(monkeypatch, tmp_path):
+    target_dir = tmp_path / "nested"
+    monkeypatch.setattr(LocalImportService, "BASE_DIR", target_dir.as_posix())
+    file_like = io.BytesIO(b"x,y\n1,2\n")
+    file_like.name = "nuevo.csv"
+
+    local_path, _ = LocalImportService.guardar_csv(file_like, "tester")
+
+    assert target_dir.exists()
+    assert os.path.exists(local_path)

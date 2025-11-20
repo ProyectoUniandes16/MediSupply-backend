@@ -94,8 +94,8 @@ class TestWorkerProcesarMensaje:
                 resultado = procesar_mensaje(
                     app_worker,
                     mock_sqs_message,
-                    mock_sqs_service,
-                    mock_s3_service
+                    sqs_service=mock_sqs_service,
+                    s3_service=mock_s3_service
                 )
                 
                 # Verificaciones
@@ -162,8 +162,8 @@ class TestWorkerProcesarMensaje:
                 resultado = procesar_mensaje(
                     app_worker,
                     mock_sqs_message,
-                    mock_sqs_service,
-                    mock_s3_service
+                    sqs_service=mock_sqs_service,
+                    s3_service=mock_s3_service
                 )
                 
                 # Verificaciones
@@ -193,8 +193,8 @@ class TestWorkerProcesarMensaje:
             resultado = procesar_mensaje(
                 app_worker,
                 mock_sqs_message,
-                mock_sqs_service,
-                mock_s3_service
+                sqs_service=mock_sqs_service,
+                s3_service=mock_s3_service
             )
             
             # Debe retornar False porque el job no existe
@@ -229,8 +229,8 @@ class TestWorkerProcesarMensaje:
             resultado = procesar_mensaje(
                 app_worker,
                 mock_sqs_message,
-                mock_sqs_service,
-                mock_s3_service
+                sqs_service=mock_sqs_service,
+                s3_service=mock_s3_service
             )
             
             # Debe retornar False por el error
@@ -262,8 +262,8 @@ class TestWorkerProcesarMensaje:
             resultado = procesar_mensaje(
                 app_worker,
                 mensaje_invalido,
-                mock_sqs_service,
-                mock_s3_service
+                sqs_service=mock_sqs_service,
+                s3_service=mock_s3_service
             )
             
             # Debe retornar False
@@ -291,8 +291,8 @@ class TestWorkerProcesarMensaje:
             resultado = procesar_mensaje(
                 app_worker,
                 mensaje_incompleto,
-                mock_sqs_service,
-                mock_s3_service
+                sqs_service=mock_sqs_service,
+                s3_service=mock_s3_service
             )
             
             # Debe retornar False
@@ -330,8 +330,8 @@ class TestWorkerErrorHandling:
             resultado = procesar_mensaje(
                 app_worker,
                 mock_sqs_message,
-                mock_sqs_service,
-                mock_s3_service
+                sqs_service=mock_sqs_service,
+                s3_service=mock_s3_service
             )
             
             # Debe retornar False
@@ -388,8 +388,8 @@ class TestWorkerErrorHandling:
                 procesar_mensaje(
                     app_worker,
                     mock_sqs_message,
-                    mock_sqs_service,
-                    mock_s3_service
+                    sqs_service=mock_sqs_service,
+                    s3_service=mock_s3_service
                 )
                 
                 # Verificar que se limitaron los errores a 100
@@ -442,8 +442,8 @@ class TestWorkerEstadosJob:
                 procesar_mensaje(
                     app_worker,
                     mock_sqs_message,
-                    mock_sqs_service,
-                    mock_s3_service
+                    sqs_service=mock_sqs_service,
+                    s3_service=mock_s3_service
                 )
                 
                 # Verificar transición de estado
@@ -477,8 +477,8 @@ class TestWorkerEstadosJob:
             procesar_mensaje(
                 app_worker,
                 mock_sqs_message,
-                mock_sqs_service,
-                mock_s3_service
+                sqs_service=mock_sqs_service,
+                s3_service=mock_s3_service
             )
             
             # Verificar transición a FALLIDO
