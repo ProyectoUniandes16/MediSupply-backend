@@ -4,7 +4,7 @@ import sys
 import signal
 import logging
 import json
-from typing import Optional
+from typing import Optional, Union
 
 import redis
 
@@ -52,8 +52,61 @@ def _parse_message_data(data) -> Optional[dict]:
         return None
 
 
-def procesar_mensaje(app, payload: dict) -> bool:
-    """Procesa un mensaje publicado en el canal Redis"""
+def procesar_mensaje(app, payload: Union[dict, str], sqs_service=None, s3_service=None) -> bool:
+    """Procesa un mensaje proveniente del canal Redis o de una cola SQS"""
+    if isinstance(payload, dict) and 'Body' in payload:
+        return _procesar_mensaje_sqs(app, payload, sqs_service, s3_service)
+
+    if sqs_service or s3_service:
+        logger.warning("⚠️ Servicios SQS/S3 provistos pero el payload no contiene 'Body'. Se ignorarán los servicios externos.")
+
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except json.JSONDecodeError:
+            logger.error("❌ Payload inválido: no es JSON")
+            return False
+
+    if not isinstance(payload, dict):
+        logger.error("❌ Payload inválido: se esperaba dict")
+        return False
+
+    return _procesar_mensaje_local(app, payload)
+
+
+def _formatear_error_csv(error_payload) -> str:
+    if isinstance(error_payload, dict):
+        return json.dumps(error_payload, ensure_ascii=False)
+    return str(error_payload)
+
+
+def _aplicar_resultado_job(job: ImportJob, resultado: dict):
+    exitosos = resultado.get('exitosos', 0)
+    fallidos = resultado.get('fallidos', 0)
+    detalles_errores = resultado.get('detalles_errores', [])
+    total_procesados = exitosos + fallidos
+
+    job.actualizar_progreso(
+        filas_procesadas=total_procesados,
+        exitosos=exitosos,
+        fallidos=fallidos
+    )
+
+    if detalles_errores:
+        errores_limitados = detalles_errores[:100]
+        job.detalles_errores = {
+            'total_errores': fallidos,
+            'errores_capturados': len(errores_limitados),
+            'nota': 'Mostrando primeros 100 errores' if fallidos > 100 else 'Todos los errores capturados',
+            'errores': errores_limitados
+        }
+
+    job.marcar_como_completado(
+        mensaje=f"{exitosos} exitosos, {fallidos} fallidos"
+    )
+
+
+def _procesar_mensaje_local(app, payload: dict) -> bool:
     job_id = payload.get('job_id')
     local_path = payload.get('local_path')
     usuario_registro = payload.get('usuario_registro', 'sistema')
@@ -118,48 +171,30 @@ def procesar_mensaje(app, payload: dict) -> bool:
 
             logger.info(f"🚀 Procesando CSV local: {ruta_archivo}")
             csv_service = CSVProductoService()
-            resultado = csv_service.procesar_csv_desde_contenido(
-                contenido_csv=contenido_csv,
-                usuario_importacion=usuario_registro,
-                callback_progreso=actualizar_progreso
-            )
 
-            exitosos = resultado.get('exitosos', 0)
-            fallidos = resultado.get('fallidos', 0)
-            detalles_errores = resultado.get('detalles_errores', [])
-            total_procesados = exitosos + fallidos
+            try:
+                resultado = csv_service.procesar_csv_desde_contenido(
+                    contenido_csv=contenido_csv,
+                    usuario_importacion=usuario_registro,
+                    callback_progreso=actualizar_progreso
+                )
+            except CSVImportError as e:
+                logger.error(f"❌ Error de validación CSV para job {job_id}: {e.args[0]}")
+                job.marcar_como_fallido(_formatear_error_csv(e.args[0] if e.args else 'Error validando CSV'))
+                db.session.commit()
+                return False
+            except Exception as e:
+                logger.error(f"❌ Error inesperado procesando CSV local para job {job_id}: {e}", exc_info=True)
+                job.marcar_como_fallido(f"Error en worker: {e}")
+                db.session.commit()
+                return False
 
-            job.actualizar_progreso(
-                filas_procesadas=total_procesados,
-                exitosos=exitosos,
-                fallidos=fallidos
-            )
-
-            if detalles_errores:
-                errores_limitados = detalles_errores[:100]
-                job.detalles_errores = {
-                    'total_errores': fallidos,
-                    'errores_capturados': len(errores_limitados),
-                    'nota': 'Mostrando primeros 100 errores' if fallidos > 100 else 'Todos los errores capturados',
-                    'errores': errores_limitados
-                }
-
-            job.marcar_como_completado(
-                mensaje=f"{exitosos} exitosos, {fallidos} fallidos"
-            )
+            _aplicar_resultado_job(job, resultado)
             db.session.commit()
 
-            logger.info(f"✅ Job {job_id} COMPLETADO: {exitosos} exitosos, {fallidos} fallidos")
+            logger.info(f"✅ Job {job_id} COMPLETADO: {resultado.get('exitosos', 0)} exitosos, {resultado.get('fallidos', 0)} fallidos")
             return True
 
-    except CSVImportError as e:
-        logger.error(f"❌ Error de validación CSV para job {job_id}: {e.args[0]}")
-        with app.app_context():
-            job = db.session.query(ImportJob).filter_by(id=job_id).first()
-            if job:
-                job.marcar_como_fallido(json.dumps(e.args[0]))
-                db.session.commit()
-        return False
     except Exception as e:
         logger.error(f"❌ Error procesando job {job_id}: {e}", exc_info=True)
         with app.app_context():
@@ -168,6 +203,121 @@ def procesar_mensaje(app, payload: dict) -> bool:
                 job.marcar_como_fallido(f"Error en worker: {e}")
                 db.session.commit()
         return False
+
+
+def _procesar_mensaje_sqs(app, message: dict, sqs_service, s3_service) -> bool:
+    if sqs_service is None or s3_service is None:
+        logger.error("❌ Servicios SQS o S3 no configurados para procesar mensaje SQS")
+        return False
+
+    body = message.get('Body')
+    try:
+        data = json.loads(body)
+    except (TypeError, json.JSONDecodeError) as exc:
+        logger.error(f"❌ Mensaje SQS con JSON inválido: {exc}")
+        sqs_service.eliminar_mensaje(message)
+        return False
+
+    job_id = data.get('job_id')
+    s3_key = data.get('s3_key')
+    usuario_registro = data.get('usuario_registro')
+
+    if not job_id or not s3_key or not usuario_registro:
+        logger.error("❌ Mensaje SQS inválido: se requieren job_id, s3_key y usuario_registro")
+        sqs_service.eliminar_mensaje(message)
+        return False
+
+    metadata = data.get('metadata', {})
+
+    try:
+        with app.app_context():
+            job = db.session.query(ImportJob).filter_by(id=job_id).first()
+
+            if not job:
+                logger.error(f"❌ Job {job_id} no encontrado en la base de datos")
+                sqs_service.eliminar_mensaje(message)
+                return False
+
+            job.sqs_message_id = message.get('MessageId') or job.sqs_message_id
+            job.sqs_receipt_handle = message.get('ReceiptHandle') or job.sqs_receipt_handle
+
+            if metadata.get('total_filas') and not job.total_filas:
+                job.total_filas = metadata['total_filas']
+
+            job.marcar_como_procesando()
+            db.session.commit()
+            logger.info(f"🔄 Job {job_id} marcado como PROCESANDO desde SQS")
+
+            try:
+                contenido_csv = s3_service.descargar_csv(s3_key)
+            except Exception as exc:
+                error_msg = f"Error descargando CSV de S3 ({s3_key}): {exc}"
+                logger.error(error_msg)
+                job.marcar_como_fallido(error_msg)
+                db.session.commit()
+                sqs_service.eliminar_mensaje(message)
+                return False
+
+            if not contenido_csv:
+                error_msg = f"Archivo CSV vacío o no encontrado en S3: {s3_key}"
+                logger.error(error_msg)
+                job.marcar_como_fallido(error_msg)
+                db.session.commit()
+                sqs_service.eliminar_mensaje(message)
+                return False
+
+            def actualizar_progreso(fila_actual: int, total_filas: int, exitosos: int, fallidos: int):
+                try:
+                    job.filas_procesadas = fila_actual
+                    job.exitosos = exitosos
+                    job.fallidos = fallidos
+                    if total_filas > 0:
+                        job.progreso = round((fila_actual / total_filas) * 100, 2)
+                    else:
+                        job.progreso = 0
+                    db.session.commit()
+                except Exception as exc:
+                    logger.error(f"❌ Error actualizando progreso del job {job_id}: {exc}")
+                    db.session.rollback()
+
+            csv_service = CSVProductoService()
+
+            try:
+                resultado = csv_service.procesar_csv_desde_contenido(
+                    contenido_csv=contenido_csv,
+                    usuario_importacion=usuario_registro,
+                    callback_progreso=actualizar_progreso
+                )
+            except CSVImportError as exc:
+                logger.error(f"❌ Error de validación CSV para job {job_id}: {exc.args[0]}")
+                job.marcar_como_fallido(_formatear_error_csv(exc.args[0] if exc.args else 'Error validando CSV'))
+                db.session.commit()
+                sqs_service.eliminar_mensaje(message)
+                return False
+            except Exception as exc:
+                logger.error(f"❌ Error inesperado procesando CSV de S3 para job {job_id}: {exc}", exc_info=True)
+                job.marcar_como_fallido(f"Error en worker: {exc}")
+                db.session.commit()
+                sqs_service.eliminar_mensaje(message)
+                return False
+
+            _aplicar_resultado_job(job, resultado)
+            db.session.commit()
+
+            logger.info(f"✅ Job {job_id} COMPLETADO desde SQS: {resultado.get('exitosos', 0)} exitosos, {resultado.get('fallidos', 0)} fallidos")
+
+    except Exception as exc:
+        logger.error(f"❌ Error procesando job {job_id} desde SQS: {exc}", exc_info=True)
+        with app.app_context():
+            job = db.session.query(ImportJob).filter_by(id=job_id).first()
+            if job:
+                job.marcar_como_fallido(f"Error en worker: {exc}")
+                db.session.commit()
+        sqs_service.eliminar_mensaje(message)
+        return False
+
+    sqs_service.eliminar_mensaje(message)
+    return True
 
 
 def run_worker():

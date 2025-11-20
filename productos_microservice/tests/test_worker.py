@@ -14,10 +14,13 @@ from app.workers.sqs_worker import procesar_mensaje
 
 
 @pytest.fixture
-def app_worker():
+def app_worker(monkeypatch, tmp_path):
     """Crear aplicación de prueba para el worker"""
+    monkeypatch.setenv('TESTING', 'true')
+    monkeypatch.setenv('DATABASE_URL', 'sqlite:///:memory:')
     app = create_app()
     app.config.from_object('app.config.TestingConfig')
+    app.config['UPLOAD_FOLDER'] = tmp_path.as_posix()
     
     with app.app_context():
         db.create_all()
