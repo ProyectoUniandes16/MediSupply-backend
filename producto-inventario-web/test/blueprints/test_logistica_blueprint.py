@@ -94,6 +94,143 @@ class TestListarZonasBlueprint:
         assert 'error' in resp.get_json()
 
 
+class TestListarZonasConBodegasBlueprint:
+    """Pruebas para el endpoint GET /zona-con-bodegas"""
+
+    def test_consultar_zonas_con_bodegas_success(self):
+        """Prueba exitosa de consulta de zonas con bodegas"""
+        app = create_app()
+        client = app.test_client()
+        
+        with app.app_context():
+            token = create_access_token(identity='tester')
+
+        zonas_esperadas = {
+            'data': [
+                {
+                    'id': '770e8400-e29b-41d4-a716-446655440001',
+                    'nombre': 'Bogotá Centro',
+                    'bodegas': [
+                        {
+                            'id': '550e8400-e29b-41d4-a716-446655440000',
+                            'nombre': 'Bodega Central',
+                            'ubicacion': 'Av. Caracas #45-67'
+                        }
+                    ]
+                }
+            ],
+            'total': 1
+        }
+
+        with patch('src.blueprints.logistica.listar_zonas_con_bodegas', return_value=zonas_esperadas) as mock_listar:
+            resp = client.get('/zona-con-bodegas', headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 200
+        assert resp.get_json() == zonas_esperadas
+        assert len(resp.get_json()['data']) == 1
+        assert len(resp.get_json()['data'][0]['bodegas']) == 1
+        mock_listar.assert_called_once()
+
+    def test_consultar_zonas_con_bodegas_sin_token(self):
+        """Prueba que el endpoint requiere autenticación"""
+        app = create_app()
+        client = app.test_client()
+
+        resp = client.get('/zona-con-bodegas')
+
+        assert resp.status_code == 401
+
+    def test_consultar_zonas_con_bodegas_token_invalido(self):
+        """Prueba con token inválido"""
+        app = create_app()
+        client = app.test_client()
+
+        resp = client.get('/zona-con-bodegas', headers={'Authorization': 'Bearer token-invalido'})
+
+        assert resp.status_code == 422
+
+    def test_consultar_zonas_con_bodegas_lista_vacia(self):
+        """Prueba cuando no hay zonas registradas"""
+        app = create_app()
+        client = app.test_client()
+        
+        with app.app_context():
+            token = create_access_token(identity='tester')
+
+        with patch('src.blueprints.logistica.listar_zonas_con_bodegas', return_value={'data': [], 'total': 0}):
+            resp = client.get('/zona-con-bodegas', headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 200
+        assert resp.get_json() == {'data': [], 'total': 0}
+
+    def test_consultar_zonas_con_bodegas_service_error(self):
+        """Prueba cuando el servicio de logística retorna error"""
+        app = create_app()
+        client = app.test_client()
+        
+        with app.app_context():
+            token = create_access_token(identity='tester')
+
+        with patch('src.blueprints.logistica.listar_zonas_con_bodegas', 
+                   side_effect=LogisticaServiceError('Error en servicio de logística', 500)):
+            resp = client.get('/zona-con-bodegas', headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 500
+        assert 'error' in resp.get_json()
+
+    def test_consultar_zonas_con_bodegas_unexpected_error(self):
+        """Prueba cuando ocurre un error inesperado"""
+        app = create_app()
+        client = app.test_client()
+        
+        with app.app_context():
+            token = create_access_token(identity='tester')
+
+        with patch('src.blueprints.logistica.listar_zonas_con_bodegas', side_effect=Exception('Error inesperado')):
+            resp = client.get('/zona-con-bodegas', headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 500
+        assert 'error' in resp.get_json()
+
+    def test_consultar_zonas_con_bodegas_multiple_zones(self):
+        """Prueba con múltiples zonas y bodegas"""
+        app = create_app()
+        client = app.test_client()
+        
+        with app.app_context():
+            token = create_access_token(identity='tester')
+
+        zonas_esperadas = {
+            'data': [
+                {
+                    'id': 'zona-1',
+                    'nombre': 'Zona 1',
+                    'bodegas': [
+                        {'id': 'bod-1', 'nombre': 'Bodega 1'},
+                        {'id': 'bod-2', 'nombre': 'Bodega 2'}
+                    ]
+                },
+                {
+                    'id': 'zona-2',
+                    'nombre': 'Zona 2',
+                    'bodegas': [
+                        {'id': 'bod-3', 'nombre': 'Bodega 3'}
+                    ]
+                }
+            ],
+            'total': 2
+        }
+
+        with patch('src.blueprints.logistica.listar_zonas_con_bodegas', return_value=zonas_esperadas):
+            resp = client.get('/zona-con-bodegas', headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert len(data['data']) == 2
+        assert len(data['data'][0]['bodegas']) == 2
+        assert len(data['data'][1]['bodegas']) == 1
+
+
 class TestObtenerZonaDetalladaBlueprint:
     """Pruebas para el endpoint GET /zonas/<zona_id>/detalle"""
 

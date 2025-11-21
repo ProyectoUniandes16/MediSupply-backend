@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required
 from src.services.logistica import (
     listar_zonas,
+    listar_zonas_con_bodegas,
     obtener_zona_detallada,
     crear_ruta_entrega,
     optimizar_ruta,
@@ -29,6 +30,26 @@ def consultar_zonas():
         return jsonify({'error': e.message}), e.status_code
     except Exception as e:
         current_app.logger.error(f"Error inesperado al consultar zonas: {str(e)}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+
+@logistica_bp.route('/zona-con-bodegas', methods=['GET'])
+@jwt_required()
+def consultar_zonas_con_bodegas():
+    """
+    Endpoint para listar todas las zonas con sus bodegas asociadas.
+    
+    Returns:
+        JSON con la lista de zonas con bodegas y total
+    """
+    try:
+        resultado = listar_zonas_con_bodegas()
+        return jsonify(resultado), 200
+    except LogisticaServiceError as e:
+        current_app.logger.error(f"Error al consultar zonas con bodegas: {e.message}")
+        return jsonify({'error': e.message}), e.status_code
+    except Exception as e:
+        current_app.logger.error(f"Error inesperado al consultar zonas con bodegas: {str(e)}")
         return jsonify({'error': 'Error interno del servidor'}), 500
 
 
