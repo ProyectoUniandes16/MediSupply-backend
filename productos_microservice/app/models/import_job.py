@@ -18,9 +18,10 @@ class ImportJob(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     nombre_archivo = db.Column(db.String(255), nullable=False)
     
-    # S3
+    # Ubicación de archivo
     s3_key = db.Column(db.String(500), nullable=True)  # Ruta del archivo en S3
     s3_bucket = db.Column(db.String(100), nullable=True)
+    local_path = db.Column(db.String(500), nullable=True)
     
     # Estado del job
     estado = db.Column(db.String(20), default='PENDIENTE', nullable=False)
@@ -67,6 +68,7 @@ class ImportJob(db.Model):
         data = {
             'job_id': self.id,
             'nombre_archivo': self.nombre_archivo,
+            'local_path': self.local_path,
             'estado': self.estado,
             'progreso': round(self.progreso, 2),
             'total_filas': self.total_filas,

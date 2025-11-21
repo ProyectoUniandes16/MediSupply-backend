@@ -5,8 +5,11 @@ from app import create_app
 from app.extensions import db
 
 @pytest.fixture
-def app():
+def app(monkeypatch):
     """Crear aplicación de prueba"""
+    monkeypatch.setenv('TESTING', 'true')  # Fuerza configuración de pruebas desde create_app
+    monkeypatch.setenv('DATABASE_URL', 'sqlite:///:memory:')
+
     app = create_app()
     # Usar la configuración específica de testing
     app.config.from_object('app.config.TestingConfig')

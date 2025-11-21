@@ -20,8 +20,9 @@ def crear_pedido():
         token_data = decode_jwt(current_app, request.headers.get('Authorization'))
         email_token = token_data.get('user').get('email') if token_data else None
         current_app.logger.info(f"Email from token: {email_token}")
+        rol = token_data.get('user').get('rol') if token_data else None
         # Llamar a la capa de servicio para manejar la lógica
-        datos_respuesta = crear_pedido_externo(datos_pedido, vendedor_email=email_token)
+        datos_respuesta = crear_pedido_externo(datos_pedido, email=email_token, rol=rol)
         current_app.logger.info(f"Respuesta del servicio de pedidos: {datos_respuesta}")
         return jsonify(datos_respuesta), 201
 

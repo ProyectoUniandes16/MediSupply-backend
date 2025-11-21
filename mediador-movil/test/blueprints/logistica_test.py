@@ -107,7 +107,7 @@ def test_listar_visitas_logistica_exito(mock_listar, client, access_token):
     response = client.get("/visitas?vendedor_id=filtro", headers=headers)
 
     assert response.status_code == 200
-    assert response.get_json()["visitas"][0]["cliente"]["nombre"] == "Cliente Uno"
+    assert response.get_json()["data"][0]["cliente"]["nombre"] == "Cliente Uno"
     args, kwargs = mock_listar.call_args
     assert "filtros" in kwargs
     assert kwargs["headers"]["Authorization"].startswith("Bearer ")

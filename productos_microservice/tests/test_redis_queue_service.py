@@ -1,3 +1,4 @@
+import requests
 import pytest
 from unittest.mock import patch, MagicMock
 from app.services.redis_queue_service import RedisQueueService
@@ -91,7 +92,7 @@ class TestRedisQueueService:
     def test_publicar_cambio_estado_error_conexion(self, mock_post):
         """Test error de conexión al publicar"""
         # Simular error de conexión
-        mock_post.side_effect = Exception("Error de conexión")
+        mock_post.side_effect = requests.RequestException("Error de conexión")
         
         # No debe lanzar excepción, debe retornar False
         result = RedisQueueService.publicar_mensaje_video(
@@ -102,6 +103,20 @@ class TestRedisQueueService:
         )
         
         assert result == False
+
+    @patch('requests.get')
+    def test_verificar_conectividad_exitoso(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_get.return_value = mock_response
+
+        assert RedisQueueService.verificar_conectividad() is True
+
+    @patch('requests.get')
+    def test_verificar_conectividad_error(self, mock_get):
+        mock_get.side_effect = requests.RequestException("down")
+
+        assert RedisQueueService.verificar_conectividad() is False
     
     @patch('requests.post')
     def test_publicar_cambio_estado_respuesta_error(self, mock_post):

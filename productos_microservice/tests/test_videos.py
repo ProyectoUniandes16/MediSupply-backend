@@ -81,17 +81,28 @@ class TestVideoEvidenciaModel:
             db.session.add(video)
             db.session.flush()
             
-            # Verificar transiciones de estado
+            # Verificar transiciones de estado usando helpers
             assert video.estado == "cargando"
-            
-            video.estado = "cargado"
+
+            video.marcar_como_cargado()
             assert video.estado == "cargado"
-            
-            video.estado = "procesando"
+
+            video.marcar_como_procesando()
             assert video.estado == "procesando"
-            
-            video.estado = "procesado"
+
+            video.marcar_como_procesado(ruta_pc="videos/procesado/pc.mp4", ruta_mobile="videos/procesado/mobile.mp4")
             assert video.estado == "procesado"
+            assert video.ruta_procesado_pc.endswith("pc.mp4")
+            assert video.ruta_procesado_mobile.endswith("mobile.mp4")
+            assert video.fecha_procesado is not None
+
+            video.marcar_error("Error de procesamiento")
+            assert video.estado == "error"
+            assert video.mensaje_error == "Error de procesamiento"
+
+            data = video.to_dict()
+            assert data['estado'] == 'error'
+            assert data['mensaje_error'] == "Error de procesamiento"
 
 
 class TestVideosEndpoints:
