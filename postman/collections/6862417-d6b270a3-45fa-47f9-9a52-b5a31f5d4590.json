@@ -1,0 +1,2347 @@
+{
+	"info": {
+		"_postman_id": "6862417-d6b270a3-45fa-47f9-9a52-b5a31f5d4590",
+		"name": "MediSupply BFFs - Producto Inventario (Web & Móvil)",
+		"description": "Collection completa para BFF Web (puerto 5003) y BFF Móvil (puerto 5004) con casos positivos y negativos. Incluye autenticación JWT.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Web",
+			"item": [
+				{
+					"name": "0. Autenticación",
+					"item": [
+						{
+							"name": "Signup",
+							"id": "6862417-7efd9b33-5244-43ca-87d0-b6a5443aa329",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"email\": \"{{admin_email}}\",\n    \"password\": \"{{admin_password}}\",\n    \"nombre\": \"Test\",\n    \"apellido\": \"User\",\n    \"rol\": \"gerente\"\n  }",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url_web}}/auth/signup",
+									"host": [
+										"{{base_url_web}}"
+									],
+									"path": [
+										"auth",
+										"signup"
+									]
+								},
+								"description": "Generated from cURL: curl -X POST http://localhost:5003/auth/signup \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"email\": \"test@test.com\",\n    \"password\": \"123456\",\n    \"nombre\": \"Test\",\n    \"apellido\": \"User\"\n  }'"
+							},
+							"response": []
+						},
+						{
+							"name": "Login - Obtener Token JWT",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "3c0bf9a9-b685-4388-b935-55a460ccfaf1",
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    var jsonData = pm.response.json().data;",
+											"    pm.collectionVariables.set(\"jwt_token\", jsonData.access_token);",
+											"    pm.environment.set(\"jwt_token\", jsonData.access_token);",
+											"    console.log(\"Token guardado: \" + jsonData.access_token);",
+											"}"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-81a2ff70-7a16-4101-b078-a6bcad81a591",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"email\": \"{{admin_email}}\",\n    \"password\": \"{{admin_password}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_web}}/auth/login",
+									"host": [
+										"{{base_url_web}}"
+									],
+									"path": [
+										"auth",
+										"login"
+									]
+								},
+								"description": "Obtiene un token JWT válido para autenticación en los BFFs"
+							},
+							"response": []
+						}
+					],
+					"id": "6862417-b38f64c7-7698-48be-91c8-4ddcdc0ad2dd",
+					"description": "Endpoints de autenticación para obtener el token JWT"
+				},
+				{
+					"name": "1. BFF Web - Productos",
+					"item": [
+						{
+							"name": "✅ Crear Producto con Inventario",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df1b6ed9-0fee-492c-8924-b622cb29e992",
+										"exec": [
+											"pm.test(\"Status code is 201\", function () {",
+											"    pm.response.to.have.status(201);",
+											"});",
+											"",
+											"pm.test(\"Response has producto and inventario\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData.data).to.have.property('producto');",
+											"    pm.expect(jsonData.data).to.have.property('inventario');",
+											"    ",
+											"    // Guardar ID para otros tests",
+											"    if (jsonData.data.producto.id) {",
+											"        pm.collectionVariables.set(\"producto_id\", jsonData.data.producto.id);",
+											"    }",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "a95bff87-85ef-4d07-bc0a-9e4c32771d24",
+										"exec": [
+											"// Generate a random number for unique SKU",
+											"const randomNumber = Math.floor(Math.random() * 1000000);",
+											"",
+											"// Format as SKU identifier (e.g., MED-PAR-123456)",
+											"const uniqueSKU = `MED-PAR-${randomNumber}`;",
+											"",
+											"// Set the sku_test variable",
+											"pm.collectionVariables.set(\"sku_test\", uniqueSKU);",
+											"",
+											"console.log(`Generated unique SKU: ${uniqueSKU}`);"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-82f147fd-29a3-47be-9176-ce8f54dc9358",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "nombre",
+											"value": "Paracetamol 500mg",
+											"type": "text"
+										},
+										{
+											"key": "codigo_sku",
+											"value": "{{sku_test}}",
+											"type": "text"
+										},
+										{
+											"key": "categoria",
+											"value": "medicamento",
+											"type": "text"
+										},
+										{
+											"key": "precio_unitario",
+											"value": "15.50",
+											"type": "text"
+										},
+										{
+											"key": "condiciones_almacenamiento",
+											"value": "Lugar fresco y seco",
+											"type": "text"
+										},
+										{
+											"key": "fecha_vencimiento",
+											"value": "11/11/2026",
+											"type": "text"
+										},
+										{
+											"key": "proveedor_id",
+											"value": "1",
+											"type": "text"
+										},
+										{
+											"key": "ubicacion",
+											"value": "Almacen A - Estante 1",
+											"type": "text"
+										},
+										{
+											"key": "cantidad_inicial",
+											"value": "100",
+											"type": "text"
+										},
+										{
+											"key": "certificacion",
+											"type": "file",
+											"description": "Archivo PDF de certificación",
+											"src": "foe-cuentas-bancarias-pagare-unico-pf.pdf"
+										},
+										{
+											"key": "tipo_certificacion",
+											"value": "INVIMA",
+											"type": "text",
+											"uuid": "f8d2de86-56d8-45b2-887c-f5700186aeb1"
+										},
+										{
+											"key": "fecha_vencimiento_cert",
+											"value": "11/11/2026",
+											"type": "text",
+											"uuid": "04604478-975e-444d-9fee-6a223d0e4960"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url_web_producto}}/producto",
+									"host": [
+										"{{base_url_web_producto}}"
+									],
+									"path": [
+										"producto"
+									]
+								},
+								"description": "Crea un producto con inventario automático (caso positivo)"
+							},
+							"response": []
+						},
+						{
+							"name": "❌ Crear Producto sin Ubicación",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "037d76e7-d101-4d8b-b084-d0515560bf38",
+										"exec": [
+											"pm.test(\"Status code is 400\", function () {",
+											"    pm.response.to.have.status(400);",
+											"});",
+											"",
+											"pm.test(\"Error mentions missing ubicacion\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData.error.toLowerCase()).to.include('ubicacion');",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-caa564a2-ed62-47ca-874b-7e35a78c0507",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "nombre",
+											"value": "Ibuprofeno 400mg",
+											"type": "text"
+										},
+										{
+											"key": "codigo_sku",
+											"value": "MED-IBU-400",
+											"type": "text"
+										},
+										{
+											"key": "categoria",
+											"value": "Medicamentos",
+											"type": "text"
+										},
+										{
+											"key": "precio_unitario",
+											"value": "20.00",
+											"type": "text"
+										},
+										{
+											"key": "condiciones_almacenamiento",
+											"value": "Temperatura ambiente",
+											"type": "text"
+										},
+										{
+											"key": "fecha_vencimiento",
+											"value": "2026-06-30",
+											"type": "text"
+										},
+										{
+											"key": "proveedor_id",
+											"value": "1",
+											"type": "text"
+										},
+										{
+											"key": "cantidad_inicial",
+											"value": "50",
+											"type": "text"
+										},
+										{
+											"key": "certificacion",
+											"type": "file",
+											"src": "certificado_ejemplo.pdf"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url_web_producto}}/producto",
+									"host": [
+										"{{base_url_web_producto}}"
+									],
+									"path": [
+										"producto"
+									]
+								},
+								"description": "Intenta crear producto sin ubicación (caso negativo)"
+							},
+							"response": []
+						},
+						{
+							"name": "❌ Crear Producto sin Cantidad Inicial",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "82859ae9-065f-4a5b-b87b-c2c6a3e32e7d",
+										"exec": [
+											"pm.test(\"Status code is 400\", function () {",
+											"    pm.response.to.have.status(400);",
+											"});",
+											"",
+											"pm.test(\"Error mentions missing cantidad_inicial\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData.error.toLowerCase()).to.include('cantidad');",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-c2bfac62-8788-4d14-871e-d73c9d35de4d",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "nombre",
+											"value": "Aspirina 100mg",
+											"type": "text"
+										},
+										{
+											"key": "codigo_sku",
+											"value": "MED-ASP-100",
+											"type": "text"
+										},
+										{
+											"key": "categoria",
+											"value": "Medicamentos",
+											"type": "text"
+										},
+										{
+											"key": "precio_unitario",
+											"value": "12.00",
+											"type": "text"
+										},
+										{
+											"key": "condiciones_almacenamiento",
+											"value": "Lugar seco",
+											"type": "text"
+										},
+										{
+											"key": "fecha_vencimiento",
+											"value": "2025-12-31",
+											"type": "text"
+										},
+										{
+											"key": "proveedor_id",
+											"value": "1",
+											"type": "text"
+										},
+										{
+											"key": "ubicacion",
+											"value": "Almacen B",
+											"type": "text"
+										},
+										{
+											"key": "certificacion",
+											"type": "file",
+											"src": "certificado_ejemplo.pdf"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url_web_producto}}/producto",
+									"host": [
+										"{{base_url_web_producto}}"
+									],
+									"path": [
+										"producto"
+									]
+								},
+								"description": "Intenta crear producto sin cantidad_inicial (caso negativo)"
+							},
+							"response": []
+						},
+						{
+							"name": "❌ Crear Producto sin Token",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "d65c96c7-370f-4fce-ac4f-c97ffb64b323",
+										"exec": [
+											"pm.test(\"Status code is 401\", function () {",
+											"    pm.response.to.have.status(401);",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-59e43be3-91cf-4922-85e3-bdd85bb65434",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "nombre",
+											"value": "Test Sin Auth",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url_web_producto}}/producto",
+									"host": [
+										"{{base_url_web_producto}}"
+									],
+									"path": [
+										"producto"
+									]
+								},
+								"description": "Intenta crear producto sin autenticación (caso negativo)"
+							},
+							"response": []
+						},
+						{
+							"name": "✅ Consultar Productos",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "6136e850-8e6e-44e9-aafe-087c3a461673",
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"pm.test(\"Response has data\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData).to.have.property('data');",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-d4e653af-a63b-40e4-a1d1-1f0e7ff795c4",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_web_producto}}/producto",
+									"host": [
+										"{{base_url_web_producto}}"
+									],
+									"path": [
+										"producto"
+									]
+								},
+								"description": "Obtiene listado de productos (caso positivo)"
+							},
+							"response": []
+						},
+						{
+							"name": "✅ Obtener Producto por ID",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "c086edf8-2316-4e14-86a0-f0f833e1e796",
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"pm.test(\"Response has product data\", function () {",
+											"    pm.expect(pm.response.json()).to.have.property('data');",
+											"    pm.expect(pm.response.json().data).to.have.property('producto');",
+											"    var producto = pm.response.json().data.producto;",
+											"    pm.expect(producto).to.have.property('id');",
+											"    pm.expect(producto).to.have.property('nombre');",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-a9fff9ea-bad9-4f35-9982-25a20eb1bf34",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_web_producto}}/producto/{{producto_id}}",
+									"host": [
+										"{{base_url_web_producto}}"
+									],
+									"path": [
+										"producto",
+										"{{producto_id}}"
+									]
+								},
+								"description": "Obtiene detalle de un producto específico (caso positivo)"
+							},
+							"response": []
+						},
+						{
+							"name": "❌ Obtener Producto No Existente",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "1fb2bae3-e8bf-438c-be81-5bd65cec1f76",
+										"exec": [
+											"pm.test(\"Status code is 404\", function () {",
+											"    pm.response.to.have.status(404);",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-9fa41253-8459-4ede-ba31-776b0be58fac",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_web_producto}}/producto/99999",
+									"host": [
+										"{{base_url_web_producto}}"
+									],
+									"path": [
+										"producto",
+										"99999"
+									]
+								},
+								"description": "Intenta obtener producto que no existe (caso negativo)"
+							},
+							"response": []
+						},
+						{
+							"name": "✅ Obtener Producto por SKU",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "0b7a1830-2d59-47ce-bd5a-cf56f8ab95bc",
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"pm.test(\"Response has product with SKU\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    var sku_test = pm.variables.get(\"sku_test\");",
+											"    pm.expect(jsonData.data.producto).to.have.property('codigo_sku');",
+											"    console.log(jsonData.data.producto.codigo_sku)",
+											"    pm.expect(jsonData.data.producto.codigo_sku).to.equal(sku_test);",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-59feb465-7445-481f-9156-784afdc8cc49",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_web_producto}}/producto/sku/{{sku_test}}",
+									"host": [
+										"{{base_url_web_producto}}"
+									],
+									"path": [
+										"producto",
+										"sku",
+										"{{sku_test}}"
+									]
+								},
+								"description": "Busca producto por código SKU (caso positivo)"
+							},
+							"response": []
+						},
+						{
+							"name": "❌ Obtener Producto por SKU No Existente",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "d7151520-5b6b-4c8b-9781-ac35f70a7d4b",
+										"exec": [
+											"pm.test(\"Status code is 404\", function () {",
+											"    pm.response.to.have.status(404);",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-d9104c0f-a9c0-4285-af82-d5cb36e1fab3",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_web_producto}}/producto/sku/SKU-NO-EXISTE-999",
+									"host": [
+										"{{base_url_web_producto}}"
+									],
+									"path": [
+										"producto",
+										"sku",
+										"SKU-NO-EXISTE-999"
+									]
+								},
+								"description": "Busca producto con SKU inexistente (caso negativo)"
+							},
+							"response": []
+						},
+						{
+							"name": "✅ Consultar Productos con Inventarios",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "06a9634d-b03f-4af1-81ce-8535ec1d8185",
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"pm.test(\"Response has productos list\", function () {",
+											"    var jsonData = pm.response.json().data;",
+											"    pm.expect(jsonData).to.have.property('inventarios');",
+											"    pm.expect(jsonData.inventarios).to.be.an('array');",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-5ead1083-8536-4437-9f93-839e7204cda8",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_web_producto}}/producto/2/inventarios",
+									"host": [
+										"{{base_url_web_producto}}"
+									],
+									"path": [
+										"producto",
+										"2",
+										"inventarios"
+									]
+								},
+								"description": "Obtiene listado de productos con inventarios para móvil (caso positivo)"
+							},
+							"response": []
+						}
+					],
+					"id": "6862417-4c793ef3-99ad-4e79-9414-5155514db4d8",
+					"description": "Endpoints del BFF Web para gestión de productos"
+				},
+				{
+					"name": "2. Vendedores",
+					"item": [
+						{
+							"name": "Crear vendedor",
+							"id": "6862417-d48e7290-fd5c-4f88-a60e-9289f45c4b63",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer <access_token>"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\"nombre\":\"Juan\",\"apellidos\":\"Pérez\",\"zona\":\"Colombia\",\"estado\":\"Activo\",\"telefono\":\"5554555255\",\"correo\":\"{{vendedor_email}}\"\n}\n\n\n\n\n\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url_web}}/vendedor",
+									"host": [
+										"{{base_url_web}}"
+									],
+									"path": [
+										"vendedor"
+									]
+								},
+								"description": "Generated from cURL: curl -X POST http://localhost:5001/proveedor \\\n  -H \"Content-Type: application/json\" \\\n  -H \"Authorization: Bearer <access_token>\" \\\n  -d '{\"nombre\": \"Proveedor ABC\", \"email\": \"test@test.com\"}'"
+							},
+							"response": []
+						},
+						{
+							"name": "✅  Vendedores",
+							"id": "6862417-28d74563-1c89-4e1b-8c04-73e5f4088bd1",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url_web}}/vendedor?size=100",
+									"host": [
+										"{{base_url_web}}"
+									],
+									"path": [
+										"vendedor"
+									],
+									"query": [
+										{
+											"key": "size",
+											"value": "100"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Crear visita",
+							"id": "6862417-60d9b52b-6567-41ef-a361-61dc68cdb939",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"vendedor_id\":\"{{venedor_id}}\",\n    \"cliente_id\": 7,\n    \"fecha_visita\":\"2025-11-22\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url_web}}/visitas",
+									"host": [
+										"{{base_url_web}}"
+									],
+									"path": [
+										"visitas"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"id": "6862417-360a1f9e-742c-4efb-bc8f-7fb1aa9687e4"
+				},
+				{
+					"name": "✅ Health BFF Web",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6b212c1e-5441-4637-aa82-eb84c0a69881",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"id": "6862417-060d883b-ea77-4a3b-8ef1-0c6e8a371c46",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url_web}}/health",
+							"host": [
+								"{{base_url_web}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Verifica salud del BFF Web"
+					},
+					"response": []
+				}
+			],
+			"id": "6862417-39318c19-7184-4071-bb20-502343000dd7"
+		},
+		{
+			"name": "Movil - vendedor",
+			"item": [
+				{
+					"name": "0. Autenticación",
+					"item": [
+						{
+							"name": "Login - Obtener Token JWT",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "3c0bf9a9-b685-4388-b935-55a460ccfaf1",
+										"exec": [
+											"// Test 1: Verify the response status code is 200",
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"// Test 2: Check that the response body contains a data object",
+											"pm.test(\"Response contains data object\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData).to.have.property('data');",
+											"    pm.expect(jsonData.data).to.be.an('object');",
+											"});",
+											"",
+											"// Test 3: Validate the access_token is present and is a non-empty string",
+											"pm.test(\"Access token is present and non-empty\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData.data).to.have.property('access_token');",
+											"    pm.expect(jsonData.data.access_token).to.be.a('string');",
+											"    pm.expect(jsonData.data.access_token).to.not.be.empty;",
+											"    pm.collectionVariables.set(\"jwt_token\", jsonData.data.access_token);",
+											"});",
+											"",
+											"// Test 4: Verify the user object contains expected properties",
+											"pm.test(\"User object contains expected properties\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData.data).to.have.property('user');",
+											"    pm.expect(jsonData.data.user).to.be.an('object');",
+											"    ",
+											"    // Check for expected user properties",
+											"    pm.expect(jsonData.data.user).to.have.property('id');",
+											"    pm.expect(jsonData.data.user).to.have.property('email');",
+											"    pm.expect(jsonData.data.user).to.have.property('nombre');",
+											"    pm.expect(jsonData.data.user).to.have.property('apellido');",
+											"    pm.expect(jsonData.data.user).to.have.property('rol');",
+											"    pm.expect(jsonData.data.user).to.have.property('is_active');",
+											"    pm.expect(jsonData.data.user).to.have.property('created_at');",
+											"    pm.expect(jsonData.data.user).to.have.property('updated_at');",
+											"});",
+											"",
+											"// Test 5: Confirm the user's email matches the login email",
+											"pm.test(\"User email matches login email\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    var loginEmail = pm.collectionVariables.get(\"vendedor_email\");",
+											"    pm.expect(jsonData.data.user.email).to.eql(loginEmail);",
+											"});",
+											"",
+											"// Additional test: Verify user properties have correct types",
+											"pm.test(\"User properties have correct types\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    var user = jsonData.data.user;",
+											"    ",
+											"    pm.expect(user.id).to.be.a('number');",
+											"    pm.expect(user.email).to.be.a('string');",
+											"    pm.expect(user.nombre).to.be.a('string');",
+											"    pm.expect(user.apellido).to.be.a('string');",
+											"    pm.expect(user.rol).to.be.a('string');",
+											"    pm.expect(user.is_active).to.be.a('boolean');",
+											"    pm.expect(user.created_at).to.be.a('string');",
+											"    pm.expect(user.updated_at).to.be.a('string');",
+											"});",
+											"",
+											"// Additional test: Verify message property exists",
+											"pm.test(\"Response contains success message\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData).to.have.property('message');",
+											"    pm.expect(jsonData.message).to.be.a('string');",
+											"});",
+											"",
+											"// Save access token to collection variable (keeping existing functionality)",
+											"if (pm.response.code === 200) {",
+											"    var jsonData = pm.response.json().data;",
+											"    pm.environment.set(\"jwt_token\", jsonData.access_token);",
+											"    console.log(\"Token guardado: \" + jsonData.access_token);",
+											"}"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "b047cfc3-6ab1-442b-acfb-408088074c26",
+										"exec": [
+											""
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-fdb5a931-5dc5-4064-ade3-b43edce65eff",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"email\": \"{{vendedor_email}}\",\n    \"password\": \"{{vendedor_password}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_web}}/auth/login",
+									"host": [
+										"{{base_url_web}}"
+									],
+									"path": [
+										"auth",
+										"login"
+									]
+								},
+								"description": "Obtiene un token JWT válido para autenticación en los BFFs"
+							},
+							"response": []
+						}
+					],
+					"id": "6862417-8c4a29cc-aa6f-4ec2-8ddb-3d2949c6140b",
+					"description": "Endpoints de autenticación para obtener el token JWT"
+				},
+				{
+					"name": "1. Clientes",
+					"item": [
+						{
+							"name": "✅  Crear cliente",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "e127d44b-42c2-4cfc-bfe1-4dffd314810e",
+										"exec": [
+											"const min = 100000000;",
+											"const max = 999999999;",
+											"const randomNumber = Math.floor(Math.random() * (max - min + 1)) + min;",
+											"pm.variables.set('randomNumber', randomNumber);"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"id": "bdb3d53e-bfb9-46e2-b5fe-20ae136a4bfb",
+										"exec": [
+											"// Test 1: Verify response status code is 201 (Created)",
+											"pm.test(\"Status code is 201 Created\", function () {",
+											"    pm.response.to.have.status(201);",
+											"});",
+											"",
+											"// Test 2: Verify response body contains valid client object",
+											"pm.test(\"Response has valid structure with data and cliente object\", function () {",
+											"    const jsonData = pm.response.json();",
+											"    pm.expect(jsonData).to.have.property('data');",
+											"    pm.expect(jsonData.data).to.have.property('cliente');",
+											"    pm.expect(jsonData.data).to.have.property('message');",
+											"});",
+											"",
+											"// Test 3: Verify success message",
+											"pm.test(\"Response contains success message\", function () {",
+											"    const jsonData = pm.response.json();",
+											"    pm.expect(jsonData.data.message).to.eql(\"Cliente creado exitosamente\");",
+											"});",
+											"",
+											"// Test 4: Verify response structure - check all required fields exist",
+											"pm.test(\"Cliente object has all required fields\", function () {",
+											"    const cliente = pm.response.json().data.cliente;",
+											"    ",
+											"    pm.expect(cliente).to.have.property('id');",
+											"    pm.expect(cliente).to.have.property('nombre');",
+											"    pm.expect(cliente).to.have.property('nit');",
+											"    pm.expect(cliente).to.have.property('correo');",
+											"    pm.expect(cliente).to.have.property('direccion');",
+											"    pm.expect(cliente).to.have.property('zona');",
+											"    pm.expect(cliente).to.have.property('tipo');",
+											"    pm.expect(cliente).to.have.property('contacto');",
+											"    pm.expect(cliente).to.have.property('created_at');",
+											"    pm.expect(cliente).to.have.property('updated_at');",
+											"});",
+											"",
+											"// Test 5: Verify contacto structure",
+											"pm.test(\"Contacto object has all required fields\", function () {",
+											"    const contacto = pm.response.json().data.cliente.contacto;",
+											"    ",
+											"    pm.expect(contacto).to.have.property('nombre');",
+											"    pm.expect(contacto).to.have.property('cargo');",
+											"    pm.expect(contacto).to.have.property('correo');",
+											"    pm.expect(contacto).to.have.property('telefono');",
+											"});",
+											"",
+											"// Test 6: Validate specific fields - id should be a number",
+											"pm.test(\"Cliente id is a valid number\", function () {",
+											"    const cliente = pm.response.json().data.cliente;",
+											"    pm.expect(cliente.id).to.be.a('number');",
+											"    pm.expect(cliente.id).to.be.above(0);",
+											"});",
+											"",
+											"// Test 7: Validate nombre field matches request",
+											"pm.test(\"Cliente nombre matches request data\", function () {",
+											"    const cliente = pm.response.json().data.cliente;",
+											"    const requestBody = JSON.parse(pm.request.body.raw);",
+											"    pm.expect(cliente.nombre).to.eql(requestBody.nombre);",
+											"});",
+											"",
+											"// Test 8: Validate correo field format and matches request",
+											"pm.test(\"Cliente correo is valid and matches request pattern\", function () {",
+											"    const cliente = pm.response.json().data.cliente;",
+											"    const randomNumber = pm.variables.get('randomNumber');",
+											"    ",
+											"    pm.expect(cliente.correo).to.be.a('string');",
+											"    pm.expect(cliente.correo).to.include('@cliente.com');",
+											"    pm.expect(cliente.correo).to.eql(randomNumber + '@cliente.com');",
+											"});",
+											"",
+											"// Test 9: Validate NIT matches request",
+											"pm.test(\"Cliente NIT matches request data\", function () {",
+											"    const cliente = pm.response.json().data.cliente;",
+											"    const randomNumber = pm.variables.get('randomNumber');",
+											"    pm.expect(cliente.nit).to.eql(randomNumber.toString());",
+											"});",
+											"",
+											"// Test 10: Validate direccion matches request",
+											"pm.test(\"Cliente direccion matches request data\", function () {",
+											"    const cliente = pm.response.json().data.cliente;",
+											"    const requestBody = JSON.parse(pm.request.body.raw);",
+											"    pm.expect(cliente.direccion).to.eql(requestBody.direccion);",
+											"});",
+											"",
+											"// Test 11: Validate zona matches request",
+											"pm.test(\"Cliente zona matches request data\", function () {",
+											"    const cliente = pm.response.json().data.cliente;",
+											"    const requestBody = JSON.parse(pm.request.body.raw);",
+											"    pm.expect(cliente.zona).to.eql(requestBody.zona);",
+											"});",
+											"",
+											"// Test 12: Validate tipo matches request",
+											"pm.test(\"Cliente tipo matches request data\", function () {",
+											"    const cliente = pm.response.json().data.cliente;",
+											"    const requestBody = JSON.parse(pm.request.body.raw);",
+											"    pm.expect(cliente.tipo).to.eql(requestBody.tipo);",
+											"});",
+											"",
+											"// Test 13: Validate contacto data matches request",
+											"pm.test(\"Contacto data matches request data\", function () {",
+											"    const contacto = pm.response.json().data.cliente.contacto;",
+											"    const requestBody = JSON.parse(pm.request.body.raw);",
+											"    ",
+											"    pm.expect(contacto.nombre).to.eql(requestBody.nombre_contacto);",
+											"    pm.expect(contacto.cargo).to.eql(requestBody.cargo_contacto);",
+											"    pm.expect(contacto.telefono).to.eql(requestBody.telefono_contacto);",
+											"});",
+											"",
+											"// Test 14: Validate contacto correo matches request",
+											"pm.test(\"Contacto correo matches request data\", function () {",
+											"    const contacto = pm.response.json().data.cliente.contacto;",
+											"    const randomNumber = pm.variables.get('randomNumber');",
+											"    pm.expect(contacto.correo).to.eql(randomNumber + '@cliente.com');",
+											"});",
+											"",
+											"// Test 15: Validate timestamp fields are valid ISO dates",
+											"pm.test(\"Timestamp fields are valid ISO date strings\", function () {",
+											"    const cliente = pm.response.json().data.cliente;",
+											"    ",
+											"    pm.expect(cliente.created_at).to.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}/);",
+											"    pm.expect(cliente.updated_at).to.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}/);",
+											"    ",
+											"    // Verify they are valid dates",
+											"    pm.expect(new Date(cliente.created_at).toString()).to.not.eql('Invalid Date');",
+											"    pm.expect(new Date(cliente.updated_at).toString()).to.not.eql('Invalid Date');",
+											"});",
+											"",
+											"// Test 16: Validate response time is acceptable",
+											"pm.test(\"Response time is less than 2000ms\", function () {",
+											"    pm.expect(pm.response.responseTime).to.be.below(2000);",
+											"});",
+											"",
+											"// Test 17: Verify Content-Type header",
+											"pm.test(\"Content-Type header is application/json\", function () {",
+											"    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+											"});",
+											"",
+											"const jsonData = pm.response.json();",
+											"if (jsonData && jsonData.data && jsonData.data.cliente && jsonData.data.cliente.id) {",
+											"    pm.collectionVariables.set('cliente_id', jsonData.data.cliente.id);",
+											"    console.log('Client ID saved to collection variable: ' + jsonData.data.cliente.id);",
+											"}"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-78e838eb-237a-4ad6-8fdd-0a72e6e68792",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"cargo_contacto\": \"Contacto\",\n    \"correo_contacto\": \"{{randomNumber}}@cliente.com\",\n    \"nombre_contacto\": \"Contacto A\",\n    \"telefono_contacto\": \"111111111\",\n    \"correo_empresa\": \"{{randomNumber}}@cliente.com\",\n    \"created_at\": \"2025-11-02T07:32:46.755597\",\n    \"direccion\": \"ave dcuador\",\n    \"id\": 1,\n    \"nit\": \"{{randomNumber}}\",\n    \"nombre\": \"Cliente A\",\n    \"zona\": \"Bogotá\",\n    \"tipo\": \"Hospital\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url_movil}}/cliente",
+									"host": [
+										"{{base_url_movil}}"
+									],
+									"path": [
+										"cliente"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "✅  Consultar cliente por vendedor",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a758e3a4-1ed0-419a-9e1d-3ba64dfbedc4",
+										"exec": [
+											"pm.test(\"Verify cliente_id appears in the listing\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    ",
+											"    // Check that data array exists and has at least one item",
+											"    pm.expect(jsonData.data).to.be.an('array').that.is.not.empty;",
+											"    ",
+											"    // Check that at least one item in the data array has an 'id' field",
+											"    var hasClienteId = jsonData.data.some(function(cliente) {",
+											"        return cliente.hasOwnProperty('id');",
+											"    });",
+											"    ",
+											"    pm.expect(hasClienteId).to.be.true;",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-80aa2527-06ef-43d9-90f1-f30333183eb6",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{jwt_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_movil}}/cliente",
+									"host": [
+										"{{base_url_movil}}"
+									],
+									"path": [
+										"cliente"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"id": "6862417-8c816dbc-93fc-4243-bff5-036c22744059",
+					"auth": {
+						"type": "bearer",
+						"bearer": [
+							{
+								"key": "token",
+								"value": "{{jwt_token}}",
+								"type": "string"
+							}
+						]
+					},
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "9354c7fa-f644-432a-91e6-68db7c4b173d",
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {},
+								"exec": [
+									""
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "d7707573-b5de-47a4-bfd0-a569a8e46e9c",
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {},
+								"exec": [
+									""
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "3. BFF Móvil - Productos",
+					"item": [
+						{
+							"name": "✅ Consultar Productos",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "6241d306-fec0-4928-8f8e-36e2ad44c494",
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"pm.test(\"Filtered by category\", function () {",
+											"    var jsonData = pm.response.json().data[0];",
+											"    pm.expect(jsonData).to.have.property('id');",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-ac07f5ae-540e-471e-af69-f1a4cab9b168",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_movil_producto}}/producto",
+									"host": [
+										"{{base_url_movil_producto}}"
+									],
+									"path": [
+										"producto"
+									]
+								},
+								"description": "Filtra productos por categoría (caso positivo)"
+							},
+							"response": []
+						},
+						{
+							"name": "✅ Consultar Producto detalle",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "6241d306-fec0-4928-8f8e-36e2ad44c494",
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"pm.test(\"Is a same producto_id\", function () {",
+											"    var jsonData = pm.response.json().data;",
+											"    pm.expect(jsonData).to.have.property('id');",
+											"    pm.expect(jsonData.id).to.be.equals(pm.collectionVariables.get(\"producto_id\"));",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-8fdc5444-55d3-4e6a-9a3c-255da8957bad",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_movil_producto}}/producto/{{producto_id}}",
+									"host": [
+										"{{base_url_movil_producto}}"
+									],
+									"path": [
+										"producto",
+										"{{producto_id}}"
+									]
+								},
+								"description": "Filtra productos por categoría (caso positivo)"
+							},
+							"response": []
+						},
+						{
+							"name": "❌ Consultar Productos sin Token",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "67e75b6b-41a9-42dc-9237-4eb305d7aed6",
+										"exec": [
+											"pm.test(\"Status code is 401\", function () {",
+											"    pm.response.to.have.status(401);",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-ac118b3e-44c9-4bd5-affd-57b66186384a",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_movil_producto}}/producto",
+									"host": [
+										"{{base_url_movil_producto}}"
+									],
+									"path": [
+										"producto"
+									]
+								},
+								"description": "Intenta consultar sin autenticación (caso negativo)"
+							},
+							"response": []
+						}
+					],
+					"id": "6862417-1b283a4c-08d6-4204-b212-445177f96b4a",
+					"description": "Endpoints del BFF Móvil para consulta de productos"
+				},
+				{
+					"name": "Pedidos",
+					"item": [
+						{
+							"name": "✅ Pedidos",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "78ed55fb-47e6-4c75-9ede-b5caddadcb69",
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-f945dce8-aa76-4b20-940b-4ddc3b8daecd",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"cliente_id\": {{cliente_id}},\n    \"productos\": [\n        {\n            \"id\": 5,\n            \"cantidad\": 10,\n            \"precio\": 15.5\n        },\n        {\n            \"id\": 4,\n            \"cantidad\": 20,\n            \"precio\": 15.5\n        }\n    ],\n    \"total\": 465\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url_movil_producto}}/pedido",
+									"host": [
+										"{{base_url_movil_producto}}"
+									],
+									"path": [
+										"pedido"
+									]
+								},
+								"description": "Verifica salud del BFF Móvil"
+							},
+							"response": []
+						},
+						{
+							"name": "✅ Pedidos",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "78ed55fb-47e6-4c75-9ede-b5caddadcb69",
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-0ff2af81-a815-4e4c-9a9b-64b1ff83c166",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_movil_producto}}/pedido",
+									"host": [
+										"{{base_url_movil_producto}}"
+									],
+									"path": [
+										"pedido"
+									]
+								},
+								"description": "Verifica salud del BFF Móvil"
+							},
+							"response": []
+						}
+					],
+					"id": "6862417-215e9d71-ccb2-4c29-baad-ea7f9b014ac7"
+				},
+				{
+					"name": "✅ Health BFF Móvil",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "78ed55fb-47e6-4c75-9ede-b5caddadcb69",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"id": "6862417-b19aec43-389e-42d4-bcbf-091ff922991d",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url_movil}}/health",
+							"host": [
+								"{{base_url_movil}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Verifica salud del BFF Móvil"
+					},
+					"response": []
+				},
+				{
+					"name": "✅  Visitas",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "78ed55fb-47e6-4c75-9ede-b5caddadcb69",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"id": "6862417-d3d420c0-7c9e-474d-a97a-7710fb2ea495",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url_movil}}/visitas?fecha_inicio=2025-11-19&fecha_fin=2025-11-30",
+							"host": [
+								"{{base_url_movil}}"
+							],
+							"path": [
+								"visitas"
+							],
+							"query": [
+								{
+									"key": "fecha_inicio",
+									"value": "2025-11-19"
+								},
+								{
+									"key": "fecha_fin",
+									"value": "2025-11-30"
+								}
+							]
+						},
+						"description": "Verifica salud del BFF Móvil"
+					},
+					"response": []
+				}
+			],
+			"id": "6862417-1645e692-db23-422b-b351-f866dec71960"
+		},
+		{
+			"name": "Movil - cliente",
+			"item": [
+				{
+					"name": "0. Autenticación",
+					"item": [
+						{
+							"name": "Signup cliente",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "203615ce-6ceb-4a61-a007-85d326af6a01",
+										"exec": [
+											"const min = 100000000;",
+											"const max = 999999999;",
+											"const randomNumber = Math.floor(Math.random() * (max - min + 1)) + min;",
+											"pm.variables.set('randomNumber', randomNumber);",
+											"pm.collectionVariables.set('cliente_mail', `${randomNumber}@cliente.com`);"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"id": "c10a66fe-2dbe-4a3f-9143-92841ed4f51d",
+										"exec": [
+											"// Test 1: Validate status code is 201",
+											"pm.test(\"Status code is 201\", function () {",
+											"    pm.response.to.have.status(201);",
+											"});",
+											"",
+											"// Test 2: Validate response contains access_token in data object",
+											"pm.test(\"Response contains access_token in data object\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData.data).to.have.property('access_token');",
+											"    pm.expect(jsonData.data.access_token).to.be.a('string');",
+											"    pm.expect(jsonData.data.access_token).to.not.be.empty;",
+											"    pm.collectionVariables.set(\"app_token\", jsonData.data.access_token);",
+											"});",
+											"",
+											"// Test 3: Validate user role is \"cliente\"",
+											"pm.test(\"User role is 'cliente'\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData.data.user).to.have.property('rol');",
+											"    pm.expect(jsonData.data.user.rol).to.eql('cliente');",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-d90462ea-7e98-45e0-b600-9b8616139116",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"nombre\": \"Cliente random\",\n    \"tipo\": \"Hospital\",\n    \"zona\": \"Quito\",\n    \"direccion\": \"avenida siempre viva 2123\",\n    \"nit\": \"{{randomNumber}}\",\n    \"correo_empresa\": \"{{cliente_mail}}\",\n    \"nombre_contacto\": \"Jose Carlos\",\n    \"cargo_contacto\": \"manager\",\n    \"telefono_contacto\": \"1121321313231\",\n    \"correo_contacto\": \"{{cliente_mail}}\",\n    \"contraseña\": \"defaultPassword123\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url_movil}}/auth/signup/cliente",
+									"host": [
+										"{{base_url_movil}}"
+									],
+									"path": [
+										"auth",
+										"signup",
+										"cliente"
+									]
+								},
+								"description": "Generated from cURL: curl -X POST http://localhost:5003/auth/signup \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"email\": \"test@test.com\",\n    \"password\": \"123456\",\n    \"nombre\": \"Test\",\n    \"apellido\": \"User\"\n  }'"
+							},
+							"response": []
+						},
+						{
+							"name": "Login - Obtener Token JWT",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "3c0bf9a9-b685-4388-b935-55a460ccfaf1",
+										"exec": [
+											"// Test 1: Verify the response status code is 200",
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"// Test 2: Check that the response body contains a data object",
+											"pm.test(\"Response contains data object\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData).to.have.property('data');",
+											"    pm.expect(jsonData.data).to.be.an('object');",
+											"});",
+											"",
+											"// Test 3: Validate the access_token is present and is a non-empty string",
+											"pm.test(\"Access token is present and non-empty\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData.data).to.have.property('access_token');",
+											"    pm.expect(jsonData.data.access_token).to.be.a('string');",
+											"    pm.expect(jsonData.data.access_token).to.not.be.empty;",
+											"});",
+											"",
+											"// Test 4: Verify the user object contains expected properties",
+											"pm.test(\"User object contains expected properties\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData.data).to.have.property('user');",
+											"    pm.expect(jsonData.data.user).to.be.an('object');",
+											"    ",
+											"    // Check for expected user properties",
+											"    pm.expect(jsonData.data.user).to.have.property('id');",
+											"    pm.expect(jsonData.data.user).to.have.property('email');",
+											"    pm.expect(jsonData.data.user).to.have.property('nombre');",
+											"    pm.expect(jsonData.data.user).to.have.property('apellido');",
+											"    pm.expect(jsonData.data.user).to.have.property('rol');",
+											"    pm.expect(jsonData.data.user).to.have.property('is_active');",
+											"    pm.expect(jsonData.data.user).to.have.property('created_at');",
+											"    pm.expect(jsonData.data.user).to.have.property('updated_at');",
+											"});",
+											"",
+											"// Test 5: Confirm the user's email matches the login email",
+											"pm.test(\"User email matches login email\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    var loginEmail = pm.collectionVariables.get(\"cliente_mail\");",
+											"    pm.expect(jsonData.data.user.email).to.eql(loginEmail);",
+											"});",
+											"",
+											"// Additional test: Verify user properties have correct types",
+											"pm.test(\"User properties have correct types\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    var user = jsonData.data.user;",
+											"    ",
+											"    pm.expect(user.id).to.be.a('number');",
+											"    pm.expect(user.email).to.be.a('string');",
+											"    pm.expect(user.nombre).to.be.a('string');",
+											"    pm.expect(user.apellido).to.be.a('string');",
+											"    pm.expect(user.rol).to.be.a('string');",
+											"    pm.expect(user.is_active).to.be.a('boolean');",
+											"    pm.expect(user.created_at).to.be.a('string');",
+											"    pm.expect(user.updated_at).to.be.a('string');",
+											"});",
+											"",
+											"// Additional test: Verify message property exists",
+											"pm.test(\"Response contains success message\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData).to.have.property('message');",
+											"    pm.expect(jsonData.message).to.be.a('string');",
+											"});",
+											"",
+											"// Save access token to collection variable (keeping existing functionality)",
+											"if (pm.response.code === 200) {",
+											"    var jsonData = pm.response.json().data;",
+											"    pm.collectionVariables.set(\"jwt_token\", jsonData.access_token);",
+											"    console.log(\"Token guardado: \" + jsonData.access_token);",
+											"}"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-ad44e0f0-9740-462d-b2ad-1ad2819865a8",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"email\": \"{{cliente_mail}}\",\n    \"password\": \"defaultPassword123\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_movil}}/auth/login",
+									"host": [
+										"{{base_url_movil}}"
+									],
+									"path": [
+										"auth",
+										"login"
+									]
+								},
+								"description": "Obtiene un token JWT válido para autenticación en los BFFs"
+							},
+							"response": []
+						}
+					],
+					"id": "6862417-33eac1d6-7eb1-4fce-b1a9-ee2403e7a8e1",
+					"description": "Endpoints de autenticación para obtener el token JWT"
+				},
+				{
+					"name": "1. Clientes",
+					"item": [
+						{
+							"name": "✅  Clientes",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "78ed55fb-47e6-4c75-9ede-b5caddadcb69",
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"",
+											"pm.test(\"Check client nit\", function () {",
+											"    var jsonData = pm.response.json().data[0];",
+											"    pm.expect(jsonData).to.have.property('nit');",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-d0e09d3a-3ade-4870-bf57-f1d4a1a6d192",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_movil}}/cliente",
+									"host": [
+										"{{base_url_movil}}"
+									],
+									"path": [
+										"cliente"
+									]
+								},
+								"description": "Verifica salud del BFF Móvil"
+							},
+							"response": []
+						}
+					],
+					"id": "6862417-b0486b2f-8493-4916-aabf-d47a6740ef00"
+				},
+				{
+					"name": "3. BFF Móvil - Productos",
+					"item": [
+						{
+							"name": "✅ Consultar Productos",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "6241d306-fec0-4928-8f8e-36e2ad44c494",
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"pm.test(\"Filtered by category\", function () {",
+											"    var jsonData = pm.response.json().data[0];",
+											"    pm.expect(jsonData).to.have.property('id');",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-4c6dd929-1952-44f5-b5da-f982adc56c4d",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_movil_producto}}/producto",
+									"host": [
+										"{{base_url_movil_producto}}"
+									],
+									"path": [
+										"producto"
+									]
+								},
+								"description": "Filtra productos por categoría (caso positivo)"
+							},
+							"response": []
+						},
+						{
+							"name": "✅ Consultar Producto detalle",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "6241d306-fec0-4928-8f8e-36e2ad44c494",
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"pm.test(\"Is a same producto_id\", function () {",
+											"    var jsonData = pm.response.json().data;",
+											"    pm.expect(jsonData).to.have.property('id');",
+											"    pm.expect(jsonData.id).to.be.equals(pm.collectionVariables.get(\"producto_id\"));",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-b01fcdda-8e94-437e-ac82-1fd6c735784f",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_movil_producto}}/producto/{{producto_id}}",
+									"host": [
+										"{{base_url_movil_producto}}"
+									],
+									"path": [
+										"producto",
+										"{{producto_id}}"
+									]
+								},
+								"description": "Filtra productos por categoría (caso positivo)"
+							},
+							"response": []
+						},
+						{
+							"name": "❌ Consultar Productos sin Token",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "67e75b6b-41a9-42dc-9237-4eb305d7aed6",
+										"exec": [
+											"pm.test(\"Status code is 401\", function () {",
+											"    pm.response.to.have.status(401);",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-3b25340b-362d-47b8-b424-d26e9a1069bc",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_movil_producto}}/producto",
+									"host": [
+										"{{base_url_movil_producto}}"
+									],
+									"path": [
+										"producto"
+									]
+								},
+								"description": "Intenta consultar sin autenticación (caso negativo)"
+							},
+							"response": []
+						}
+					],
+					"id": "6862417-f754611a-b911-4436-a800-081a092e5419",
+					"description": "Endpoints del BFF Móvil para consulta de productos"
+				},
+				{
+					"name": "Pedidos Copy",
+					"item": [
+						{
+							"name": "✅ Pedidos",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "78ed55fb-47e6-4c75-9ede-b5caddadcb69",
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-c9187183-16d9-4b5e-a7a8-77640c4a32f4",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_movil_producto}}/pedido",
+									"host": [
+										"{{base_url_movil_producto}}"
+									],
+									"path": [
+										"pedido"
+									]
+								},
+								"description": "Verifica salud del BFF Móvil"
+							},
+							"response": []
+						},
+						{
+							"name": "✅ Pedido por id",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "78ed55fb-47e6-4c75-9ede-b5caddadcb69",
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-1ae484a3-f21e-4df8-be59-6f9895245e80",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_movil_producto}}/pedido/1",
+									"host": [
+										"{{base_url_movil_producto}}"
+									],
+									"path": [
+										"pedido",
+										"1"
+									]
+								},
+								"description": "Verifica salud del BFF Móvil"
+							},
+							"response": []
+						},
+						{
+							"name": "✅ Pedidos",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "78ed55fb-47e6-4c75-9ede-b5caddadcb69",
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"id": "6862417-b06e6709-73ab-4585-8a7e-fc2b2b5cbeb9",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"productos\": [\n        {\n            \"id\": 5,\n            \"cantidad\": 10,\n            \"precio\": 15.5\n        }\n    ],\n    \"total\": 465\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url_movil_producto}}/pedido",
+									"host": [
+										"{{base_url_movil_producto}}"
+									],
+									"path": [
+										"pedido"
+									]
+								},
+								"description": "Verifica salud del BFF Móvil"
+							},
+							"response": []
+						}
+					],
+					"id": "6862417-5af2a89b-9a9a-44f5-a349-9a45dff1498b"
+				},
+				{
+					"name": "✅ Health BFF Móvil",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "78ed55fb-47e6-4c75-9ede-b5caddadcb69",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"id": "6862417-2f554ad3-bc04-4ccb-8b20-3cb800c406b1",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url_movil}}/health",
+							"host": [
+								"{{base_url_movil}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Verifica salud del BFF Móvil"
+					},
+					"response": []
+				}
+			],
+			"id": "6862417-b4554210-d6cc-4215-8bdd-c85c8408b6df"
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{jwt_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"id": "7da649fc-c76c-4501-9346-c59de2daec2e",
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"id": "53f5351d-9b6d-4ed6-82fc-f282d27a88ba",
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url_web",
+			"value": "http://localhost:5003"
+		},
+		{
+			"key": "jwt_token",
+			"value": ""
+		},
+		{
+			"key": "producto_id",
+			"value": "2"
+		},
+		{
+			"key": "sku_test",
+			"value": "MED-PAR-500"
+		},
+		{
+			"key": "base_url_web_producto",
+			"value": ""
+		},
+		{
+			"key": "base_url_movil_producto",
+			"value": ""
+		},
+		{
+			"key": "admin_email",
+			"value": ""
+		},
+		{
+			"key": "admin_password",
+			"value": ""
+		},
+		{
+			"key": "vendedor_email",
+			"value": ""
+		},
+		{
+			"key": "vendedor_password",
+			"value": ""
+		},
+		{
+			"key": "cliente_mail",
+			"value": ""
+		},
+		{
+			"key": "cliente_password",
+			"value": ""
+		},
+		{
+			"key": "base_url_movil",
+			"value": ""
+		},
+		{
+			"key": "cliente_id",
+			"value": ""
+		},
+		{
+			"key": "app_token",
+			"value": ""
+		},
+		{
+			"key": "access_token_vendedor",
+			"value": ""
+		}
+	]
+}
