@@ -628,3 +628,47 @@ def obtener_status_importacion_externo(job_id, include_errors=False):
             'error': 'Error interno al obtener status de importación',
             'codigo': 'ERROR_INESPERADO'
         }, 500)
+
+
+def listar_jobs_importacion_externo(params=None):
+    """
+    Lista los jobs de importación desde el microservicio de productos.
+
+    Args:
+        params (dict, optional): Parámetros de consulta (usuario, estado, limit, offset).
+
+    Returns:
+        dict: Lista de jobs y metadatos de paginación.
+
+    Raises:
+        ProductoServiceError: Si hay error de conexión o del microservicio.
+    """
+    url_jobs = f"{config.PRODUCTO_URL}/api/productos/importar-csv/jobs"
+
+    try:
+        response = requests.get(url_jobs, params=params)
+
+        if response.status_code != 200:
+            current_app.logger.error(f"Error del microservicio de productos: {response.text}")
+            try:
+                error_data = response.json()
+            except Exception:
+                error_data = {'error': response.text, 'codigo': 'ERROR_INESPERADO'}
+            raise ProductoServiceError(error_data, response.status_code)
+
+        return response.json()
+
+    except ProductoServiceError:
+        raise
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"Error de conexión con microservicio de productos: {str(e)}")
+        raise ProductoServiceError({
+            'error': 'Error de conexión con el microservicio de productos',
+            'codigo': 'ERROR_CONEXION'
+        }, 503)
+    except Exception as e:
+        current_app.logger.error(f"Error inesperado listando jobs de importación: {str(e)}")
+        raise ProductoServiceError({
+            'error': 'Error interno al listar jobs de importación',
+            'codigo': 'ERROR_INESPERADO'
+        }, 500)
