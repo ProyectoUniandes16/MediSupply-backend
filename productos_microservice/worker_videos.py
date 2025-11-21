@@ -332,12 +332,65 @@ if __name__ == "__main__":
     
     logger.info(f"✅ {NUM_WORKERS} workers iniciados correctamente")
     
-    # Configuración de Redis
-    redis_host = os.getenv('REDIS_HOST', 'localhost')
-    redis_port = int(os.getenv('REDIS_PORT', 6379))
-    redis_db = int(os.getenv('REDIS_DB', 0))
-    
-    logger.info(f"📡 Conectando a Redis: {redis_host}:{redis_port}")
+    # Configuración de Redis - soporta varias formas de pasar la configuración
+    # - REDIS_URL (ej: redis://host:6379/0)
+    # - REDIS_PORT puede venir como un número o como 'tcp://ip:port'
+    # - REDIS_HOST, REDIS_DB
+    def _parse_redis_env():
+        """Devuelve (host, port, db) leyendo varias formas de variables de entorno."""
+        from urllib.parse import urlparse
+        import re
+
+        # 1) REDIS_URL (prioritario)
+        redis_url = os.getenv('REDIS_URL') or os.getenv('REDIS_URI') or os.getenv('REDIS')
+        if redis_url:
+            try:
+                parsed = urlparse(redis_url)
+                host = parsed.hostname or os.getenv('REDIS_HOST', 'localhost')
+                port = parsed.port or int(os.getenv('REDIS_PORT', 6379))
+                # path puede ser '/0' -> extraer número de DB
+                db = 0
+                if parsed.path and parsed.path.lstrip('/'):
+                    try:
+                        db = int(parsed.path.lstrip('/'))
+                    except Exception:
+                        db = int(os.getenv('REDIS_DB', 0))
+                else:
+                    db = int(os.getenv('REDIS_DB', 0))
+                return host, int(port), int(db)
+            except Exception:
+                # Si falla el parseo, seguir a las siguientes opciones
+                pass
+
+        # 2) REDIS_PORT puede ser un entero o algo como 'tcp://10.100.134.245:6379'
+        redis_port_env = os.getenv('REDIS_PORT')
+        redis_host_env = os.getenv('REDIS_HOST')
+        if redis_port_env:
+            # Buscar host:port dentro del valor
+            m = re.search(r'(?:(?:[a-z]+:\/\/)?(?P<host>[^:\/]+):)?(?P<port>\d{2,5})', redis_port_env)
+            if m:
+                host = m.group('host') or redis_host_env or os.getenv('REDIS_HOST', 'localhost')
+                try:
+                    port = int(m.group('port'))
+                except Exception:
+                    port = int(os.getenv('REDIS_PORT', 6379)) if os.getenv('REDIS_PORT', '').isdigit() else 6379
+                db = int(os.getenv('REDIS_DB', 0))
+                return host, port, db
+
+        # 3) Fallback: valores individuales o por defecto
+        host = redis_host_env or os.getenv('REDIS_HOST', 'localhost')
+        try:
+            port = int(os.getenv('REDIS_PORT', 6379))
+        except Exception:
+            port = 6379
+        try:
+            db = int(os.getenv('REDIS_DB', 0))
+        except Exception:
+            db = 0
+        return host, port, db
+
+    redis_host, redis_port, redis_db = _parse_redis_env()
+    logger.info(f"📡 Conectando a Redis: {redis_host}:{redis_port} (db={redis_db})")
     
     # Variables de control
     redis_client = None
@@ -362,23 +415,23 @@ if __name__ == "__main__":
             decode_responses=True,
             socket_connect_timeout=5
         )
-        
+
         # Test de conexión
         redis_client.ping()
-        logger.info(f"✅ Conectado a Redis exitosamente")
-        
+        logger.info("✅ Conectado a Redis exitosamente")
+
         # Suscribirse al canal de procesamiento de videos
         pubsub = redis_client.pubsub()
         pubsub.subscribe('video_processing')
         logger.info("✅ Suscrito al canal 'video_processing'")
         logger.info("👂 Esperando mensajes...")
-        
+
         # Loop de escucha
         for message in pubsub.listen():
             if not running[0]:
                 logger.info("🛑 Deteniendo loop de escucha...")
                 break
-            
+
             if message['type'] == 'message':
                 callback_mensaje_redis(message['data'], task_queue)
             elif message['type'] == 'subscribe':

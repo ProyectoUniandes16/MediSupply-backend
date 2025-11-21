@@ -47,3 +47,5 @@ spec:
             secretKeyRef:
               name: minio-secret
               key: minio-secret-key
+        - name: REDIS_IMPORT_CHANNEL
+          value: "productos_import_csv_prod"
