@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, current_app
-from src.services.cliente_service import register_cliente, list_clientes, ClienteServiceError
+from src.services.cliente_service import register_cliente, list_clientes, get_cliente_by_id, ClienteServiceError
 
 # Crear el blueprint para clientes
 clientes_bp = Blueprint('cliente', __name__)
@@ -18,6 +18,24 @@ def crear_cliente():
         return jsonify(e.message), e.status_code
     except Exception as e:
         current_app.logger.error(f"Error en crear cliente: {str(e)}")
+        return jsonify({
+            'error': 'Error interno del servidor',
+            'codigo': 'ERROR_INTERNO_SERVIDOR',
+        }), 500
+
+@clientes_bp.route('/cliente/<int:cliente_id>', methods=['GET'])
+def obtener_cliente(cliente_id):
+    """
+    Endpoint para obtener un cliente por su ID
+    """
+    try:
+        response_data = get_cliente_by_id(cliente_id)
+        return jsonify(response_data), 200
+
+    except ClienteServiceError as e:
+        return jsonify(e.message), e.status_code
+    except Exception as e:
+        current_app.logger.error(f"Error en obtener cliente {cliente_id}: {str(e)}")
         return jsonify({
             'error': 'Error interno del servidor',
             'codigo': 'ERROR_INTERNO_SERVIDOR',

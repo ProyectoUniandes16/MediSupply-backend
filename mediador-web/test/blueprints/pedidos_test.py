@@ -205,3 +205,80 @@ def test_listar_pedidos_sin_filtros(mock_listar, client, access_token):
     assert call_args[1]['cliente_id'] is None
     assert call_args[1]['vendedor_id'] is None
 
+@patch('src.blueprints.pedidos.listar_pedidos')
+def test_listar_pedidos_con_filtro_zona(mock_listar, client, access_token):
+    """Test de listado de pedidos con filtro por zona del cliente"""
+    mock_listar.return_value = {
+        'data': [
+            {'id': 'ped-1', 'cliente_id': 'cli-1', 'vendedor_id': 'ven-1'},
+            {'id': 'ped-2', 'cliente_id': 'cli-2', 'vendedor_id': 'ven-2'}
+        ]
+    }
+
+    headers = {'Authorization': f'Bearer {access_token}'}
+    response = client.get('/pedido?zona=bogota', headers=headers)
+
+    assert response.status_code == 200
+    json_data = response.get_json()
+    assert len(json_data['data']) == 2
+    
+    # Verificar que se pasó el filtro de zona
+    call_args = mock_listar.call_args
+    assert call_args[1]['zona'] == 'bogota'
+
+@patch('src.services.pedidos.requests.get')
+def test_listar_pedidos_filtrado_zona_integracion(mock_requests_get, client, access_token):
+    """Test de integración del filtrado por zona con llamadas reales a microservicios"""
+    # Mock de respuesta del microservicio de pedidos
+    pedidos_response = MagicMock()
+    pedidos_response.json.return_value = {
+        'data': [
+            {'id': 'ped-1', 'cliente_id': 1, 'vendedor_id': 'ven-1', 'fecha_pedido': '2025-01-15T10:00:00'},
+            {'id': 'ped-2', 'cliente_id': 2, 'vendedor_id': 'ven-2', 'fecha_pedido': '2025-01-16T11:00:00'},
+            {'id': 'ped-3', 'cliente_id': 3, 'vendedor_id': 'ven-3', 'fecha_pedido': '2025-01-17T12:00:00'}
+        ]
+    }
+    pedidos_response.raise_for_status.return_value = None
+
+    # Mock de respuestas del microservicio de clientes
+    cliente1_response = MagicMock()
+    cliente1_response.json.return_value = {'data': {'zona': 'bogota'}}
+    cliente1_response.raise_for_status.return_value = None
+
+    cliente2_response = MagicMock()
+    cliente2_response.json.return_value = {'data': {'zona': 'bogota'}}
+    cliente2_response.raise_for_status.return_value = None
+
+    cliente3_response = MagicMock()
+    cliente3_response.json.return_value = {'data': {'zona': 'lima'}}  # Zona diferente
+    cliente3_response.raise_for_status.return_value = None
+
+    # Configurar el mock para devolver diferentes respuestas según la URL
+    def mock_get_side_effect(*args, **kwargs):
+        url = args[0]
+        if 'pedido' in url:
+            return pedidos_response
+        elif 'cliente/1' in url:
+            return cliente1_response
+        elif 'cliente/2' in url:
+            return cliente2_response
+        elif 'cliente/3' in url:
+            return cliente3_response
+        return MagicMock()
+
+    mock_requests_get.side_effect = mock_get_side_effect
+
+    headers = {'Authorization': f'Bearer {access_token}'}
+    response = client.get('/pedido?zona=bogota', headers=headers)
+
+    assert response.status_code == 200
+    json_data = response.get_json()
+    
+    # Debería devolver solo 2 pedidos (cliente 1 y 2 están en bogota, cliente 3 en lima)
+    assert len(json_data['data']) == 2
+    assert json_data['data'][0]['cliente_id'] == 1
+    assert json_data['data'][1]['cliente_id'] == 2
+    
+    # Verificar que se hicieron las llamadas correctas
+    assert mock_requests_get.call_count == 4  # 1 para pedidos + 3 para clientes
+
