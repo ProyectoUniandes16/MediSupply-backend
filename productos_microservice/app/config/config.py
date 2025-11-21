@@ -17,6 +17,9 @@ class Config:
     # Configuración de seguridad
     SEND_FILE_MAX_AGE_DEFAULT = 300  # Cache de archivos por 5 minutos
 
+    # Configuración de Redis para colas
+    REDIS_SERVICE_URL = os.getenv('REDIS_SERVICE_URL', 'http://localhost:5011')
+
 class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'

@@ -129,6 +129,41 @@ class CSVProductoService:
                 "error": f"Error al leer el archivo CSV: {str(e)}",
                 "codigo": "ERROR_LECTURA_CSV"
             })
+
+    @staticmethod
+    def leer_y_validar_desde_contenido(contenido: str) -> List[Dict[str, Any]]:
+        """Permite validar un CSV recibido como string"""
+        stream = io.StringIO(contenido)
+        csv_reader = csv.DictReader(stream)
+
+        if not csv_reader.fieldnames:
+            raise CSVImportError({
+                "error": "El archivo CSV está vacío o no tiene encabezados",
+                "codigo": "CSV_VACIO"
+            })
+
+        columnas_faltantes = set(CSVProductoService.COLUMNAS_REQUERIDAS) - set(csv_reader.fieldnames)
+        if columnas_faltantes:
+            raise CSVImportError({
+                "error": "El CSV no contiene todas las columnas requeridas",
+                "codigo": "COLUMNAS_FALTANTES",
+                "columnas_faltantes": list(columnas_faltantes),
+                "columnas_requeridas": CSVProductoService.COLUMNAS_REQUERIDAS
+            })
+
+        productos = []
+        for idx, row in enumerate(csv_reader, start=2):
+            row_limpia = {k: v.strip() if v else None for k, v in row.items()}
+            row_limpia['_fila'] = idx
+            productos.append(row_limpia)
+
+        if not productos:
+            raise CSVImportError({
+                "error": "El archivo CSV no contiene filas de datos",
+                "codigo": "CSV_SIN_DATOS"
+            })
+
+        return productos
     
     @staticmethod
     def validar_producto_csv(producto_data: Dict[str, Any]) -> Dict[str, Any]:
