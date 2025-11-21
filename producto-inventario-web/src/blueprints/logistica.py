@@ -4,6 +4,7 @@ from src.services.logistica import (
     listar_zonas,
     obtener_zona_detallada,
     crear_ruta_entrega,
+    optimizar_ruta,
     LogisticaServiceError
 )
 
@@ -91,3 +92,65 @@ def crear_ruta():
     except Exception as e:
         current_app.logger.error(f"Error inesperado al crear ruta: {str(e)}")
         return jsonify({'error': 'Error interno del servidor'}), 500
+
+
+@logistica_bp.route('/ruta-optima', methods=['POST'])
+@jwt_required()
+def optimizar_ruta_endpoint():
+    """
+    Endpoint BFF para optimizar rutas de entrega.
+    
+    Request Body:
+        {
+            "bodega": [-74.08175, 4.60971],
+            "destinos": [
+                [-74.0445, 4.6760],
+                [-74.1475, 4.6165],
+                [-74.1253, 4.7010]
+            ]
+        }
+    
+    Query Params:
+        - formato: 'json' (default) o 'html'
+        
+    Returns:
+        JSON con la ruta optimizada o HTML con el mapa interactivo
+    """
+    try:
+        # Validar que se envió content-type application/json
+        if not request.is_json:
+            return jsonify({'error': 'Content-Type debe ser application/json'}), 400
+            
+        payload = request.get_json()
+        
+        if not payload:
+            return jsonify({'error': 'No se proporcionaron datos', 'codigo': 'DATOS_VACIOS'}), 400
+        
+        formato = request.args.get('formato', 'json').lower()
+        
+        resultado = optimizar_ruta(payload, formato=formato)
+        
+        # Si es HTML, retornar como Response con el content-type correcto
+        if formato == 'html':
+            from flask import Response
+            return Response(resultado, mimetype='text/html')
+        
+        # Si es JSON, retornar normalmente
+        return jsonify(resultado), 200
+        
+    except LogisticaServiceError as e:
+        return jsonify(e.message), e.status_code
+    
+    except Exception as exc:
+        current_app.logger.error(
+            f"Error inesperado optimizando ruta: {str(exc)}"
+        )
+        return (
+            jsonify(
+                {
+                    "error": "Error interno del servidor",
+                    "codigo": "ERROR_INTERNO_SERVIDOR",
+                }
+            ),
+            500,
+        )

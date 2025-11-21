@@ -142,3 +142,105 @@ def crear_ruta_entrega(data: dict) -> dict:
             f"Error de conexión con el servicio de logística: {str(e)}",
             500
         )
+
+
+def optimizar_ruta(
+    payload: dict,
+    formato: str = "json",
+) -> dict:
+    """
+    Invoca el microservicio de logística para optimizar una ruta de entrega.
+    
+    Args:
+        payload: Diccionario con 'bodega' (coordenadas) y 'destinos' (lista de coordenadas)
+        formato: 'json' o 'html' (por defecto 'json')
+        
+    Returns:
+        Diccionario con la ruta optimizada o HTML del mapa según el formato
+    """
+    if not isinstance(payload, dict) or not payload:
+        raise LogisticaServiceError(
+            {"error": "No se proporcionaron datos", "codigo": "DATOS_VACIOS"},
+            400,
+        )
+    
+    if not payload.get("bodega"):
+        raise LogisticaServiceError(
+            {"error": "Campo 'bodega' es requerido", "codigo": "BODEGA_REQUERIDA"},
+            400,
+        )
+    
+    if not payload.get("destinos"):
+        raise LogisticaServiceError(
+            {"error": "Campo 'destinos' es requerido", "codigo": "DESTINOS_REQUERIDOS"},
+            400,
+        )
+    
+    logistica_url = Config.LOGISTICA_URL
+    
+    try:
+        response = requests.post(
+            f"{logistica_url}/ruta-optima",
+            json=payload,
+            params={"formato": formato},
+            headers={"Content-Type": "application/json"},
+            timeout=30,  # Mayor timeout por el procesamiento de rutas
+        )
+        response.raise_for_status()
+        
+        # Si el formato es HTML, retornar el texto directamente
+        if formato == "html":
+            return response.text
+        
+        # Para JSON, parsear la respuesta
+        try:
+            return response.json()
+        except ValueError:
+            raise LogisticaServiceError(
+                {
+                    "error": "Respuesta inválida del microservicio de logística",
+                    "codigo": "RESPUESTA_INVALIDA",
+                },
+                502,
+            )
+    
+    except requests.exceptions.HTTPError as exc:
+        status_code = exc.response.status_code if exc.response else 500
+        detalle = exc.response.text if exc.response else str(exc)
+        raise LogisticaServiceError(
+            {
+                "error": f"Error HTTP del microservicio de logística: {detalle}",
+                "codigo": "ERROR_HTTP",
+            },
+            status_code,
+        )
+    
+    except requests.exceptions.Timeout:
+        raise LogisticaServiceError(
+            {
+                "error": "Timeout al procesar la optimización de ruta",
+                "codigo": "TIMEOUT",
+            },
+            504,
+        )
+    
+    except requests.exceptions.RequestException as exc:
+        raise LogisticaServiceError(
+            {
+                "error": "Error de conexión con el microservicio de logística",
+                "codigo": "ERROR_CONEXION",
+            },
+            503,
+        )
+    
+    except LogisticaServiceError:
+        raise
+    
+    except Exception as exc:
+        raise LogisticaServiceError(
+            {
+                "error": "Error interno al optimizar ruta",
+                "codigo": "ERROR_INESPERADO",
+            },
+            500,
+        )
