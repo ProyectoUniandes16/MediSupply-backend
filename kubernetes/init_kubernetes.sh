@@ -10,6 +10,7 @@ docker buildx build -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/producto-inv
 docker buildx build -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/productos:latest --push ./productos_microservice
 docker buildx build -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/vendedores:latest --push ./vendedores_microservice
 docker buildx build -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/proveedores:latest --push ./proveedores_microservice
+docker buildx build -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/logistica:latest --push ./logistica_microservice
 
 
 # Create EKS cluster
@@ -48,6 +49,8 @@ kubectl apply -f kubernetes/pedidos/deployment.yaml
 kubectl apply -f kubernetes/pedidos/service.yaml
 kubectl apply -f kubernetes/clientes/deployment.yaml
 kubectl apply -f kubernetes/clientes/service.yaml
+kubectl apply -f kubernetes/logistica/deployment.yaml
+kubectl apply -f kubernetes/logistica/service.yaml
 kubectl apply -f kubernetes/ingress.yaml
 
 # Agrega el repo de ingress-nginx

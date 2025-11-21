@@ -104,22 +104,25 @@ def obtener_pedidos_vendedor(vendedor_id, mes=None, anio=None):
             'detalle': str(e)
         }, 500)
 
-def listar_pedidos(vendedor_id=None, cliente_id=None, headers=None):
+def listar_pedidos(vendedor_id=None, cliente_id=None, zona=None, headers=None):
     """
     Obtiene la lista de pedidos del microservicio externo.
+    Si se especifica zona, filtra los pedidos por la zona del cliente.
 
     Args:
         vendedor_id (str, optional): Filtro por ID de vendedor.
         cliente_id (str, optional): Filtro por ID de cliente.
+        zona (str, optional): Filtro por zona del cliente.
         headers (dict, optional): Encabezados HTTP adicionales para la petición.
 
     Returns:
-        dict: Lista de pedidos.
+        dict: Lista de pedidos filtrados.
 
     Raises:
         PedidosServiceError: Si ocurre un error de conexión o del microservicio.
     """
     pedidos_url = os.environ.get('PEDIDOS_URL', 'http://localhost:5012')
+    clientes_url = os.environ.get('CLIENTES_URL', 'http://localhost:5010')
     
     # Construir parámetros de consulta
     params = {}
@@ -134,6 +137,7 @@ def listar_pedidos(vendedor_id=None, cliente_id=None, headers=None):
         request_headers.update(headers)
     
     try:
+        # Obtener pedidos del microservicio
         response = requests.get(
             f"{pedidos_url}/pedido",
             params=params,
@@ -142,8 +146,38 @@ def listar_pedidos(vendedor_id=None, cliente_id=None, headers=None):
         )
         response.raise_for_status()
         
-        current_app.logger.info(f"Pedidos listados exitosamente")
-        return response.json()
+        pedidos_data = response.json()
+        
+        # Si no se filtra por zona, retornar todos
+        if not zona:
+            current_app.logger.info(f"Pedidos listados exitosamente")
+            return pedidos_data
+        
+        # Filtrar por zona: para cada pedido, obtener zona del cliente
+        pedidos_filtrados = []
+        for pedido in pedidos_data.get('data', []):
+            try:
+                cliente_id_pedido = pedido.get('cliente_id')
+                if cliente_id_pedido:
+                    # Llamada al microservicio de clientes para obtener zona
+                    cliente_response = requests.get(
+                        f"{clientes_url}/cliente/{cliente_id_pedido}",
+                        headers=request_headers,
+                        timeout=5
+                    )
+                    cliente_response.raise_for_status()
+                    cliente_data = cliente_response.json()
+                    
+                    # Verificar zona
+                    zona_cliente = cliente_data.get('data', {}).get('zona')
+                    if zona_cliente == zona:
+                        pedidos_filtrados.append(pedido)
+            except requests.exceptions.RequestException as e:
+                current_app.logger.warning(f"Error obteniendo zona para cliente {cliente_id_pedido}: {str(e)}")
+                continue  # Saltar este pedido si falla la obtención de zona
+        
+        current_app.logger.info(f"Pedidos filtrados por zona '{zona}': {len(pedidos_filtrados)} encontrados")
+        return {'data': pedidos_filtrados}
         
     except requests.exceptions.HTTPError as e:
         current_app.logger.error(f"Error del microservicio de pedidos: {e.response.text}")

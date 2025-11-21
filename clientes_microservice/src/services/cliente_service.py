@@ -145,3 +145,30 @@ def list_clientes(filtros=None):  # -> dict[str, list]:
     except Exception as e:
         print(f"Error al listar clientes: {e}")
         raise ClienteServiceError({'error': 'Error obteniendo lista de clientes', 'codigo': 'ERROR_LISTAR_CLIENTES'}, 500)
+
+
+def get_cliente_by_id(cliente_id):
+    """
+    Obtiene un cliente por su ID.
+    
+    Args:
+        cliente_id (int): ID del cliente
+        
+    Returns:
+        dict: Datos del cliente
+        
+    Raises:
+        ClienteServiceError: Si el cliente no existe
+    """
+    try:
+        cliente = Cliente.query.get(cliente_id)
+        if not cliente:
+            raise ClienteServiceError({'error': f'Cliente con ID {cliente_id} no encontrado', 'codigo': 'CLIENTE_NO_ENCONTRADO'}, 404)
+        
+        return {'data': cliente.to_dict()}
+        
+    except ClienteServiceError:
+        raise
+    except Exception as e:
+        print(f"Error al obtener cliente {cliente_id}: {e}")
+        raise ClienteServiceError({'error': 'Error obteniendo cliente', 'codigo': 'ERROR_OBTENER_CLIENTE'}, 500)
