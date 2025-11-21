@@ -3,7 +3,8 @@ from unittest.mock import patch, MagicMock
 import requests
 
 from src.services.logistica import (
-    listar_zonas, 
+    listar_zonas,
+    listar_zonas_con_bodegas,
     obtener_zona_detallada, 
     crear_ruta_entrega,
     optimizar_ruta,
@@ -850,3 +851,182 @@ class TestOptimizarRuta:
         assert len(result['ruta_optima']) == 6
         assert result['distancia_total'] == 25.8
         assert result['tiempo_estimado'] == 75
+
+
+class TestListarZonasConBodegas:
+    """Pruebas para el servicio listar_zonas_con_bodegas"""
+    
+    def test_listar_zonas_con_bodegas_success(self):
+        """Prueba exitosa de listado de zonas con bodegas"""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            'data': [
+                {
+                    'id': '770e8400-e29b-41d4-a716-446655440001',
+                    'nombre': 'Bogotá Centro',
+                    'bodegas': [
+                        {
+                            'id': '550e8400-e29b-41d4-a716-446655440000',
+                            'nombre': 'Bodega Central',
+                            'ubicacion': 'Av. Caracas #45-67'
+                        },
+                        {
+                            'id': '550e8400-e29b-41d4-a716-446655440001',
+                            'nombre': 'Bodega Norte',
+                            'ubicacion': 'Calle 127 #15-40'
+                        }
+                    ]
+                },
+                {
+                    'id': '770e8400-e29b-41d4-a716-446655440002',
+                    'nombre': 'Bogotá Sur',
+                    'bodegas': [
+                        {
+                            'id': '550e8400-e29b-41d4-a716-446655440002',
+                            'nombre': 'Bodega Sur',
+                            'ubicacion': 'Autopista Sur Km 3'
+                        }
+                    ]
+                }
+            ],
+            'total': 2
+        }
+
+        with patch('src.services.logistica.requests.get', return_value=mock_response) as mock_get:
+            result = listar_zonas_con_bodegas()
+
+        assert result == mock_response.json.return_value
+        assert len(result['data']) == 2
+        assert len(result['data'][0]['bodegas']) == 2
+        assert len(result['data'][1]['bodegas']) == 1
+        assert result['total'] == 2
+        mock_get.assert_called_once()
+        assert '/zona-con-bodegas' in mock_get.call_args[0][0]
+
+    def test_listar_zonas_con_bodegas_empty_list(self):
+        """Prueba cuando no hay zonas con bodegas"""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {'data': [], 'total': 0}
+
+        with patch('src.services.logistica.requests.get', return_value=mock_response):
+            result = listar_zonas_con_bodegas()
+
+        assert result['data'] == []
+        assert result['total'] == 0
+
+    def test_listar_zonas_con_bodegas_zona_sin_bodegas(self):
+        """Prueba zona sin bodegas asociadas"""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            'data': [
+                {
+                    'id': '770e8400-e29b-41d4-a716-446655440001',
+                    'nombre': 'Zona Sin Bodegas',
+                    'bodegas': []
+                }
+            ],
+            'total': 1
+        }
+
+        with patch('src.services.logistica.requests.get', return_value=mock_response):
+            result = listar_zonas_con_bodegas()
+
+        assert len(result['data']) == 1
+        assert result['data'][0]['bodegas'] == []
+
+    def test_listar_zonas_con_bodegas_server_error(self):
+        """Prueba cuando el servicio de logística retorna error 500"""
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = 'Internal Server Error'
+
+        with patch('src.services.logistica.requests.get', return_value=mock_response):
+            with pytest.raises(LogisticaServiceError) as excinfo:
+                listar_zonas_con_bodegas()
+
+        assert excinfo.value.status_code == 500
+        assert 'Error al obtener las zonas con bodegas' in excinfo.value.message
+
+    def test_listar_zonas_con_bodegas_not_found(self):
+        """Prueba cuando el endpoint no existe (404)"""
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.text = 'Not Found'
+
+        with patch('src.services.logistica.requests.get', return_value=mock_response):
+            with pytest.raises(LogisticaServiceError) as excinfo:
+                listar_zonas_con_bodegas()
+
+        assert excinfo.value.status_code == 404
+
+    def test_listar_zonas_con_bodegas_timeout(self):
+        """Prueba cuando el servicio tarda demasiado en responder"""
+        with patch('src.services.logistica.requests.get', side_effect=requests.exceptions.Timeout('Timeout')):
+            with pytest.raises(LogisticaServiceError) as excinfo:
+                listar_zonas_con_bodegas()
+        
+        assert excinfo.value.status_code == 500
+        assert 'Error de conexión' in excinfo.value.message
+
+    def test_listar_zonas_con_bodegas_connection_error(self):
+        """Prueba cuando no se puede conectar al servicio"""
+        with patch('src.services.logistica.requests.get', 
+                   side_effect=requests.exceptions.ConnectionError('Connection refused')):
+            with pytest.raises(LogisticaServiceError) as excinfo:
+                listar_zonas_con_bodegas()
+        
+        assert excinfo.value.status_code == 500
+        assert 'Error de conexión' in excinfo.value.message
+
+    def test_listar_zonas_con_bodegas_request_exception(self):
+        """Prueba cuando ocurre un error genérico de requests"""
+        with patch('src.services.logistica.requests.get', 
+                   side_effect=requests.exceptions.RequestException('Generic error')):
+            with pytest.raises(LogisticaServiceError) as excinfo:
+                listar_zonas_con_bodegas()
+        
+        assert excinfo.value.status_code == 500
+        assert 'Error de conexión' in excinfo.value.message
+
+    def test_listar_zonas_con_bodegas_multiples_zonas(self):
+        """Prueba con múltiples zonas y diferentes cantidades de bodegas"""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            'data': [
+                {
+                    'id': 'zona-1',
+                    'nombre': 'Zona 1',
+                    'bodegas': [
+                        {'id': 'bod-1', 'nombre': 'Bodega 1'},
+                        {'id': 'bod-2', 'nombre': 'Bodega 2'},
+                        {'id': 'bod-3', 'nombre': 'Bodega 3'}
+                    ]
+                },
+                {
+                    'id': 'zona-2',
+                    'nombre': 'Zona 2',
+                    'bodegas': [
+                        {'id': 'bod-4', 'nombre': 'Bodega 4'}
+                    ]
+                },
+                {
+                    'id': 'zona-3',
+                    'nombre': 'Zona 3',
+                    'bodegas': []
+                }
+            ],
+            'total': 3
+        }
+
+        with patch('src.services.logistica.requests.get', return_value=mock_response):
+            result = listar_zonas_con_bodegas()
+
+        assert len(result['data']) == 3
+        assert len(result['data'][0]['bodegas']) == 3
+        assert len(result['data'][1]['bodegas']) == 1
+        assert len(result['data'][2]['bodegas']) == 0
+        assert result['total'] == 3
