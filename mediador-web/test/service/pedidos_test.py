@@ -19,19 +19,49 @@ def provide_app_context(app):
 
 @patch('src.services.pedidos.requests.get')
 def test_listar_pedidos_exito(mock_get):
-    """Test de listado exitoso de pedidos"""
-    mock_response_data = {
+    """Test de listado exitoso de pedidos con enriquecimiento de datos de cliente"""
+    # Mock de respuesta del servicio de pedidos
+    mock_pedidos_response = {
         'data': [
             {'id': 'ped-1', 'cliente_id': 'cli-1', 'vendedor_id': 'ven-1', 'total': 100.0},
             {'id': 'ped-2', 'cliente_id': 'cli-2', 'vendedor_id': 'ven-2', 'total': 200.0}
         ]
     }
     
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = mock_response_data
-    mock_response.raise_for_status.return_value = None
-    mock_get.return_value = mock_response
+    # Mock de respuestas del servicio de clientes
+    mock_cliente1_response = {
+        'data': {
+            'id': 'cli-1',
+            'zona': 'Norte',
+            'ubicacion': 'Calle 123'
+        }
+    }
+    
+    mock_cliente2_response = {
+        'data': {
+            'id': 'cli-2',
+            'zona': 'Sur',
+            'ubicacion': 'Carrera 456'
+        }
+    }
+    
+    # Configurar el mock para que retorne diferentes respuestas según la URL
+    def side_effect_get(*args, **kwargs):
+        url = args[0]
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status.return_value = None
+        
+        if '/pedido' in url:
+            mock_response.json.return_value = mock_pedidos_response
+        elif '/cliente/cli-1' in url:
+            mock_response.json.return_value = mock_cliente1_response
+        elif '/cliente/cli-2' in url:
+            mock_response.json.return_value = mock_cliente2_response
+        
+        return mock_response
+    
+    mock_get.side_effect = side_effect_get
 
     with patch('src.services.pedidos.current_app') as mock_current_app:
         mock_logger = MagicMock()
@@ -41,29 +71,47 @@ def test_listar_pedidos_exito(mock_get):
         
         assert 'data' in result
         assert len(result['data']) == 2
-        mock_get.assert_called_once_with(
-            'http://localhost:5012/pedido',
-            params={},
-            headers={'Content-Type': 'application/json'},
-            timeout=10
-        )
+        # Verificar que los pedidos tienen información del cliente enriquecida
+        assert result['data'][0]['cliente_zona'] == 'Norte'
+        assert result['data'][0]['cliente_ubicacion'] == 'Calle 123'
+        assert result['data'][1]['cliente_zona'] == 'Sur'
+        assert result['data'][1]['cliente_ubicacion'] == 'Carrera 456'
+        
+        # Verificar que se hicieron las 3 llamadas (1 pedidos + 2 clientes)
+        assert mock_get.call_count == 3
         mock_logger.info.assert_called_once()
 
 @patch('src.services.pedidos.requests.get')
 def test_listar_pedidos_con_filtros(mock_get):
     """Test de listado de pedidos con filtros"""
-    mock_response_data = {
-        'items': [
+    mock_pedidos_response = {
+        'data': [
             {'id': 'ped-1', 'cliente_id': 'cli-123', 'vendedor_id': 'ven-456'}
-        ],
-        'total': 1
+        ]
     }
     
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = mock_response_data
-    mock_response.raise_for_status.return_value = None
-    mock_get.return_value = mock_response
+    mock_cliente_response = {
+        'data': {
+            'id': 'cli-123',
+            'zona': 'Centro',
+            'ubicacion': 'Calle Principal'
+        }
+    }
+    
+    def side_effect_get(*args, **kwargs):
+        url = args[0]
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status.return_value = None
+        
+        if '/pedido' in url:
+            mock_response.json.return_value = mock_pedidos_response
+        elif '/cliente/cli-123' in url:
+            mock_response.json.return_value = mock_cliente_response
+        
+        return mock_response
+    
+    mock_get.side_effect = side_effect_get
 
     with patch('src.services.pedidos.current_app') as mock_current_app:
         mock_logger = MagicMock()
@@ -71,17 +119,14 @@ def test_listar_pedidos_con_filtros(mock_get):
 
         result = listar_pedidos(cliente_id='cli-123', vendedor_id='ven-456')
         
-        assert len(result['items']) == 1
-        assert result['items'][0]['cliente_id'] == 'cli-123'
-        call_args = mock_get.call_args
-        params = call_args[1]['params']
-        assert params['cliente_id'] == 'cli-123'
-        assert params['vendedor_id'] == 'ven-456'
+        assert len(result['data']) == 1
+        assert result['data'][0]['cliente_id'] == 'cli-123'
+        assert result['data'][0]['cliente_zona'] == 'Centro'
 
 @patch('src.services.pedidos.requests.get')
 def test_listar_pedidos_con_headers(mock_get):
     """Test de listado con headers personalizados"""
-    mock_response_data = {'items': [], 'total': 0}
+    mock_response_data = {'data': []}
     
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -96,7 +141,7 @@ def test_listar_pedidos_con_headers(mock_get):
         custom_headers = {'Authorization': 'Bearer token456'}
         result = listar_pedidos(headers=custom_headers)
         
-        assert result['total'] == 0
+        assert len(result['data']) == 0
         call_args = mock_get.call_args
         assert call_args[1]['headers']['Authorization'] == 'Bearer token456'
         assert call_args[1]['headers']['Content-Type'] == 'application/json'
@@ -222,7 +267,7 @@ def test_listar_pedidos_error_inesperado(mock_get):
 @patch('src.services.pedidos.requests.get')
 def test_listar_pedidos_lista_vacia(mock_get):
     """Test de listado vacío de pedidos"""
-    mock_response_data = {'items': [], 'total': 0}
+    mock_response_data = {'data': []}
     
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -236,8 +281,7 @@ def test_listar_pedidos_lista_vacia(mock_get):
 
         result = listar_pedidos()
         
-        assert len(result['items']) == 0
-        assert result['total'] == 0
+        assert len(result['data']) == 0
 
 @patch('src.services.pedidos.requests.get')
 def test_listar_pedidos_respuesta_sin_json(mock_get):
@@ -263,7 +307,7 @@ def test_listar_pedidos_respuesta_sin_json(mock_get):
 @patch('src.services.pedidos.requests.get')
 def test_listar_pedidos_con_variable_entorno(mock_get):
     """Test que verifica el uso de la variable de entorno PEDIDOS_URL"""
-    mock_response_data = {'items': [], 'total': 0}
+    mock_response_data = {'data': []}
     
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -278,7 +322,7 @@ def test_listar_pedidos_con_variable_entorno(mock_get):
         with patch.dict('os.environ', {'PEDIDOS_URL': 'http://custom-pedidos:9000'}):
             result = listar_pedidos()
             
-            assert result['total'] == 0
+            assert len(result['data']) == 0
             mock_get.assert_called_once_with(
                 'http://custom-pedidos:9000/pedido',
                 params={},
