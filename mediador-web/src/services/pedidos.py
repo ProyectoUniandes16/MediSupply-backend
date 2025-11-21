@@ -148,18 +148,17 @@ def listar_pedidos(vendedor_id=None, cliente_id=None, zona=None, headers=None):
         
         pedidos_data = response.json()
         
-        # Si no se filtra por zona, retornar todos
-        if not zona:
-            current_app.logger.info(f"Pedidos listados exitosamente")
-            return pedidos_data
+        # Enriquecer pedidos con información del cliente (zona y ubicación)
+        pedidos_enriquecidos = []
+        pedidos_filtrados_por_zona = []
         
-        # Filtrar por zona: para cada pedido, obtener zona del cliente
-        pedidos_filtrados = []
         for pedido in pedidos_data.get('data', []):
+            pedido_enriquecido = pedido.copy()
+            
             try:
                 cliente_id_pedido = pedido.get('cliente_id')
                 if cliente_id_pedido:
-                    # Llamada al microservicio de clientes para obtener zona
+                    # Llamada al microservicio de clientes para obtener zona y ubicación
                     cliente_response = requests.get(
                         f"{clientes_url}/cliente/{cliente_id_pedido}",
                         headers=request_headers,
@@ -168,16 +167,41 @@ def listar_pedidos(vendedor_id=None, cliente_id=None, zona=None, headers=None):
                     cliente_response.raise_for_status()
                     cliente_data = cliente_response.json()
                     
-                    # Verificar zona
-                    zona_cliente = cliente_data.get('data', {}).get('zona')
-                    if zona_cliente == zona:
-                        pedidos_filtrados.append(pedido)
+                    # Agregar zona y ubicación del cliente al pedido
+                    cliente_info = cliente_data.get('data', {})
+                    zona_cliente = cliente_info.get('zona')
+                    ubicacion_cliente = cliente_info.get('ubicacion')
+                    
+                    if zona_cliente:
+                        pedido_enriquecido['cliente_zona'] = zona_cliente
+                    if ubicacion_cliente:
+                        pedido_enriquecido['cliente_ubicacion'] = ubicacion_cliente
+                    
+                    # Si se filtra por zona, verificar si coincide
+                    if zona:
+                        if zona_cliente == zona:
+                            pedidos_filtrados_por_zona.append(pedido_enriquecido)
+                    else:
+                        pedidos_enriquecidos.append(pedido_enriquecido)
+                else:
+                    # Si no hay cliente_id, agregar sin enriquecer
+                    if not zona:
+                        pedidos_enriquecidos.append(pedido_enriquecido)
+                        
             except requests.exceptions.RequestException as e:
-                current_app.logger.warning(f"Error obteniendo zona para cliente {cliente_id_pedido}: {str(e)}")
-                continue  # Saltar este pedido si falla la obtención de zona
+                current_app.logger.warning(f"Error obteniendo info de cliente {cliente_id_pedido}: {str(e)}")
+                # Agregar pedido sin información del cliente
+                if not zona:
+                    pedidos_enriquecidos.append(pedido_enriquecido)
+                continue
         
-        current_app.logger.info(f"Pedidos filtrados por zona '{zona}': {len(pedidos_filtrados)} encontrados")
-        return {'data': pedidos_filtrados}
+        # Retornar según si se filtró por zona o no
+        if zona:
+            current_app.logger.info(f"Pedidos filtrados por zona '{zona}': {len(pedidos_filtrados_por_zona)} encontrados")
+            return {'data': pedidos_filtrados_por_zona}
+        else:
+            current_app.logger.info(f"Pedidos listados exitosamente: {len(pedidos_enriquecidos)} pedidos enriquecidos")
+            return {'data': pedidos_enriquecidos}
         
     except requests.exceptions.HTTPError as e:
         current_app.logger.error(f"Error del microservicio de pedidos: {e.response.text}")

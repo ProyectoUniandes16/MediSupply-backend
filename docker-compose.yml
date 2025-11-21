@@ -65,6 +65,7 @@ services:
       - AUTH_URL=http://auth-usuario:5001
       - PROVEEDORES_URL=http://proveedores:5006
       - VENDEDORES_URL=http://vendedores:5007
+      - CLIENTES_URL=http://clientes:5010
       - PEDIDOS_URL=http://pedidos:5012
       - LOGISTICA_URL=http://logistica:5013
       - DEBUG=False
@@ -72,6 +73,8 @@ services:
       auth-usuario:
         condition: service_healthy
       proveedores:
+        condition: service_healthy
+      clientes:
         condition: service_healthy
     networks:
       - medisupply-network
