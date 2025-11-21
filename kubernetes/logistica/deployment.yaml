@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logistica-deployment
+  namespace: medisupply
+  labels:
+    app: logistica
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: logistica
+  template:
+    metadata:
+      labels:
+        app: logistica
+    spec:
+      initContainers:
+      - name: wait-for-postgres
+        image: postgres:13
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          until PGPASSWORD=$DB_PASSWORD psql -h postgres-service -U postgres -d medisupply -c "SELECT 1" >/dev/null 2>&1; do
+            echo "Esperando base de datos...";
+            sleep 3;
+          done
+        env:
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: postgres-password
+      containers:
+      - name: logistica
+        image: 012146976167.dkr.ecr.us-east-2.amazonaws.com/logistica:latest
+        ports:
+        - containerPort: 5013
+        imagePullPolicy: Always
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          export DB_HOST="postgres-service"
+          export DB_PORT="5432"
+          export DB_NAME="medisupply"
+          export DB_USER="postgres"
+          export PORT="5013"
+          python app.py
+        env:
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: postgres-password

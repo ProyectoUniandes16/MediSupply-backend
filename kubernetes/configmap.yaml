@@ -11,4 +11,5 @@ data:
   INVENTARIOS_URL: "http://inventarios-service:5009"
   CLIENTES_URL: "http://clientes-service:5010"
   PEDIDOS_URL: "http://pedidos-service:5012"
+  LOGISTICA_URL: "http://logistica-service:5013"
   REDIS_SERVICE_URL: "http://redis-service:5011"

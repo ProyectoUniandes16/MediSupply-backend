@@ -16,6 +16,7 @@ docker buildx build --no-cache --platform linux/amd64 -t 012146976167.dkr.ecr.us
 docker buildx build --no-cache --platform linux/amd64 -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/producto-inventario-movil:latest --push ./producto-inventario-movil
 docker buildx build --no-cache --platform linux/amd64 -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/pedidos:latest --push ./pedidos_microservice
 docker buildx build --no-cache --platform linux/amd64 -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/inventarios:latest --push ./inventarios_microservice
+docker buildx build --no-cache --platform linux/amd64 -t 012146976167.dkr.ecr.us-east-2.amazonaws.com/logistica:latest --push ./logistica_microservice
 
 
 # Create EKS cluster
@@ -54,6 +55,8 @@ kubectl apply -f kubernetes/pedidos/deployment.yaml
 kubectl apply -f kubernetes/pedidos/service.yaml
 kubectl apply -f kubernetes/clientes/deployment.yaml
 kubectl apply -f kubernetes/clientes/service.yaml
+kubectl apply -f kubernetes/logistica/deployment.yaml
+kubectl apply -f kubernetes/logistica/service.yaml
 kubectl apply -f kubernetes/ingress.yaml
 
 # Agrega el repo de ingress-nginx
