@@ -9,7 +9,8 @@ from src.services.productos import (
     consultar_productos_externo,
     obtener_detalle_producto_externo,
     obtener_producto_por_sku_externo,
-    descargar_certificacion_producto_externo
+    descargar_certificacion_producto_externo,
+    obtener_status_importacion_externo
 )
 
 # Crear el blueprint para producto
@@ -166,6 +167,27 @@ def descargar_certificacion(producto_id):
         return jsonify(e.message), e.status_code
     except Exception as e:
         current_app.logger.error(f"Error inesperado descargando certificación del producto {producto_id}: {str(e)}")
+        return jsonify({
+            'error': 'Error interno del servidor',
+            'codigo': 'ERROR_INESPERADO'
+        }), 500
+
+
+@producto_bp.route('/importar-csv/status/<job_id>', methods=['GET'])
+@jwt_required()
+def obtener_status_importacion(job_id):
+    """
+    Endpoint del BFF para consultar el estado de una importación asíncrona.
+    Delega al microservicio de productos.
+    """
+    try:
+        include_errors = request.args.get('include_errors', 'false').lower() == 'true'
+        status = obtener_status_importacion_externo(job_id, include_errors)
+        return jsonify({'data': status}), 200
+    except ProductoServiceError as e:
+        return jsonify(e.message), e.status_code
+    except Exception as e:
+        current_app.logger.error(f"Error inesperado obteniendo status de importación {job_id}: {str(e)}")
         return jsonify({
             'error': 'Error interno del servidor',
             'codigo': 'ERROR_INESPERADO'
