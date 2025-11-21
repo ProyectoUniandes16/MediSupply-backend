@@ -584,3 +584,364 @@ class TestCrearRutaBlueprint:
         data = resp.get_json()
         assert data['estado'] == 'iniciado'
         assert 'fecha_inicio' in data
+
+
+class TestOptimizarRutaBlueprint:
+    """Pruebas para el endpoint POST /ruta-optima"""
+
+    def test_optimizar_ruta_success_json(self):
+        """Prueba exitosa de optimización de ruta en formato JSON"""
+        app = create_app()
+        client = app.test_client()
+        
+        with app.app_context():
+            token = create_access_token(identity='tester')
+
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [
+                [-74.0445, 4.6760],
+                [-74.0817, 4.6097],
+                [-74.1000, 4.6500]
+            ]
+        }
+
+        ruta_optima = {
+            'ruta_optima': [
+                [-74.0721, 4.7110],
+                [-74.0445, 4.6760],
+                [-74.0817, 4.6097],
+                [-74.1000, 4.6500]
+            ],
+            'distancia_total': 15.5,
+            'tiempo_estimado': 45
+        }
+
+        with patch('src.blueprints.logistica.optimizar_ruta', 
+                   return_value=ruta_optima) as mock_optimizar:
+            resp = client.post('/ruta-optima?formato=json', 
+                             json=payload,
+                             headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 200
+        assert resp.content_type == 'application/json'
+        data = resp.get_json()
+        assert data == ruta_optima
+        assert len(data['ruta_optima']) == 4
+        mock_optimizar.assert_called_once_with(payload, formato='json')
+
+    def test_optimizar_ruta_success_html(self):
+        """Prueba exitosa de optimización de ruta en formato HTML"""
+        app = create_app()
+        client = app.test_client()
+        
+        with app.app_context():
+            token = create_access_token(identity='tester')
+
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [
+                [-74.0445, 4.6760],
+                [-74.0817, 4.6097]
+            ]
+        }
+
+        html_content = '<html><body><h1>Mapa de Ruta Optimizada</h1></body></html>'
+
+        with patch('src.blueprints.logistica.optimizar_ruta', 
+                   return_value=html_content) as mock_optimizar:
+            resp = client.post('/ruta-optima?formato=html', 
+                             json=payload,
+                             headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 200
+        assert resp.content_type == 'text/html; charset=utf-8'
+        assert resp.get_data(as_text=True) == html_content
+        mock_optimizar.assert_called_once_with(payload, formato='html')
+
+    def test_optimizar_ruta_default_formato(self):
+        """Prueba que el formato por defecto es JSON"""
+        app = create_app()
+        client = app.test_client()
+        
+        with app.app_context():
+            token = create_access_token(identity='tester')
+
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [[-74.0445, 4.6760]]
+        }
+
+        ruta_optima = {'ruta_optima': []}
+
+        with patch('src.blueprints.logistica.optimizar_ruta', 
+                   return_value=ruta_optima) as mock_optimizar:
+            resp = client.post('/ruta-optima', 
+                             json=payload,
+                             headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 200
+        assert resp.content_type == 'application/json'
+        mock_optimizar.assert_called_once_with(payload, formato='json')
+
+    def test_optimizar_ruta_sin_token(self):
+        """Prueba que el endpoint requiere autenticación"""
+        app = create_app()
+        client = app.test_client()
+
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [[-74.0445, 4.6760]]
+        }
+
+        resp = client.post('/ruta-optima', json=payload)
+
+        assert resp.status_code == 401
+
+    def test_optimizar_ruta_token_invalido(self):
+        """Prueba con token inválido"""
+        app = create_app()
+        client = app.test_client()
+
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [[-74.0445, 4.6760]]
+        }
+
+        resp = client.post('/ruta-optima', 
+                          json=payload,
+                          headers={'Authorization': 'Bearer token-invalido'})
+
+        assert resp.status_code == 422
+
+    def test_optimizar_ruta_sin_datos(self):
+        """Prueba sin enviar datos en el body"""
+        app = create_app()
+        client = app.test_client()
+        
+        with app.app_context():
+            token = create_access_token(identity='tester')
+
+        # Enviar POST sin body - debería ser detectado como JSON vacío
+        resp = client.post('/ruta-optima', 
+                          json={},  # JSON vacío
+                          headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert 'error' in data
+        assert 'codigo' in data
+        assert data['codigo'] == 'DATOS_VACIOS'
+
+    def test_optimizar_ruta_sin_content_type_json(self):
+        """Prueba sin enviar Content-Type application/json"""
+        app = create_app()
+        client = app.test_client()
+        
+        with app.app_context():
+            token = create_access_token(identity='tester')
+
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [[-74.0445, 4.6760]]
+        }
+
+        resp = client.post('/ruta-optima', 
+                          data=str(payload),  # Enviar como string, no JSON
+                          headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 400
+        assert 'error' in resp.get_json()
+        assert 'Content-Type' in resp.get_json()['error']
+
+    def test_optimizar_ruta_datos_invalidos(self):
+        """Prueba con datos inválidos"""
+        app = create_app()
+        client = app.test_client()
+        
+        with app.app_context():
+            token = create_access_token(identity='tester')
+
+        payload = {}  # Datos vacíos
+
+        with patch('src.blueprints.logistica.optimizar_ruta', 
+                   side_effect=LogisticaServiceError({'error': 'Datos inválidos', 'codigo': 'DATOS_VACIOS'}, 400)):
+            resp = client.post('/ruta-optima', 
+                             json=payload,
+                             headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 400
+        assert 'error' in resp.get_json()
+
+    def test_optimizar_ruta_sin_bodega(self):
+        """Prueba sin campo bodega"""
+        app = create_app()
+        client = app.test_client()
+        
+        with app.app_context():
+            token = create_access_token(identity='tester')
+
+        payload = {
+            'destinos': [[-74.0445, 4.6760]]
+        }
+
+        with patch('src.blueprints.logistica.optimizar_ruta', 
+                   side_effect=LogisticaServiceError({'error': 'Campo bodega requerido', 'codigo': 'BODEGA_REQUERIDA'}, 400)):
+            resp = client.post('/ruta-optima', 
+                             json=payload,
+                             headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 400
+        assert 'error' in resp.get_json()
+
+    def test_optimizar_ruta_sin_destinos(self):
+        """Prueba sin campo destinos"""
+        app = create_app()
+        client = app.test_client()
+        
+        with app.app_context():
+            token = create_access_token(identity='tester')
+
+        payload = {
+            'bodega': [-74.0721, 4.7110]
+        }
+
+        with patch('src.blueprints.logistica.optimizar_ruta', 
+                   side_effect=LogisticaServiceError({'error': 'Campo destinos requerido', 'codigo': 'DESTINOS_REQUERIDOS'}, 400)):
+            resp = client.post('/ruta-optima', 
+                             json=payload,
+                             headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 400
+        assert 'error' in resp.get_json()
+
+    def test_optimizar_ruta_service_error_500(self):
+        """Prueba cuando el servicio retorna error 500"""
+        app = create_app()
+        client = app.test_client()
+        
+        with app.app_context():
+            token = create_access_token(identity='tester')
+
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [[-74.0445, 4.6760]]
+        }
+
+        with patch('src.blueprints.logistica.optimizar_ruta', 
+                   side_effect=LogisticaServiceError({'error': 'Error interno', 'codigo': 'ERROR_INTERNO'}, 500)):
+            resp = client.post('/ruta-optima', 
+                             json=payload,
+                             headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 500
+        assert 'error' in resp.get_json()
+
+    def test_optimizar_ruta_timeout(self):
+        """Prueba cuando ocurre timeout"""
+        app = create_app()
+        client = app.test_client()
+        
+        with app.app_context():
+            token = create_access_token(identity='tester')
+
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [[-74.0445, 4.6760]]
+        }
+
+        with patch('src.blueprints.logistica.optimizar_ruta', 
+                   side_effect=LogisticaServiceError({'error': 'Timeout', 'codigo': 'TIMEOUT'}, 504)):
+            resp = client.post('/ruta-optima', 
+                             json=payload,
+                             headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 504
+        assert 'error' in resp.get_json()
+
+    def test_optimizar_ruta_connection_error(self):
+        """Prueba cuando no se puede conectar al servicio"""
+        app = create_app()
+        client = app.test_client()
+        
+        with app.app_context():
+            token = create_access_token(identity='tester')
+
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [[-74.0445, 4.6760]]
+        }
+
+        with patch('src.blueprints.logistica.optimizar_ruta', 
+                   side_effect=LogisticaServiceError({'error': 'Error de conexión', 'codigo': 'ERROR_CONEXION'}, 503)):
+            resp = client.post('/ruta-optima', 
+                             json=payload,
+                             headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 503
+        assert 'error' in resp.get_json()
+
+    def test_optimizar_ruta_unexpected_error(self):
+        """Prueba cuando ocurre un error inesperado"""
+        app = create_app()
+        client = app.test_client()
+        
+        with app.app_context():
+            token = create_access_token(identity='tester')
+
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [[-74.0445, 4.6760]]
+        }
+
+        with patch('src.blueprints.logistica.optimizar_ruta', 
+                   side_effect=Exception('Error inesperado')):
+            resp = client.post('/ruta-optima', 
+                             json=payload,
+                             headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 500
+        assert 'error' in resp.get_json()
+
+    def test_optimizar_ruta_multiples_destinos(self):
+        """Prueba con múltiples destinos"""
+        app = create_app()
+        client = app.test_client()
+        
+        with app.app_context():
+            token = create_access_token(identity='tester')
+
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [
+                [-74.0445, 4.6760],
+                [-74.0817, 4.6097],
+                [-74.1000, 4.6500],
+                [-74.0500, 4.7000],
+                [-74.1200, 4.6800]
+            ]
+        }
+
+        ruta_optima = {
+            'ruta_optima': [
+                [-74.0721, 4.7110],
+                [-74.0500, 4.7000],
+                [-74.0445, 4.6760],
+                [-74.1000, 4.6500],
+                [-74.1200, 4.6800],
+                [-74.0817, 4.6097]
+            ],
+            'distancia_total': 25.8,
+            'tiempo_estimado': 75
+        }
+
+        with patch('src.blueprints.logistica.optimizar_ruta', return_value=ruta_optima):
+            resp = client.post('/ruta-optima', 
+                             json=payload,
+                             headers={'Authorization': f'Bearer {token}'})
+
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert len(data['ruta_optima']) == 6
+        assert data['distancia_total'] == 25.8
+        assert data['tiempo_estimado'] == 75

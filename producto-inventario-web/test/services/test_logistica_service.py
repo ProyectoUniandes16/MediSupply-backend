@@ -6,6 +6,7 @@ from src.services.logistica import (
     listar_zonas, 
     obtener_zona_detallada, 
     crear_ruta_entrega,
+    optimizar_ruta,
     LogisticaServiceError
 )
 
@@ -577,3 +578,275 @@ class TestCrearRutaEntrega:
 
         assert result['estado'] == 'iniciado'
         assert 'fecha_inicio' in result
+
+
+class TestOptimizarRuta:
+    """Pruebas para el servicio optimizar_ruta"""
+    
+    def test_optimizar_ruta_success_json(self):
+        """Prueba exitosa de optimización de ruta en formato JSON"""
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [
+                [-74.0445, 4.6760],
+                [-74.0817, 4.6097],
+                [-74.1000, 4.6500]
+            ]
+        }
+        
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            'ruta_optima': [
+                [-74.0721, 4.7110],
+                [-74.0445, 4.6760],
+                [-74.0817, 4.6097],
+                [-74.1000, 4.6500]
+            ],
+            'distancia_total': 15.5,
+            'tiempo_estimado': 45
+        }
+
+        with patch('src.services.logistica.requests.post', return_value=mock_response) as mock_post:
+            result = optimizar_ruta(payload, 'json')
+
+        assert result == mock_response.json.return_value
+        mock_post.assert_called_once()
+        assert '/ruta-optima' in mock_post.call_args[0][0]
+        assert mock_post.call_args[1]['json'] == payload
+        assert mock_post.call_args[1]['params'] == {'formato': 'json'}
+
+    def test_optimizar_ruta_success_html(self):
+        """Prueba exitosa de optimización de ruta en formato HTML"""
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [
+                [-74.0445, 4.6760],
+                [-74.0817, 4.6097]
+            ]
+        }
+        
+        html_content = '<html><body><h1>Mapa de Ruta</h1></body></html>'
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = html_content
+
+        with patch('src.services.logistica.requests.post', return_value=mock_response) as mock_post:
+            result = optimizar_ruta(payload, 'html')
+
+        assert result == html_content
+        mock_post.assert_called_once()
+        assert mock_post.call_args[1]['params'] == {'formato': 'html'}
+
+    def test_optimizar_ruta_default_formato_json(self):
+        """Prueba que el formato por defecto es JSON"""
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [[-74.0445, 4.6760]]
+        }
+        
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {'ruta_optima': []}
+
+        with patch('src.services.logistica.requests.post', return_value=mock_response) as mock_post:
+            optimizar_ruta(payload)
+
+        assert mock_post.call_args[1]['params'] == {'formato': 'json'}
+
+    def test_optimizar_ruta_payload_vacio(self):
+        """Prueba con payload vacío"""
+        with pytest.raises(LogisticaServiceError) as excinfo:
+            optimizar_ruta({})
+        
+        assert excinfo.value.status_code == 400
+        assert 'DATOS_VACIOS' in excinfo.value.message['codigo']
+
+    def test_optimizar_ruta_payload_none(self):
+        """Prueba con payload None"""
+        with pytest.raises(LogisticaServiceError) as excinfo:
+            optimizar_ruta(None)
+        
+        assert excinfo.value.status_code == 400
+        assert 'DATOS_VACIOS' in excinfo.value.message['codigo']
+
+    def test_optimizar_ruta_sin_bodega(self):
+        """Prueba sin campo bodega"""
+        payload = {
+            'destinos': [[-74.0445, 4.6760]]
+        }
+        
+        with pytest.raises(LogisticaServiceError) as excinfo:
+            optimizar_ruta(payload)
+        
+        assert excinfo.value.status_code == 400
+        assert 'BODEGA_REQUERIDA' in excinfo.value.message['codigo']
+
+    def test_optimizar_ruta_sin_destinos(self):
+        """Prueba sin campo destinos"""
+        payload = {
+            'bodega': [-74.0721, 4.7110]
+        }
+        
+        with pytest.raises(LogisticaServiceError) as excinfo:
+            optimizar_ruta(payload)
+        
+        assert excinfo.value.status_code == 400
+        assert 'DESTINOS_REQUERIDOS' in excinfo.value.message['codigo']
+
+    def test_optimizar_ruta_http_error_400(self):
+        """Prueba cuando el servicio retorna error 400"""
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [[-74.0445, 4.6760]]
+        }
+        
+        # Crear mock response para la HTTPError
+        mock_response = MagicMock()
+        mock_response.status_code = 400
+        mock_response.text = 'Datos inválidos'
+        
+        # Crear HTTPError con el response
+        http_error = requests.exceptions.HTTPError('400 Client Error')
+        http_error.response = mock_response
+
+        with patch('src.services.logistica.requests.post', side_effect=http_error):
+            with pytest.raises(LogisticaServiceError) as excinfo:
+                optimizar_ruta(payload)
+        
+        assert excinfo.value.status_code == 400
+        assert 'ERROR_HTTP' in excinfo.value.message['codigo']
+
+    def test_optimizar_ruta_http_error_500(self):
+        """Prueba cuando el servicio retorna error 500"""
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [[-74.0445, 4.6760]]
+        }
+        
+        # Crear mock response para la HTTPError
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = 'Internal Server Error'
+        
+        # Crear HTTPError con el response
+        http_error = requests.exceptions.HTTPError('500 Server Error')
+        http_error.response = mock_response
+
+        with patch('src.services.logistica.requests.post', side_effect=http_error):
+            with pytest.raises(LogisticaServiceError) as excinfo:
+                optimizar_ruta(payload)
+        
+        assert excinfo.value.status_code == 500
+        assert 'ERROR_HTTP' in excinfo.value.message['codigo']
+
+    def test_optimizar_ruta_timeout(self):
+        """Prueba cuando el servicio tarda demasiado en responder"""
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [[-74.0445, 4.6760]]
+        }
+        
+        with patch('src.services.logistica.requests.post', side_effect=requests.exceptions.Timeout('Timeout')):
+            with pytest.raises(LogisticaServiceError) as excinfo:
+                optimizar_ruta(payload)
+        
+        assert excinfo.value.status_code == 504
+        assert 'TIMEOUT' in excinfo.value.message['codigo']
+
+    def test_optimizar_ruta_connection_error(self):
+        """Prueba cuando no se puede conectar al servicio"""
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [[-74.0445, 4.6760]]
+        }
+        
+        with patch('src.services.logistica.requests.post', 
+                   side_effect=requests.exceptions.ConnectionError('Connection refused')):
+            with pytest.raises(LogisticaServiceError) as excinfo:
+                optimizar_ruta(payload)
+        
+        assert excinfo.value.status_code == 503
+        assert 'ERROR_CONEXION' in excinfo.value.message['codigo']
+
+    def test_optimizar_ruta_request_exception(self):
+        """Prueba cuando ocurre un error genérico de requests"""
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [[-74.0445, 4.6760]]
+        }
+        
+        with patch('src.services.logistica.requests.post', 
+                   side_effect=requests.exceptions.RequestException('Generic error')):
+            with pytest.raises(LogisticaServiceError) as excinfo:
+                optimizar_ruta(payload)
+        
+        assert excinfo.value.status_code == 503
+        assert 'ERROR_CONEXION' in excinfo.value.message['codigo']
+
+    def test_optimizar_ruta_respuesta_invalida_json(self):
+        """Prueba cuando el servicio retorna respuesta no JSON para formato JSON"""
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [[-74.0445, 4.6760]]
+        }
+        
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.side_effect = ValueError('Invalid JSON')
+
+        with patch('src.services.logistica.requests.post', return_value=mock_response):
+            with pytest.raises(LogisticaServiceError) as excinfo:
+                optimizar_ruta(payload, 'json')
+        
+        assert excinfo.value.status_code == 502
+        assert 'RESPUESTA_INVALIDA' in excinfo.value.message['codigo']
+
+    def test_optimizar_ruta_error_inesperado(self):
+        """Prueba cuando ocurre un error inesperado"""
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [[-74.0445, 4.6760]]
+        }
+        
+        with patch('src.services.logistica.requests.post', side_effect=Exception('Unexpected error')):
+            with pytest.raises(LogisticaServiceError) as excinfo:
+                optimizar_ruta(payload)
+        
+        assert excinfo.value.status_code == 500
+        assert 'ERROR_INESPERADO' in excinfo.value.message['codigo']
+
+    def test_optimizar_ruta_multiples_destinos(self):
+        """Prueba con múltiples destinos"""
+        payload = {
+            'bodega': [-74.0721, 4.7110],
+            'destinos': [
+                [-74.0445, 4.6760],
+                [-74.0817, 4.6097],
+                [-74.1000, 4.6500],
+                [-74.0500, 4.7000],
+                [-74.1200, 4.6800]
+            ]
+        }
+        
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            'ruta_optima': [
+                [-74.0721, 4.7110],
+                [-74.0500, 4.7000],
+                [-74.0445, 4.6760],
+                [-74.1000, 4.6500],
+                [-74.1200, 4.6800],
+                [-74.0817, 4.6097]
+            ],
+            'distancia_total': 25.8,
+            'tiempo_estimado': 75
+        }
+
+        with patch('src.services.logistica.requests.post', return_value=mock_response):
+            result = optimizar_ruta(payload)
+
+        assert len(result['ruta_optima']) == 6
+        assert result['distancia_total'] == 25.8
+        assert result['tiempo_estimado'] == 75
