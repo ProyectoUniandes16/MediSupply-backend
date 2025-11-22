@@ -386,3 +386,94 @@ def crear_ruta_entrega(bodega_id, camion_id, zona_id, estado, puntos_ruta):
             'codigo': 'ERROR_CREACION_RUTA',
             'detalle': str(e)
         }, 500)
+
+
+def listar_rutas(filtros=None):
+    """
+    Lista las rutas con filtros opcionales.
+    
+    Args:
+        filtros (dict, optional): Diccionario con filtros opcionales:
+            - estado: Estado de la ruta (pendiente, iniciado, en_progreso, completado, cancelado)
+            - zona_id: ID de la zona
+            - camion_id: ID del camión
+            - bodega_id: ID de la bodega
+    
+    Returns:
+        dict: Diccionario con la lista de rutas y total
+        
+    Raises:
+        RutaServiceError: Si ocurre un error al listar las rutas
+    """
+    try:
+        query = Ruta.query
+        
+        # Aplicar filtros si se proporcionan
+        if filtros:
+            if filtros.get('estado'):
+                query = query.filter(Ruta.estado == filtros['estado'])
+            
+            if filtros.get('zona_id'):
+                query = query.filter(Ruta.zona_id == filtros['zona_id'])
+            
+            if filtros.get('camion_id'):
+                query = query.filter(Ruta.camion_id == filtros['camion_id'])
+            
+            if filtros.get('bodega_id'):
+                query = query.filter(Ruta.bodega_id == filtros['bodega_id'])
+        
+        # Ordenar por fecha de creación descendente (más recientes primero)
+        rutas = query.order_by(Ruta.created_at.desc()).all()
+        
+        current_app.logger.info(f"Se encontraron {len(rutas)} rutas")
+        
+        return {
+            'data': [ruta.to_dict_with_details() for ruta in rutas],
+            'total': len(rutas)
+        }
+        
+    except Exception as e:
+        current_app.logger.error(f"Error al listar rutas: {str(e)}")
+        raise RutaServiceError({
+            'error': 'Error al listar las rutas',
+            'codigo': 'ERROR_LISTAR_RUTAS',
+            'detalle': str(e)
+        }, 500)
+
+
+def obtener_ruta_por_id(ruta_id):
+    """
+    Obtiene una ruta específica por su ID con todos sus detalles.
+    
+    Args:
+        ruta_id (str): ID de la ruta a consultar
+    
+    Returns:
+        dict: Ruta con sus detalles ordenados
+        
+    Raises:
+        RutaServiceError: Si la ruta no existe o ocurre un error
+    """
+    try:
+        ruta = Ruta.query.get(ruta_id)
+        
+        if not ruta:
+            raise RutaServiceError({
+                'error': f'La ruta con ID {ruta_id} no existe',
+                'codigo': 'RUTA_NO_ENCONTRADA'
+            }, 404)
+        
+        current_app.logger.info(f"Ruta {ruta_id} consultada exitosamente")
+        
+        return ruta.to_dict_with_details()
+        
+    except RutaServiceError:
+        raise
+    
+    except Exception as e:
+        current_app.logger.error(f"Error al obtener ruta {ruta_id}: {str(e)}")
+        raise RutaServiceError({
+            'error': 'Error al obtener la ruta',
+            'codigo': 'ERROR_OBTENER_RUTA',
+            'detalle': str(e)
+        }, 500)

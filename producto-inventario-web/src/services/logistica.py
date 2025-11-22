@@ -178,6 +178,102 @@ def crear_ruta_entrega(data: dict) -> dict:
         )
 
 
+def listar_rutas_logistica(filtros=None) -> dict:
+    """
+    Obtiene la lista de rutas desde el microservicio de logística.
+    
+    Args:
+        filtros (dict, optional): Diccionario con filtros opcionales:
+            - estado: Estado de la ruta
+            - zona_id: ID de la zona
+            - camion_id: ID del camión
+            - bodega_id: ID de la bodega
+    
+    Returns:
+        dict: Diccionario con 'data' (lista de rutas) y 'total'
+        
+    Raises:
+        LogisticaServiceError: Si hay error al consultar el servicio
+    """
+    logistica_url = Config.LOGISTICA_URL
+    
+    try:
+        # Construir query params
+        params = {}
+        if filtros:
+            if filtros.get('estado'):
+                params['estado'] = filtros['estado']
+            if filtros.get('zona_id'):
+                params['zona_id'] = filtros['zona_id']
+            if filtros.get('camion_id'):
+                params['camion_id'] = filtros['camion_id']
+            if filtros.get('bodega_id'):
+                params['bodega_id'] = filtros['bodega_id']
+        
+        response = requests.get(
+            f"{logistica_url}/rutas",
+            params=params,
+            headers={'Content-Type': 'application/json'},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise LogisticaServiceError(
+                f"Error al obtener las rutas: {response.text}",
+                response.status_code
+            )
+            
+    except requests.exceptions.RequestException as e:
+        raise LogisticaServiceError(
+            f"Error de conexión con el servicio de logística: {str(e)}",
+            500
+        )
+
+
+def obtener_ruta_detallada(ruta_id: str) -> dict:
+    """
+    Obtiene el detalle completo de una ruta específica.
+    
+    Args:
+        ruta_id (str): ID de la ruta a consultar
+        
+    Returns:
+        dict: Ruta con sus detalles ordenados
+        
+    Raises:
+        LogisticaServiceError: Si hay error al consultar el servicio o la ruta no existe
+    """
+    logistica_url = Config.LOGISTICA_URL
+    
+    try:
+        response = requests.get(
+            f"{logistica_url}/rutas/{ruta_id}",
+            headers={'Content-Type': 'application/json'},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        elif response.status_code == 404:
+            raise LogisticaServiceError(
+                "Ruta no encontrada",
+                404
+            )
+        else:
+            raise LogisticaServiceError(
+                f"Error al obtener la ruta: {response.text}",
+                response.status_code
+            )
+            
+    except requests.exceptions.RequestException as e:
+        raise LogisticaServiceError(
+            f"Error de conexión con el servicio de logística: {str(e)}",
+            500
+        )
+
+
 def optimizar_ruta(
     payload: dict,
     formato: str = "json",
