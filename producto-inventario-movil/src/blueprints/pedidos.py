@@ -5,6 +5,7 @@ from flask_jwt_extended import jwt_required
 from src.utils.token_utils import decode_jwt
 from src.services.pedidos import crear_pedido_externo, PedidoServiceError, listar_pedidos_externo, detalle_pedido_externo
 from src.services.productos import obtener_detalle_producto_externo
+from src.services.clientes import obtener_detalle_cliente_externo
 
 pedidos_bp = Blueprint('pedidos', __name__)
 
@@ -80,6 +81,10 @@ def detalle_pedido(pedido_id):
             }
             productos.append(item)
         resultado['data']['productos'] = productos
+
+        cliente = obtener_detalle_cliente_externo(detalle_pedido['data']['cliente_id'])
+        resultado['data']['cliente'] = cliente.get('data', {})
+        
         return jsonify(resultado), 200
     except Exception as e:
         current_app.logger.exception(f"Error obteniendo detalle del pedido {pedido_id}: {str(e)}")

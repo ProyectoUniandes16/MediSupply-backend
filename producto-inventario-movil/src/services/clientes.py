@@ -39,3 +39,31 @@ def listar_clientes_externo(email):
             'error': 'Error de conexión con el microservicio de clientes',
             'codigo': 'ERROR_CONEXION'
         }, 503)
+
+def obtener_detalle_cliente_externo(cliente_id):
+    """
+    Lógica de negocio para obtener el detalle de un cliente a través del microservicio externo.
+
+    Args:
+        cliente_id (int): ID del cliente.
+
+    Returns:
+        dict: Respuesta del microservicio de clientes.
+    """
+    try:
+        clientes_url = Config.CLIENTES_URL
+        response = requests.get(
+            f"{clientes_url}/cliente/{cliente_id}",
+            headers={'Content-Type': 'application/json'}
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.HTTPError as e:
+        current_app.logger.error(f"Error del microservicio de clientes: {e.response.text}")
+        raise ClienteServiceError(e.response.json(), e.response.status_code)
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"Error de conexión con microservicio de clientes: {str(e)}")
+        raise ClienteServiceError({
+            'error': 'Error de conexión con el microservicio de clientes',
+            'codigo': 'ERROR_CONEXION'
+        }, 503)
