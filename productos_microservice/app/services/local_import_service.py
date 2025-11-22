@@ -44,7 +44,18 @@ class LocalImportService:
     @staticmethod
     def leer_csv(local_path):
         """
-        Lee el contenido de un archivo CSV local
+        Lee el contenido de un archivo CSV local con múltiples intentos de encoding
         """
-        with open(local_path, 'r', encoding='utf-8') as f:
-            return f.read()
+        try:
+            # Intento 1: UTF-8 con BOM (estándar moderno)
+            with open(local_path, 'r', encoding='utf-8-sig') as f:
+                return f.read()
+        except UnicodeDecodeError:
+            try:
+                # Intento 2: Latin-1 (común en Excel Windows en español)
+                with open(local_path, 'r', encoding='latin-1') as f:
+                    return f.read()
+            except Exception:
+                # Intento 3: UTF-8 ignorando errores (último recurso)
+                with open(local_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    return f.read()

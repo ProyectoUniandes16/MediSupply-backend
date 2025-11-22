@@ -306,6 +306,7 @@ services:
       - REDIS_DB=0
     volumes:
       - productos_uploads:/app/uploads
+      - local-imports:/app/local_imports
     depends_on:
       db:
         condition: service_healthy
@@ -499,18 +500,21 @@ services:
   cache_worker:
     build:
       context: ./productos_microservice
+      context: ./productos_microservice
       dockerfile: Dockerfile
     container_name: medisupply-cache-worker
     command: ["python", "worker.py"]
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-medisupply_user}:${POSTGRES_PASSWORD:-medisupply_password}@db:5432/${POSTGRES_DB:-medisupply}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      # Redis Configuration
       - REDIS_SERVICE_URL=http://redis_service:5011
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_DB=0
     volumes:
       - productos_uploads:/app/uploads
+      - local-imports:/app/local_imports
     depends_on:
       db:
         condition: service_healthy
@@ -599,3 +603,5 @@ volumes:
     name: medisupply-redis-data
   minio_data:
     name: medisupply-minio-data
+  local-imports:
+    name: medisupply-local-imports

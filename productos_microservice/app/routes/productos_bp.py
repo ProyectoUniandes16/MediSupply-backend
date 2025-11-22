@@ -412,7 +412,8 @@ def importar_productos_csv():
         
         # PASO 1: Contar filas rápidamente para decidir procesamiento
         archivo.stream.seek(0)
-        contenido = archivo.stream.read().decode('utf-8')
+        # Usar 'utf-8-sig' para manejar BOM si existe, y 'replace' para caracteres inválidos
+        contenido = archivo.stream.read().decode('utf-8-sig', errors='replace')
         archivo.stream.seek(0)  # Resetear para uso posterior
         
         # Contar filas
