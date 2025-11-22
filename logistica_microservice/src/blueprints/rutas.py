@@ -2,7 +2,13 @@
 Blueprint para la optimización de rutas de entrega
 """
 from flask import Blueprint, request, jsonify, current_app, Response
-from src.services.ruta_service import optimizar_ruta, RutaServiceError, crear_ruta_entrega
+from src.services.ruta_service import (
+    optimizar_ruta, 
+    RutaServiceError, 
+    crear_ruta_entrega,
+    listar_rutas,
+    obtener_ruta_por_id
+)
 from src.models.ruta import Ruta, DetalleRuta
 from src.models.zona import db
 
@@ -357,6 +363,78 @@ def crear_ruta():
     
     except Exception as e:
         current_app.logger.error(f"Error inesperado al crear ruta: {str(e)}")
+        return jsonify({
+            'error': 'Error interno del servidor',
+            'codigo': 'ERROR_INTERNO_SERVIDOR',
+            'detalle': str(e)
+        }), 500
+
+
+@rutas_bp.route('/rutas', methods=['GET'])
+def listar_rutas_endpoint():
+    """
+    Endpoint para listar rutas con filtros opcionales.
+    
+    Query Params:
+        - estado: Estado de la ruta (pendiente, iniciado, en_progreso, completado, cancelado)
+        - zona_id: ID de la zona
+        - camion_id: ID del camión
+        - bodega_id: ID de la bodega
+        
+    Returns:
+        JSON con la lista de rutas y total
+    """
+    try:
+        # Obtener filtros de los query params
+        filtros = {}
+        
+        if request.args.get('estado'):
+            filtros['estado'] = request.args.get('estado')
+        
+        if request.args.get('zona_id'):
+            filtros['zona_id'] = request.args.get('zona_id')
+        
+        if request.args.get('camion_id'):
+            filtros['camion_id'] = request.args.get('camion_id')
+        
+        if request.args.get('bodega_id'):
+            filtros['bodega_id'] = request.args.get('bodega_id')
+        
+        resultado = listar_rutas(filtros if filtros else None)
+        return jsonify(resultado), 200
+    
+    except RutaServiceError as e:
+        return jsonify(e.message), e.status_code
+    
+    except Exception as e:
+        current_app.logger.error(f"Error inesperado al listar rutas: {str(e)}")
+        return jsonify({
+            'error': 'Error interno del servidor',
+            'codigo': 'ERROR_INTERNO_SERVIDOR',
+            'detalle': str(e)
+        }), 500
+
+
+@rutas_bp.route('/rutas/<ruta_id>', methods=['GET'])
+def obtener_ruta_endpoint(ruta_id):
+    """
+    Endpoint para obtener una ruta específica por su ID.
+    
+    Args:
+        ruta_id (str): ID de la ruta a consultar
+        
+    Returns:
+        JSON con los datos de la ruta y sus detalles
+    """
+    try:
+        resultado = obtener_ruta_por_id(ruta_id)
+        return jsonify(resultado), 200
+    
+    except RutaServiceError as e:
+        return jsonify(e.message), e.status_code
+    
+    except Exception as e:
+        current_app.logger.error(f"Error inesperado al obtener ruta: {str(e)}")
         return jsonify({
             'error': 'Error interno del servidor',
             'codigo': 'ERROR_INTERNO_SERVIDOR',

@@ -50,13 +50,49 @@ class Ruta(db.Model):
         }
 
     def to_dict_with_details(self):
-        """Convierte la ruta a diccionario incluyendo los detalles ordenados"""
+        """Convierte la ruta a diccionario incluyendo los detalles ordenados y datos enriquecidos de bodega, camión y zona"""
         detalles_ordenados = self.detalles.order_by(DetalleRuta.orden.asc()).all()
+        
+        # Construir información de bodega
+        bodega_info = {
+            'id': self.bodega.id,
+            'nombre': self.bodega.nombre,
+            'ubicacion': self.bodega.ubicacion if hasattr(self.bodega, 'ubicacion') else None
+        }
+        
+        # Construir información de camión (la capacidad está en Camion, no en TipoCamion)
+        camion_info = {
+            'id': self.camion.id,
+            'placa': self.camion.placa,
+            'capacidad_kg': self.camion.capacidad_kg,
+            'capacidad_m3': self.camion.capacidad_m3,
+            'estado': self.camion.estado,
+            'disponible': self.camion.disponible
+        }
+        
+        # Agregar información del tipo de camión si existe
+        if self.camion.tipo_camion:
+            camion_info['tipo'] = {
+                'id': self.camion.tipo_camion.id,
+                'nombre': self.camion.tipo_camion.nombre,
+                'descripcion': self.camion.tipo_camion.descripcion
+            }
+        
+        # Construir información de zona
+        zona_info = {
+            'id': self.zona.id,
+            'nombre': self.zona.nombre,
+            'descripcion': self.zona.descripcion if hasattr(self.zona, 'descripcion') else None
+        }
+        
         return {
             'id': self.id,
             'bodega_id': self.bodega_id,
+            'bodega': bodega_info,
             'camion_id': self.camion_id,
+            'camion': camion_info,
             'zona_id': self.zona_id,
+            'zona': zona_info,
             'estado': self.estado,
             'fecha_asignacion': self.fecha_asignacion.isoformat(),
             'fecha_inicio': self.fecha_inicio.isoformat() if self.fecha_inicio else None,

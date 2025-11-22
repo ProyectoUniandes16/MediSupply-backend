@@ -49,11 +49,12 @@ def register_cliente(data):
     zona_norm = _normalize(zona)
 
     # Mapeo de zonas a rangos (lat_min, lat_max), (lon_min, lon_max)
+    # Las claves deben estar normalizadas (sin acentos, en minúsculas)
     zonas_ranges = {
-        'bogota': ((4.60, 4.73), (-74.12, -74.04)),
-        'ciudad de mexico': ((19.27, 19.59), (-99.29, -98.97)),
-        'lima': ((-12.20, -11.70), (-77.10, -76.80)),
-        'quito': ((-0.30, -0.05), (-78.60, -78.35)),
+        'colombia - bogota': ((4.60, 4.73), (-74.12, -74.04)),
+        'mexico - ciudad de mexico': ((19.27, 19.59), (-99.29, -98.97)),
+        'peru - lima': ((-12.20, -11.70), (-77.10, -76.80)),
+        'ecuador - quito': ((-0.30, -0.05), (-78.60, -78.35)),
     }
 
     if zona_norm in zonas_ranges:
