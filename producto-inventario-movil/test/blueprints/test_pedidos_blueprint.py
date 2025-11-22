@@ -107,18 +107,23 @@ def test_detalle_pedido_blueprint_success():
             'id': 1,
             'productos': [
                 {'producto_id': 10, 'cantidad': 2}
-            ]
+            ],
+            'cliente_id': 1
         }
     }
 
     with patch('src.blueprints.pedidos.detalle_pedido_externo', return_value=detalle):
         with patch('src.blueprints.pedidos.obtener_detalle_producto_externo', return_value={'producto': {'id': 10, 'nombre': 'Producto X'}}):
-            resp = client.get('/pedido/1')
+            with patch('src.blueprints.pedidos.obtener_detalle_cliente_externo', return_value={'data': {'id': 1, 'nombre': 'Cliente X'}}):
+                resp = client.get('/pedido/1')
 
     assert resp.status_code == 200
     data = resp.get_json()
     assert data['data']['productos'][0]['cantidad'] == 2
     assert data['data']['productos'][0]['producto']['id'] == 10
+    # cliente debe estar incluido en el resultado y contener los datos mockeados
+    assert data['data']['cliente']['id'] == 1
+    assert data['data']['cliente']['nombre'] == 'Cliente X'
 
 
 def test_detalle_pedido_blueprint_unexpected_error():
