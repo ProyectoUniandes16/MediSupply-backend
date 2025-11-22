@@ -15,9 +15,11 @@ spec:
       labels:
         app: worker-cache
     spec:
+      nodeSelector:
+        local-imports: "true"
       containers:
       - name: worker-cache
-        image: 012146976167.dkr.ecr.us-east-2.amazonaws.com/inventarios:latest
+        image: 012146976167.dkr.ecr.us-east-2.amazonaws.com/productos:latest
         imagePullPolicy: Always
         command: ["/bin/sh", "-c"]
         args:
@@ -30,3 +32,12 @@ spec:
                 key: postgres-password
           - name: REDIS_IMPORT_CHANNEL
             value: "productos_import_csv_prod"
+
+        volumeMounts:
+          - name: local-imports
+            mountPath: /app/local_imports
+      volumes:
+      - name: local-imports
+        hostPath:
+          path: /var/local_imports
+          type: DirectoryOrCreate
