@@ -1,5 +1,7 @@
 import csv
 import io
+import requests
+import os
 from datetime import datetime
 from typing import List, Dict, Any
 from werkzeug.datastructures import FileStorage
@@ -510,6 +512,9 @@ class CSVProductoService:
             for i in range(0, len(productos_data), BATCH_SIZE):
                 batch = productos_data[i:i + BATCH_SIZE]
                 
+                # Lista para guardar productos que necesitan inventario
+                productos_para_inventario = []
+                
                 for producto_data in batch:
                     fila = producto_data['_fila']
                     sku = producto_data.get('codigo_sku', 'N/A')
@@ -549,6 +554,18 @@ class CSVProductoService:
                         db.session.add(producto)
                         db.session.flush()
                         
+                        # Guardar datos para crear inventario DESPUÉS del commit
+                        cantidad = producto_data.get('cantidad')
+                        ubicacion = producto_data.get('ubicacion')
+                        
+                        if cantidad and ubicacion:
+                            productos_para_inventario.append({
+                                'producto': producto,
+                                'cantidad': cantidad,
+                                'ubicacion': ubicacion,
+                                'sku': sku
+                            })
+
                         # Crear certificación si hay URL
                         url_certificacion = datos_validados.get('url_certificacion', '').strip()
                         if url_certificacion:
@@ -596,10 +613,29 @@ class CSVProductoService:
                             "codigo": "ERROR_INESPERADO"
                         })
                 
-                # Commit del lote
+                # Commit del lote (Productos visibles para otros servicios)
                 if resultados['exitosos'] > total_procesadas:
                     db.session.commit()
                     total_procesadas = resultados['exitosos']
+                    
+                    # AHORA crear inventarios (ya que los productos existen en DB)
+                    for item in productos_para_inventario:
+                        try:
+                            INVENTARIOS_URL = os.getenv('INVENTARIOS_SERVICE_URL', 'http://inventarios:5009')
+                            
+                            payload = {
+                                "productoId": item['producto'].id,
+                                "cantidad": int(item['cantidad']),
+                                "ubicacion": item['ubicacion'],
+                                "usuario": usuario_importacion
+                            }
+                            
+                            resp = requests.post(f"{INVENTARIOS_URL}/api/inventarios", json=payload, timeout=5)
+                            
+                            if resp.status_code not in [200, 201]:
+                                print(f"Advertencia: Falló creación de inventario para {item['sku']}: {resp.text}")
+                        except Exception as e:
+                            print(f"Error conectando con inventarios para {item['sku']}: {str(e)}")
                     
                     # Llamar callback de progreso si existe
                     if callback_progreso:
