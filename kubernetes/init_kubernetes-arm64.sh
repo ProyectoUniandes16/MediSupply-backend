@@ -33,6 +33,8 @@ kubectl apply -f kubernetes/postgres-deployment.yaml
 kubectl apply -f kubernetes/redis-deployment.yaml
 kubectl apply -f kubernetes/redis-service.yaml
 kubectl apply -f kubernetes/postgres-service.yaml
+kubectl apply -f kubernetes/redis-service/deployment.yaml
+kubectl apply -f kubernetes/redis-service/service.yaml
 kubectl apply -f kubernetes/auth-usuario/deployment.yaml
 kubectl apply -f kubernetes/auth-usuario/service.yaml
 kubectl apply -f kubernetes/mediador-web/deployment.yaml
@@ -58,6 +60,13 @@ kubectl apply -f kubernetes/clientes/service.yaml
 kubectl apply -f kubernetes/logistica/deployment.yaml
 kubectl apply -f kubernetes/logistica/service.yaml
 kubectl apply -f kubernetes/ingress.yaml
+
+kubectl apply -f kubernetes/minio/pvc.yaml
+kubectl apply -f kubernetes/minio/secret.yaml
+kubectl apply -f kubernetes/minio/service.yaml
+kubectl apply -f kubernetes/minio/deployment.yaml
+kubectl apply -f kubernetes/worker-videos/deployment.yaml
+kubectl apply -f kubernetes/worker-cache/deployment.yaml
 
 # Agrega el repo de ingress-nginx
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx

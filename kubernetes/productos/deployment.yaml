@@ -15,6 +15,8 @@ spec:
       labels:
         app: productos
     spec:
+      nodeSelector:
+        local-imports: "true"
       containers:
       - name: productos
         image: 012146976167.dkr.ecr.us-east-2.amazonaws.com/productos:latest
@@ -47,3 +49,18 @@ spec:
             secretKeyRef:
               name: minio-secret
               key: minio-secret-key
+        - name: REDIS_IMPORT_CHANNEL
+          value: "productos_import_csv_prod"
+        volumeMounts:
+          - name: local-imports
+            mountPath: /app/local_imports
+
+        volumeMounts:
+          - name: local-imports
+            mountPath: /app/local_imports
+
+      volumes:
+      - name: local-imports
+        hostPath:
+          path: /var/local_imports
+          type: DirectoryOrCreate
