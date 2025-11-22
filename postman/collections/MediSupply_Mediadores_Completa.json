@@ -535,6 +535,540 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "Producto Inventario Web (5003)",
+			"item": [
+				{
+					"name": "Health",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url_producto_web}}/health",
+							"host": ["{{base_url_producto_web}}"],
+							"path": ["health"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Inventarios",
+					"item": [
+						{
+							"name": "Get Inventarios Producto",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_producto_web}}/api/productos/{{producto_id}}/inventarios",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["api", "productos", "{{producto_id}}", "inventarios"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Disponible Producto",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_producto_web}}/api/productos/{{producto_id}}/disponible",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["api", "productos", "{{producto_id}}", "disponible"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Productos con Inventarios",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_producto_web}}/api/productos",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["api", "productos"],
+									"query": [
+										{ "key": "categoria", "value": "Medicamentos", "disabled": true },
+										{ "key": "estado", "value": "Activo", "disabled": true }
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Crear Inventario",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"productoId\": \"{{producto_id}}\",\n    \"cantidad\": 50,\n    \"ubicacion\": \"A1\",\n    \"usuario\": \"admin\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_producto_web}}/api/inventarios",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["api", "inventarios"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Actualizar Inventario",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"cantidad\": 75,\n    \"ubicacion\": \"B2\",\n    \"usuario\": \"admin\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_producto_web}}/api/inventarios/{{inventario_id}}",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["api", "inventarios", "{{inventario_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Eliminar Inventario",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"usuario\": \"admin\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_producto_web}}/api/inventarios/{{inventario_id}}",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["api", "inventarios", "{{inventario_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Ajustar Cantidad",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"ajuste\": -10,\n    \"usuario\": \"admin\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_producto_web}}/api/inventarios/{{inventario_id}}/ajustar",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["api", "inventarios", "{{inventario_id}}", "ajustar"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Health Cache",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_producto_web}}/health/cache",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["health", "cache"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Logística",
+					"item": [
+						{
+							"name": "Consultar Zonas",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_web}}/zona",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["zona"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Consultar Zonas con Bodegas",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_web}}/zona-con-bodegas",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["zona-con-bodegas"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Consultar Zona Detallada",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_web}}/zona/{{zona_id}}/detalle",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["zona", "{{zona_id}}", "detalle"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Crear Ruta",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" },
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"bodega_id\": \"bodega_1\",\n    \"camion_id\": \"camion_1\",\n    \"zona_id\": \"zona_1\",\n    \"estado\": \"pendiente\",\n    \"ruta\": [\n        {\n            \"ubicacion\": [-74.0445, 4.6760],\n            \"pedido_id\": \"pedido_1\"\n        }\n    ]\n}"
+								},
+								"url": {
+									"raw": "{{base_url_producto_web}}/rutas",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["rutas"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Optimizar Ruta",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" },
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"bodega\": [-74.08175, 4.60971],\n    \"destinos\": [\n        [-74.0445, 4.6760],\n        [-74.1475, 4.6165],\n        [-74.1253, 4.7010]\n    ]\n}"
+								},
+								"url": {
+									"raw": "{{base_url_producto_web}}/ruta-optima",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["ruta-optima"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Producto",
+					"item": [
+						{
+							"name": "Crear Producto",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{ "key": "nombre", "value": "Producto Test", "type": "text" },
+										{ "key": "codigo_sku", "value": "SKU123", "type": "text" },
+										{ "key": "categoria", "value": "Medicamentos", "type": "text" },
+										{ "key": "precio_unitario", "value": "1000", "type": "text" },
+										{ "key": "condiciones_almacenamiento", "value": "Fresco", "type": "text" },
+										{ "key": "fecha_vencimiento", "value": "2026-01-01", "type": "text" },
+										{ "key": "proveedor_id", "value": "1", "type": "text" },
+										{ "key": "ubicacion", "value": "A1", "type": "text" },
+										{ "key": "cantidad_inicial", "value": "100", "type": "text" },
+										{ "key": "certificacion", "type": "file", "src": [] }
+									]
+								},
+								"url": {
+									"raw": "{{base_url_producto_web}}/producto",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["producto"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Producto Batch",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{ "key": "file", "type": "file", "src": [] }
+									]
+								},
+								"url": {
+									"raw": "{{base_url_producto_web}}/producto-batch",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["producto-batch"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Consultar Productos",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_web}}/producto",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["producto"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Obtener Detalle Producto",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_web}}/producto/{{producto_id}}",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["producto", "{{producto_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Obtener Producto por SKU",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_web}}/producto/sku/{{sku}}",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["producto", "sku", "{{sku}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Descargar Certificación",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_web}}/producto/{{producto_id}}/certificacion",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["producto", "{{producto_id}}", "certificacion"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Obtener Status Importación",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_web}}/importar-csv/status/{{job_id}}",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["importar-csv", "status", "{{job_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar Jobs Importación",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_web}}/importar-csv/jobs",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["importar-csv", "jobs"]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Producto Inventario Movil (5005)",
+			"item": [
+				{
+					"name": "Health",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url_producto_movil}}/health",
+							"host": ["{{base_url_producto_movil}}"],
+							"path": ["health"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Pedidos",
+					"item": [
+						{
+							"name": "Crear Pedido",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" },
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"productos\": [\n        {\n            \"producto_id\": \"{{producto_id}}\",\n            \"cantidad\": 5\n        }\n    ],\n    \"direccion_entrega\": \"Calle 123 # 45-67\",\n    \"metodo_pago\": \"tarjeta\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_producto_movil}}/pedido",
+									"host": ["{{base_url_producto_movil}}"],
+									"path": ["pedido"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar Pedidos",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_movil}}/pedido",
+									"host": ["{{base_url_producto_movil}}"],
+									"path": ["pedido"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Detalle Pedido",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_movil}}/pedido/{{pedido_id}}",
+									"host": ["{{base_url_producto_movil}}"],
+									"path": ["pedido", "{{pedido_id}}"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Producto",
+					"item": [
+						{
+							"name": "Consultar Productos",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_movil}}/producto",
+									"host": ["{{base_url_producto_movil}}"],
+									"path": ["producto"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Obtener Detalle Producto",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_movil}}/producto/{{producto_id}}",
+									"host": ["{{base_url_producto_movil}}"],
+									"path": ["producto", "{{producto_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Obtener Producto por SKU",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_movil}}/producto/sku/{{sku}}",
+									"host": ["{{base_url_producto_movil}}"],
+									"path": ["producto", "sku", "{{sku}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Subir Video Producto",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{ "key": "video", "type": "file", "src": [] },
+										{ "key": "descripcion", "value": "Video de prueba", "type": "text" }
+									]
+								},
+								"url": {
+									"raw": "{{base_url_producto_movil}}/producto/{{producto_id}}/videos",
+									"host": ["{{base_url_producto_movil}}"],
+									"path": ["producto", "{{producto_id}}", "videos"]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
 		}
 	],
 	"variable": [
@@ -560,6 +1094,41 @@
 		},
 		{
 			"key": "visita_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "base_url_producto_web",
+			"value": "http://localhost:5003",
+			"type": "string"
+		},
+		{
+			"key": "base_url_producto_movil",
+			"value": "http://localhost:5005",
+			"type": "string"
+		},
+		{
+			"key": "producto_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "inventario_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "pedido_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "sku",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "job_id",
 			"value": "",
 			"type": "string"
 		}
