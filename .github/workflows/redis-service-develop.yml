@@ -53,7 +53,7 @@ jobs:
             --cov=app.routes \
             --cov-report=xml \
             --cov-report=term-missing \
-            --cov-fail-under=50
+            --cov-fail-under=80
 
       - name: Subir reporte de cobertura
         if: always()
