@@ -1,0 +1,1136 @@
+{
+	"info": {
+		"_postman_id": "6862417-d6b270a3-45fa-47f9-9a52-b5a31f5d4590",
+		"name": "MediSupply - Colección Completa de Mediadores",
+		"description": "Colección actualizada con todos los endpoints de los mediadores Web y Móvil, incluyendo Logística, Pedidos, Proveedores, Vendedores y Clientes.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Mediador Web (5002)",
+			"item": [
+				{
+					"name": "Auth",
+					"item": [
+						{
+							"name": "Signup",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"email\": \"admin@medisupply.com\",\n    \"password\": \"123456\",\n    \"nombre\": \"Admin\",\n    \"apellido\": \"User\",\n    \"rol\": \"gerente\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_web}}/auth/signup",
+									"host": ["{{base_url_web}}"],
+									"path": ["auth", "signup"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Login",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    var jsonData = pm.response.json().data;",
+											"    pm.environment.set(\"jwt_token\", jsonData.access_token);",
+											"    console.log(\"Token guardado\");",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"email\": \"admin@medisupply.com\",\n    \"password\": \"123456\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_web}}/auth/login",
+									"host": ["{{base_url_web}}"],
+									"path": ["auth", "login"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Logística",
+					"item": [
+						{
+							"name": "Crear Visita",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{jwt_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"vendedor_id\": \"{{vendedor_id}}\",\n    \"cliente_id\": 1,\n    \"fecha_visita\": \"2025-11-25\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_web}}/visitas",
+									"host": ["{{base_url_web}}"],
+									"path": ["visitas"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Optimizar Ruta",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{jwt_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"bodega\": [-74.08175, 4.60971],\n    \"destinos\": [\n        [-74.0445, 4.6760],\n        [-74.1475, 4.6165],\n        [-74.1253, 4.7010]\n    ]\n}"
+								},
+								"url": {
+									"raw": "{{base_url_web}}/ruta-optima",
+									"host": ["{{base_url_web}}"],
+									"path": ["ruta-optima"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Pedidos",
+					"item": [
+						{
+							"name": "Listar Pedidos",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{jwt_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url_web}}/pedido",
+									"host": ["{{base_url_web}}"],
+									"path": ["pedido"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Proveedores",
+					"item": [
+						{
+							"name": "Crear Proveedor",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{jwt_token}}"
+									}
+								],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{ "key": "nombre", "value": "Proveedor Test", "type": "text" },
+										{ "key": "email", "value": "prov@test.com", "type": "text" },
+										{ "key": "nit", "value": "900123456", "type": "text" },
+										{ "key": "direccion", "value": "Calle 123", "type": "text" },
+										{ "key": "telefono", "value": "5551234", "type": "text" },
+										{ "key": "pais", "value": "Colombia", "type": "text" },
+										{ "key": "ciudad", "value": "Bogotá", "type": "text" }
+									]
+								},
+								"url": {
+									"raw": "{{base_url_web}}/proveedor",
+									"host": ["{{base_url_web}}"],
+									"path": ["proveedor"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Consultar Proveedores",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{jwt_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url_web}}/proveedor",
+									"host": ["{{base_url_web}}"],
+									"path": ["proveedor"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Vendedores",
+					"item": [
+						{
+							"name": "Crear Vendedor",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{jwt_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"nombre\": \"Juan\",\n    \"apellidos\": \"Pérez\",\n    \"zona\": \"Norte\",\n    \"estado\": \"Activo\",\n    \"telefono\": \"5559876\",\n    \"correo\": \"juan.perez@medisupply.com\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_web}}/vendedor",
+									"host": ["{{base_url_web}}"],
+									"path": ["vendedor"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar Vendedores",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{jwt_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url_web}}/vendedor?size=10",
+									"host": ["{{base_url_web}}"],
+									"path": ["vendedor"],
+									"query": [
+										{ "key": "size", "value": "10" }
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Detalle Vendedor",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{jwt_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url_web}}/vendedor/{{vendedor_id}}",
+									"host": ["{{base_url_web}}"],
+									"path": ["vendedor", "{{vendedor_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Reporte Ventas",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{jwt_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url_web}}/vendedor/{{vendedor_id}}/reporte-ventas?mes=11&anio=2025&formato=json",
+									"host": ["{{base_url_web}}"],
+									"path": ["vendedor", "{{vendedor_id}}", "reporte-ventas"],
+									"query": [
+										{ "key": "mes", "value": "11" },
+										{ "key": "anio", "value": "2025" },
+										{ "key": "formato", "value": "json" }
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Crear Plan Venta",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{jwt_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"nombre_plan\": \"Plan Q4 2025\",\n    \"vendedores_ids\": [\"{{vendedor_id}}\"],\n    \"periodo\": \"2025-11\",\n    \"meta_ingresos\": 10000,\n    \"meta_visitas\": 50,\n    \"meta_clientes_nuevos\": 5\n}"
+								},
+								"url": {
+									"raw": "{{base_url_web}}/planes-venta",
+									"host": ["{{base_url_web}}"],
+									"path": ["planes-venta"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar Planes Venta",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{jwt_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url_web}}/planes-venta",
+									"host": ["{{base_url_web}}"],
+									"path": ["planes-venta"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Health",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url_web}}/health",
+							"host": ["{{base_url_web}}"],
+							"path": ["health"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Mediador Móvil (5004)",
+			"item": [
+				{
+					"name": "Auth",
+					"item": [
+						{
+							"name": "Signup Cliente",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"nombre\": \"Cliente Movil\",\n    \"tipo\": \"Farmacia\",\n    \"zona\": \"Sur\",\n    \"direccion\": \"Av. Sur 123\",\n    \"nit\": \"900999888\",\n    \"correo_empresa\": \"cliente@movil.com\",\n    \"nombre_contacto\": \"Maria\",\n    \"cargo_contacto\": \"Gerente\",\n    \"telefono_contacto\": \"3001234567\",\n    \"correo_contacto\": \"maria@movil.com\",\n    \"contraseña\": \"123456\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_movil}}/auth/signup/cliente",
+									"host": ["{{base_url_movil}}"],
+									"path": ["auth", "signup", "cliente"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Login",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    var jsonData = pm.response.json().data;",
+											"    pm.environment.set(\"jwt_token\", jsonData.access_token);",
+											"    console.log(\"Token guardado\");",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"email\": \"cliente@movil.com\",\n    \"password\": \"123456\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_movil}}/auth/login",
+									"host": ["{{base_url_movil}}"],
+									"path": ["auth", "login"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Clientes",
+					"item": [
+						{
+							"name": "Crear Cliente",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{jwt_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"nombre\": \"Nuevo Cliente\",\n    \"nit\": \"800111222\",\n    \"correo_empresa\": \"nuevo@cliente.com\",\n    \"direccion\": \"Calle Nueva 456\",\n    \"zona\": \"Centro\",\n    \"tipo\": \"Hospital\",\n    \"nombre_contacto\": \"Pedro\",\n    \"cargo_contacto\": \"Admin\",\n    \"telefono_contacto\": \"3109876543\",\n    \"correo_contacto\": \"pedro@cliente.com\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_movil}}/cliente",
+									"host": ["{{base_url_movil}}"],
+									"path": ["cliente"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar Clientes",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{jwt_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url_movil}}/cliente",
+									"host": ["{{base_url_movil}}"],
+									"path": ["cliente"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Logística",
+					"item": [
+						{
+							"name": "Listar Visitas",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{jwt_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url_movil}}/visitas",
+									"host": ["{{base_url_movil}}"],
+									"path": ["visitas"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Actualizar Visita",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{jwt_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"estado\": \"realizada\",\n    \"notas\": \"Visita completada con éxito\",\n    \"latitud\": 4.6097,\n    \"longitud\": -74.0817\n}"
+								},
+								"url": {
+									"raw": "{{base_url_movil}}/visitas/{{visita_id}}",
+									"host": ["{{base_url_movil}}"],
+									"path": ["visitas", "{{visita_id}}"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Health",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url_movil}}/health",
+							"host": ["{{base_url_movil}}"],
+							"path": ["health"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Producto Inventario Web (5003)",
+			"item": [
+				{
+					"name": "Health",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url_producto_web}}/health",
+							"host": ["{{base_url_producto_web}}"],
+							"path": ["health"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Inventarios",
+					"item": [
+						{
+							"name": "Get Inventarios Producto",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_producto_web}}/api/productos/{{producto_id}}/inventarios",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["api", "productos", "{{producto_id}}", "inventarios"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Disponible Producto",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_producto_web}}/api/productos/{{producto_id}}/disponible",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["api", "productos", "{{producto_id}}", "disponible"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Productos con Inventarios",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_producto_web}}/api/productos",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["api", "productos"],
+									"query": [
+										{ "key": "categoria", "value": "Medicamentos", "disabled": true },
+										{ "key": "estado", "value": "Activo", "disabled": true }
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Crear Inventario",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"productoId\": \"{{producto_id}}\",\n    \"cantidad\": 50,\n    \"ubicacion\": \"A1\",\n    \"usuario\": \"admin\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_producto_web}}/api/inventarios",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["api", "inventarios"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Actualizar Inventario",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"cantidad\": 75,\n    \"ubicacion\": \"B2\",\n    \"usuario\": \"admin\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_producto_web}}/api/inventarios/{{inventario_id}}",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["api", "inventarios", "{{inventario_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Eliminar Inventario",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"usuario\": \"admin\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_producto_web}}/api/inventarios/{{inventario_id}}",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["api", "inventarios", "{{inventario_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Ajustar Cantidad",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"ajuste\": -10,\n    \"usuario\": \"admin\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_producto_web}}/api/inventarios/{{inventario_id}}/ajustar",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["api", "inventarios", "{{inventario_id}}", "ajustar"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Health Cache",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_producto_web}}/health/cache",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["health", "cache"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Logística",
+					"item": [
+						{
+							"name": "Consultar Zonas",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_web}}/zona",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["zona"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Consultar Zonas con Bodegas",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_web}}/zona-con-bodegas",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["zona-con-bodegas"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Consultar Zona Detallada",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_web}}/zona/{{zona_id}}/detalle",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["zona", "{{zona_id}}", "detalle"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Crear Ruta",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" },
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"bodega_id\": \"bodega_1\",\n    \"camion_id\": \"camion_1\",\n    \"zona_id\": \"zona_1\",\n    \"estado\": \"pendiente\",\n    \"ruta\": [\n        {\n            \"ubicacion\": [-74.0445, 4.6760],\n            \"pedido_id\": \"pedido_1\"\n        }\n    ]\n}"
+								},
+								"url": {
+									"raw": "{{base_url_producto_web}}/rutas",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["rutas"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Optimizar Ruta",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" },
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"bodega\": [-74.08175, 4.60971],\n    \"destinos\": [\n        [-74.0445, 4.6760],\n        [-74.1475, 4.6165],\n        [-74.1253, 4.7010]\n    ]\n}"
+								},
+								"url": {
+									"raw": "{{base_url_producto_web}}/ruta-optima",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["ruta-optima"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Producto",
+					"item": [
+						{
+							"name": "Crear Producto",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{ "key": "nombre", "value": "Producto Test", "type": "text" },
+										{ "key": "codigo_sku", "value": "SKU123", "type": "text" },
+										{ "key": "categoria", "value": "Medicamentos", "type": "text" },
+										{ "key": "precio_unitario", "value": "1000", "type": "text" },
+										{ "key": "condiciones_almacenamiento", "value": "Fresco", "type": "text" },
+										{ "key": "fecha_vencimiento", "value": "2026-01-01", "type": "text" },
+										{ "key": "proveedor_id", "value": "1", "type": "text" },
+										{ "key": "ubicacion", "value": "A1", "type": "text" },
+										{ "key": "cantidad_inicial", "value": "100", "type": "text" },
+										{ "key": "certificacion", "type": "file", "src": [] }
+									]
+								},
+								"url": {
+									"raw": "{{base_url_producto_web}}/producto",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["producto"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Producto Batch",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{ "key": "file", "type": "file", "src": [] }
+									]
+								},
+								"url": {
+									"raw": "{{base_url_producto_web}}/producto-batch",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["producto-batch"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Consultar Productos",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_web}}/producto",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["producto"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Obtener Detalle Producto",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_web}}/producto/{{producto_id}}",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["producto", "{{producto_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Obtener Producto por SKU",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_web}}/producto/sku/{{sku}}",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["producto", "sku", "{{sku}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Descargar Certificación",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_web}}/producto/{{producto_id}}/certificacion",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["producto", "{{producto_id}}", "certificacion"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Obtener Status Importación",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_web}}/importar-csv/status/{{job_id}}",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["importar-csv", "status", "{{job_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar Jobs Importación",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_web}}/importar-csv/jobs",
+									"host": ["{{base_url_producto_web}}"],
+									"path": ["importar-csv", "jobs"]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Producto Inventario Movil (5005)",
+			"item": [
+				{
+					"name": "Health",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url_producto_movil}}/health",
+							"host": ["{{base_url_producto_movil}}"],
+							"path": ["health"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Pedidos",
+					"item": [
+						{
+							"name": "Crear Pedido",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" },
+									{ "key": "Content-Type", "value": "application/json" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"productos\": [\n        {\n            \"producto_id\": \"{{producto_id}}\",\n            \"cantidad\": 5\n        }\n    ],\n    \"direccion_entrega\": \"Calle 123 # 45-67\",\n    \"metodo_pago\": \"tarjeta\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url_producto_movil}}/pedido",
+									"host": ["{{base_url_producto_movil}}"],
+									"path": ["pedido"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar Pedidos",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_movil}}/pedido",
+									"host": ["{{base_url_producto_movil}}"],
+									"path": ["pedido"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Detalle Pedido",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_movil}}/pedido/{{pedido_id}}",
+									"host": ["{{base_url_producto_movil}}"],
+									"path": ["pedido", "{{pedido_id}}"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Producto",
+					"item": [
+						{
+							"name": "Consultar Productos",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_movil}}/producto",
+									"host": ["{{base_url_producto_movil}}"],
+									"path": ["producto"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Obtener Detalle Producto",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_movil}}/producto/{{producto_id}}",
+									"host": ["{{base_url_producto_movil}}"],
+									"path": ["producto", "{{producto_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Obtener Producto por SKU",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"url": {
+									"raw": "{{base_url_producto_movil}}/producto/sku/{{sku}}",
+									"host": ["{{base_url_producto_movil}}"],
+									"path": ["producto", "sku", "{{sku}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Subir Video Producto",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+								],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{ "key": "video", "type": "file", "src": [] },
+										{ "key": "descripcion", "value": "Video de prueba", "type": "text" }
+									]
+								},
+								"url": {
+									"raw": "{{base_url_producto_movil}}/producto/{{producto_id}}/videos",
+									"host": ["{{base_url_producto_movil}}"],
+									"path": ["producto", "{{producto_id}}", "videos"]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url_web",
+			"value": "http://localhost:5002",
+			"type": "string"
+		},
+		{
+			"key": "base_url_movil",
+			"value": "http://localhost:5004",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "vendedor_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "visita_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "base_url_producto_web",
+			"value": "http://localhost:5003",
+			"type": "string"
+		},
+		{
+			"key": "base_url_producto_movil",
+			"value": "http://localhost:5005",
+			"type": "string"
+		},
+		{
+			"key": "producto_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "inventario_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "pedido_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "sku",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "job_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

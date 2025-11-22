@@ -133,6 +133,36 @@ def test_crear_inventario_foreign_key_error(mocker, mock_db, sample_inventario_d
     mock_db.rollback.assert_called_once()
 
 
+def test_crear_inventario_integrity_error_unique(mocker, mock_db, sample_inventario_data):
+    filter_by_mock = mocker.MagicMock()
+    filter_by_mock.first.return_value = None
+    query_mock = mocker.MagicMock()
+    query_mock.filter_by.return_value = filter_by_mock
+    inventario_instance = _build_inventario_instance(mocker)
+    _setup_inventario_model(mocker, query=query_mock, instance=inventario_instance)
+    mock_db.commit.side_effect = IntegrityError('stmt', 'params', Exception('unique constraint failed'))
+
+    with pytest.raises(ConflictError):
+        crear_inventario(sample_inventario_data)
+
+    mock_db.rollback.assert_called_once()
+
+
+def test_crear_inventario_generic_exception(mocker, mock_db, sample_inventario_data):
+    filter_by_mock = mocker.MagicMock()
+    filter_by_mock.first.return_value = None
+    query_mock = mocker.MagicMock()
+    query_mock.filter_by.return_value = filter_by_mock
+    inventario_instance = _build_inventario_instance(mocker)
+    _setup_inventario_model(mocker, query=query_mock, instance=inventario_instance)
+    mock_db.commit.side_effect = Exception('Unexpected error')
+
+    with pytest.raises(ValidationError):
+        crear_inventario(sample_inventario_data)
+
+    mock_db.rollback.assert_called_once()
+
+
 def test_listar_inventarios_applies_filters(mocker):
     query_mock = mocker.MagicMock()
     query_mock.filter.return_value = query_mock
@@ -218,6 +248,19 @@ def test_eliminar_inventario_not_found(mocker):
         eliminar_inventario('missing-id')
 
 
+def test_eliminar_inventario_generic_exception(mocker, mock_db):
+    inventory = _build_inventario_instance(mocker)
+    query_mock = mocker.MagicMock()
+    query_mock.get.return_value = inventory
+    _setup_inventario_model(mocker, query=query_mock, instance=inventory)
+    mock_db.commit.side_effect = Exception('Unexpected error')
+
+    with pytest.raises(ValidationError):
+        eliminar_inventario('inv-id')
+    
+    mock_db.rollback.assert_called_once()
+
+
 def test_ajustar_cantidad_success(mocker, mock_db):
     inventory = _build_inventario_instance(mocker, cantidad=10)
     query_mock = mocker.MagicMock()
@@ -244,3 +287,25 @@ def test_ajustar_cantidad_negative_result(mocker):
 
     with pytest.raises(ValidationError):
         ajustar_cantidad('inv-id', -5)
+
+
+def test_ajustar_cantidad_not_found(mocker):
+    query_mock = mocker.MagicMock()
+    query_mock.get.return_value = None
+    _setup_inventario_model(mocker, query=query_mock)
+
+    with pytest.raises(NotFoundError):
+        ajustar_cantidad('missing-id', 5)
+
+
+def test_ajustar_cantidad_generic_exception(mocker, mock_db):
+    inventory = _build_inventario_instance(mocker, cantidad=10)
+    query_mock = mocker.MagicMock()
+    query_mock.get.return_value = inventory
+    _setup_inventario_model(mocker, query=query_mock, instance=inventory)
+    mock_db.commit.side_effect = Exception('Unexpected error')
+
+    with pytest.raises(ValidationError):
+        ajustar_cantidad('inv-id', 5)
+    
+    mock_db.rollback.assert_called_once()
