@@ -500,7 +500,6 @@ services:
   cache_worker:
     build:
       context: ./productos_microservice
-      context: ./productos_microservice
       dockerfile: Dockerfile
     container_name: medisupply-cache-worker
     command: ["python", "worker.py"]
