@@ -4,6 +4,7 @@ from flask_jwt_extended import jwt_required
 from src.services.logistica import (
     actualizar_visita_logistica,
     listar_visitas_logistica,
+    listar_zonas,
     LogisticaServiceError,
 )
 from src.utils.token_utils import decode_jwt
@@ -102,3 +103,23 @@ def listar_visitas_logistica_endpoint():
             ),
             500,
         )
+    
+
+
+@logistica_bp.route('/zona', methods=['GET'])
+def consultar_zonas():
+    """
+    Endpoint para listar todas las zonas disponibles.
+    
+    Returns:
+        JSON con la lista de zonas y total
+    """
+    try:
+        resultado = listar_zonas()
+        return jsonify(resultado), 200
+    except LogisticaServiceError as e:
+        current_app.logger.error(f"Error al consultar zonas: {e.message}")
+        return jsonify({'error': e.message}), e.status_code
+    except Exception as e:
+        current_app.logger.error(f"Error inesperado al consultar zonas: {str(e)}")
+        return jsonify({'error': 'Error interno del servidor'}), 500

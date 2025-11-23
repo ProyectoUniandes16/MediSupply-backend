@@ -354,3 +354,37 @@ def _obtener_clientes_por_ids(
             },
             500,
         ) from exc
+
+
+def listar_zonas() -> dict:
+    """
+    Obtiene la lista de todas las zonas disponibles.
+    
+    Returns:
+        dict: Diccionario con 'data' (lista de zonas) y 'total' (cantidad)
+        
+    Raises:
+        LogisticaServiceError: Si hay error al consultar el servicio
+    """
+    logistica_url = Config.LOGISTICA_URL
+    
+    try:
+        response = requests.get(
+            f"{logistica_url}/zona",
+            headers={'Content-Type': 'application/json'},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise LogisticaServiceError(
+                f"Error al obtener las zonas: {response.text}",
+                response.status_code
+            )
+            
+    except requests.exceptions.RequestException as e:
+        raise LogisticaServiceError(
+            f"Error de conexión con el servicio de logística: {str(e)}",
+            500
+        )

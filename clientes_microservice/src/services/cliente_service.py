@@ -51,14 +51,24 @@ def register_cliente(data):
     # Mapeo de zonas a rangos (lat_min, lat_max), (lon_min, lon_max)
     # Las claves deben estar normalizadas (sin acentos, en minúsculas)
     zonas_ranges = {
-        'colombia - bogota': ((4.60, 4.73), (-74.12, -74.04)),
-        'mexico - ciudad de mexico': ((19.27, 19.59), (-99.29, -98.97)),
-        'peru - lima': ((-12.20, -11.70), (-77.10, -76.80)),
-        'ecuador - quito': ((-0.30, -0.05), (-78.60, -78.35)),
+        'colombia': ((4.60, 4.73), (-74.12, -74.04)),
+        'mexico': ((19.27, 19.59), (-99.29, -98.97)),
+        'peru': ((-12.20, -11.70), (-77.10, -76.80)),
+        'ecuador': ((-0.30, -0.05), (-78.60, -78.35)),
     }
 
-    if zona_norm in zonas_ranges:
-        (lat_min, lat_max), (lon_min, lon_max) = zonas_ranges[zona_norm]
+    # Buscar una clave en zonas_ranges que aparezca dentro de la zona normalizada
+    # (ej: zona_norm='colombia - bogota' debe coincidir con la clave 'colombia').
+    # Si hay varias coincidencias, elegir la más específica (clave más larga).
+    # Normalizar las claves definidas en zonas_ranges para que coincidencias
+    # funcionen incluso si las claves tuvieran acentos o formatos diferentes.
+    zonas_map_norm = { _normalize(k): v for k, v in zonas_ranges.items() }
+
+    match_keys = [k for k in zonas_map_norm.keys() if k in zona_norm]
+    if match_keys:
+        # Preferir la clave más larga (más específica)
+        best_key = max(match_keys, key=len)
+        (lat_min, lat_max), (lon_min, lon_max) = zonas_map_norm[best_key]
         lat = _ubicacion_random(lat_min, lat_max)
         lon = _ubicacion_random(lon_min, lon_max)
         data['ubicacion'] = f"{lat},{lon}"
