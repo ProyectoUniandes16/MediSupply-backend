@@ -190,3 +190,33 @@ def test_auditoria_creacion(app_ctx):
     assert out["usuarioCreacion"] == "admin@system.com"
     assert out["fechaCreacion"] is not None
 
+def test_listar_vendedores_filtro_nombre(app_ctx):
+    """Prueba listar vendedores filtrando por nombre (case insensitive)."""
+    crear_vendedor({
+        "nombre": "Juan",
+        "apellidos": "Pérez",
+        "correo": "juan@example.com",
+        "telefono": "3001111111"
+    })
+    crear_vendedor({
+        "nombre": "Pedro",
+        "apellidos": "Gómez",
+        "correo": "pedro@example.com",
+        "telefono": "3002222222"
+    })
+    
+    # Filtro exacto
+    res = listar_vendedores(nombre="Juan")
+    assert res["total"] == 1
+    assert res["items"][0]["nombre"] == "Juan"
+    
+    # Filtro case insensitive
+    res = listar_vendedores(nombre="juan")
+    assert res["total"] == 1
+    assert res["items"][0]["nombre"] == "Juan"
+    
+    # Filtro parcial
+    res = listar_vendedores(nombre="ua")
+    assert res["total"] == 1
+    assert res["items"][0]["nombre"] == "Juan"
+

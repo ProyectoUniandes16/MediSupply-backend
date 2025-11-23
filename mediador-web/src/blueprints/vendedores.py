@@ -54,6 +54,7 @@ def obtener_vendedores():
     Query params:
         - zona (str, optional): Filtrar por zona
         - estado (str, optional): Filtrar por estado (ej: activo, inactivo)
+        - nombre (str, optional): Filtrar por nombre
         - page (int, optional): Número de página (default: 1)
         - size (int, optional): Tamaño de página (default: 10)
     """
@@ -61,6 +62,7 @@ def obtener_vendedores():
         # Obtener parámetros de consulta
         zona = request.args.get('zona')
         estado = request.args.get('estado')
+        nombre = request.args.get('nombre')
         page = int(request.args.get('page', 1))
         size = int(request.args.get('size', 10))
         
@@ -71,7 +73,7 @@ def obtener_vendedores():
             return jsonify({'error': 'El tamaño de página debe estar entre 1 y 100'}), 400
         
         # Llamar a la capa de servicio
-        datos_respuesta = listar_vendedores(zona=zona, estado=estado, page=page, size=size)
+        datos_respuesta = listar_vendedores(zona=zona, estado=estado, nombre=nombre, page=page, size=size)
         
         return jsonify(datos_respuesta), 200
 
