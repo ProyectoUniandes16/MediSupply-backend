@@ -169,14 +169,23 @@ def test_listar_inventarios_applies_filters(mocker):
     query_mock.order_by.return_value = query_mock
     query_mock.limit.return_value = query_mock
     query_mock.offset.return_value = query_mock
-    inventories = [SimpleNamespace(id='1'), SimpleNamespace(id='2')]
+    # Add producto_id to mocked objects
+    inventories = [SimpleNamespace(id='1', producto_id=1), SimpleNamespace(id='2', producto_id=2)]
     query_mock.all.return_value = inventories
     _setup_inventario_model(mocker, query=query_mock)
     to_dict_spy = mocker.patch('app.services.inventarios_service._to_dict', side_effect=lambda x: {'id': x.id})
+    
+    # Mock _obtener_info_producto to avoid external calls
+    mocker.patch('app.services.inventarios_service._obtener_info_producto', return_value={'nombre': 'Test', 'sku': 'SKU-123'})
 
     result = listar_inventarios(producto_id=1, ubicacion='Bodega', limite=50, offset=10)
 
-    assert result == [{'id': '1'}, {'id': '2'}]
+    # Verify result structure includes new fields
+    assert len(result) == 2
+    assert result[0]['id'] == '1'
+    assert result[0]['productoNombre'] == 'Test'
+    assert result[0]['productoSku'] == 'SKU-123'
+    
     assert query_mock.filter.call_count == 2
     query_mock.limit.assert_called_once_with(50)
     query_mock.offset.assert_called_once_with(10)
@@ -198,10 +207,13 @@ def test_obtener_inventario_por_id_success(mocker):
     query_mock.get.return_value = inventory
     _setup_inventario_model(mocker, query=query_mock)
     to_dict_spy = mocker.patch('app.services.inventarios_service._to_dict', return_value={'id': inventory.id})
+    
+    # Mock _obtener_info_producto
+    mocker.patch('app.services.inventarios_service._obtener_info_producto', return_value={'nombre': 'Test', 'sku': 'SKU-123'})
 
     result = obtener_inventario_por_id('existing-id')
 
-    assert result == {'id': 'test-uuid'}
+    assert result == {'id': 'test-uuid', 'productoNombre': 'Test', 'productoSku': 'SKU-123'}
     to_dict_spy.assert_called_once_with(inventory)
 
 

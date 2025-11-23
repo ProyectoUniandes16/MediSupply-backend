@@ -414,3 +414,31 @@ class InventariosService:
 
         logger.info(f"✅ Construidos {len(resultado)} productos con inventarios")
         return resultado
+
+    @staticmethod
+    def get_all_inventarios(filtros: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Obtiene todos los inventarios directamente del microservicio.
+        Soporta filtros como ubicacion, productoId, limite, offset.
+        """
+        try:
+            inventarios_url = current_app.config.get('INVENTARIOS_URL')
+            
+            # Limpiar filtros nulos
+            params = {k: v for k, v in (filtros or {}).items() if v is not None}
+            
+            response = requests.get(
+                f"{inventarios_url}/api/inventarios",
+                params=params,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logger.error(f"❌ Error consultando lista de inventarios: {response.status_code}")
+                return {'inventarios': [], 'total': 0}
+                
+        except Exception as e:
+            logger.error(f"❌ Error consultando lista de inventarios: {e}")
+            raise

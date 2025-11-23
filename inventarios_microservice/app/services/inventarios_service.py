@@ -7,8 +7,29 @@ from app.utils.validators import require, is_positive_integer, length_between
 from app.services.redis_queue_service import RedisQueueService
 from . import NotFoundError, ConflictError, ValidationError
 import logging
+import requests
+import os
 
 logger = logging.getLogger(__name__)
+
+PRODUCTOS_SERVICE_URL = os.getenv('PRODUCTOS_SERVICE_URL', 'http://productos:5008')
+
+def _obtener_info_producto(producto_id: int) -> Dict[str, Any]:
+    """Obtiene nombre y SKU del producto desde el microservicio de productos."""
+    try:
+        url = f"{PRODUCTOS_SERVICE_URL}/api/productos/{producto_id}"
+        response = requests.get(url, timeout=2) # Timeout corto para no bloquear
+        if response.status_code == 200:
+            data = response.json()
+            producto = data.get("producto", {})
+            return {
+                "nombre": producto.get("nombre"),
+                "sku": producto.get("codigo_sku")
+            }
+    except Exception as e:
+        logger.error(f"Error al consultar servicio de productos ({url}): {str(e)}")
+    
+    return {"nombre": None, "sku": None}
 
 def _to_dict(i: Inventario) -> Dict[str, Any]:
     """Convierte un inventario a diccionario para la respuesta JSON."""
@@ -113,7 +134,24 @@ def listar_inventarios(
     # Aplicar paginación
     inventarios = query.order_by(Inventario.fecha_creacion.desc()).limit(limite).offset(offset).all()
     
-    return [_to_dict(i) for i in inventarios]
+    resultados = []
+    productos_cache = {}
+    
+    for i in inventarios:
+        inv_dict = _to_dict(i)
+        pid = i.producto_id
+        
+        # Obtener info del producto (con caché local para esta petición)
+        if pid not in productos_cache:
+            productos_cache[pid] = _obtener_info_producto(pid)
+            
+        info_prod = productos_cache[pid]
+        inv_dict["productoNombre"] = info_prod["nombre"]
+        inv_dict["productoSku"] = info_prod["sku"]
+        
+        resultados.append(inv_dict)
+        
+    return resultados
 
 
 def obtener_inventario_por_id(inventario_id: str) -> Dict[str, Any]:
@@ -123,7 +161,14 @@ def obtener_inventario_por_id(inventario_id: str) -> Dict[str, Any]:
     if not inventario:
         raise NotFoundError(f"Inventario con ID '{inventario_id}' no encontrado")
     
-    return _to_dict(inventario)
+    result = _to_dict(inventario)
+    
+    # Enriquecer con info del producto
+    info_prod = _obtener_info_producto(inventario.producto_id)
+    result["productoNombre"] = info_prod["nombre"]
+    result["productoSku"] = info_prod["sku"]
+    
+    return result
 
 
 def actualizar_inventario(inventario_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
