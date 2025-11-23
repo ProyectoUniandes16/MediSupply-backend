@@ -39,9 +39,9 @@ jobs:
 
       - name: Deploy to EKS
         run: |
-          kubectl apply -f kubernetes/clientes_microservice/deployment.yaml
-          kubectl apply -f kubernetes/clientes_microservice/service.yaml
+          kubectl apply -f kubernetes/clientes/deployment.yaml
+          kubectl apply -f kubernetes/clientes/service.yaml
 
       - name: Restart clientes_microservice deployment
         run: |
-          kubectl rollout restart deployment clientes-microservice-deployment -n medisupply
+          kubectl rollout restart deployment clientes-deployment -n medisupply

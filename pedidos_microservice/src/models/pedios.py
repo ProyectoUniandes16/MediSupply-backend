@@ -1,3 +1,4 @@
+import re
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
@@ -18,6 +19,7 @@ class Pedido(db.Model):
     cliente_id = db.Column(db.Integer, nullable=False)
     vendedor_id = db.Column(db.String, nullable=True)
     fecha_pedido = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    fecha_entrega = db.Column(db.DateTime, nullable=True)
     estado = db.Column(db.String(50), nullable=False, default='pendiente')
     total = db.Column(db.Float, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -31,7 +33,7 @@ class Pedido(db.Model):
 
     def to_dict(self):
         """Convierte el pedido a diccionario"""
-        return {
+        data =  {
             'id': self.id,
             'cliente_id': self.cliente_id,
             'fecha_pedido': self.fecha_pedido.isoformat(),
@@ -39,6 +41,9 @@ class Pedido(db.Model):
             'total': self.total,
             'vendedor_id': self.vendedor_id
         }
+        if self.fecha_entrega:
+            data['fecha_entrega'] = self.fecha_entrega.isoformat()
+        return data
     
     def save(self):
         """Guarda el pedido en la base de datos"""
