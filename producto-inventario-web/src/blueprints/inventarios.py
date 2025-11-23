@@ -79,6 +79,34 @@ def get_productos_con_inventarios():
         }), 500
 
 
+@inventarios_bp.route('/inventarios', methods=['GET'])
+def listar_todos_inventarios():
+    """
+    Lista todos los inventarios con filtros opcionales.
+    
+    GET /api/inventarios
+    Query Params: ubicacion, productoId, limite, offset
+    """
+    try:
+        filtros = {
+            'ubicacion': request.args.get('ubicacion'),
+            'productoId': request.args.get('productoId'),
+            'limite': request.args.get('limite'),
+            'offset': request.args.get('offset')
+        }
+        
+        result = InventariosService.get_all_inventarios(filtros)
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logger.error(f"Error listando inventarios: {e}")
+        return jsonify({
+            'error': 'Error listando inventarios',
+            'detalle': str(e)
+        }), 500
+
+
 # ============================================
 # ENDPOINTS DE ESCRITURA (Mediador)
 # ============================================

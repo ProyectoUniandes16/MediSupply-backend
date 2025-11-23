@@ -190,7 +190,12 @@ def listar_vendedores(
     # Si se desea un comportamiento más estricto se podría lanzar ValidationError.
     # Si se recibió un dict de filtros por el parámetro `filters`, aplicarlo
     if isinstance(filters, dict):
+        # Claves que ya se manejan explícitamente o no son filtros de modelo
+        excluded_keys = {"nombre", "zona", "estado", "page", "size"}
+        
         for key, val in filters.items():
+            if key in excluded_keys:
+                continue
             if _is_empty(val):
                 continue
             # solo aplicar si el modelo tiene ese atributo
