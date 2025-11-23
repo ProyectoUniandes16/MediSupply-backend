@@ -90,7 +90,7 @@ def test_obtener_vendedores_exito(mock_listar, client, access_token):
     json_data = response.get_json()
     assert len(json_data['items']) == 2
     assert json_data['total'] == 2
-    mock_listar.assert_called_once_with(zona=None, estado=None, page=1, size=10)
+    mock_listar.assert_called_once_with(zona=None, estado=None, nombre=None, page=1, size=10)
 
 @patch('src.blueprints.vendedores.listar_vendedores')
 def test_obtener_vendedores_con_filtros(mock_listar, client, access_token):
@@ -110,7 +110,7 @@ def test_obtener_vendedores_con_filtros(mock_listar, client, access_token):
     assert response.status_code == 200
     json_data = response.get_json()
     assert len(json_data['items']) == 1
-    mock_listar.assert_called_once_with(zona='Norte', estado='activo', page=1, size=10)
+    mock_listar.assert_called_once_with(zona='Norte', estado='activo', nombre=None, page=1, size=10)
 
 @patch('src.blueprints.vendedores.listar_vendedores')
 def test_obtener_vendedores_con_paginacion(mock_listar, client, access_token):
@@ -129,7 +129,7 @@ def test_obtener_vendedores_con_paginacion(mock_listar, client, access_token):
     json_data = response.get_json()
     assert json_data['page'] == 2
     assert json_data['size'] == 5
-    mock_listar.assert_called_once_with(zona=None, estado=None, page=2, size=5)
+    mock_listar.assert_called_once_with(zona=None, estado=None, nombre=None, page=2, size=5)
 
 @patch('src.blueprints.vendedores.listar_vendedores')
 def test_obtener_vendedores_pagina_invalida(mock_listar, client, access_token):

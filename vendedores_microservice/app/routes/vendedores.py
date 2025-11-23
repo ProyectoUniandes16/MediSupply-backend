@@ -57,7 +57,8 @@ def patch_vendedor(v_id: str):
 def get_vendedores():
     zona = request.args.get("zona")
     estado = request.args.get("estado")
+    nombre = request.args.get("nombre")
     page = int(request.args.get("page", 1))
     size = int(request.args.get("size", 10))
-    data = listar_vendedores(zona=zona, estado=estado, page=page, size=size, filters=request.args.to_dict())
+    data = listar_vendedores(zona=zona, estado=estado, nombre=nombre, page=page, size=size, filters=request.args.to_dict())
     return jsonify(data), 200

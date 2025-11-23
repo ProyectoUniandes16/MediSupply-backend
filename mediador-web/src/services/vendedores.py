@@ -75,13 +75,14 @@ def crear_vendedor_externo(datos_vendedor):
             'codigo': 'ERROR_CONEXION'
         }, 503)
 
-def listar_vendedores(zona=None, estado=None, page=1, size=10):
+def listar_vendedores(zona=None, estado=None, nombre=None, page=1, size=10):
     """
     Obtiene la lista de vendedores del microservicio externo.
 
     Args:
         zona (str, optional): Filtro por zona.
         estado (str, optional): Filtro por estado.
+        nombre (str, optional): Filtro por nombre.
         page (int): Número de página (default: 1).
         size (int): Tamaño de página (default: 10).
 
@@ -102,6 +103,8 @@ def listar_vendedores(zona=None, estado=None, page=1, size=10):
         params['zona'] = zona
     if estado:
         params['estado'] = estado
+    if nombre:
+        params['nombre'] = nombre
     
     try:
         response = requests.get(

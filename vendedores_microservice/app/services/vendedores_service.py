@@ -157,6 +157,7 @@ def actualizar_vendedor(v_id: str, cambios: Dict[str, Any]) -> Dict[str, Any]:
 def listar_vendedores(
     zona: Optional[str] = None,
     estado: Optional[str] = None,
+    nombre: Optional[str] = None,
     page: int = 1,
     size: int = 10,
     filters: Optional[Dict[str, Any]] = None,
@@ -175,6 +176,8 @@ def listar_vendedores(
         q = q.filter(Vendedor.zona == zona)
     if estado:
         q = q.filter(Vendedor.estado == estado)
+    if nombre:
+        q = q.filter(Vendedor.nombre.ilike(f"%{nombre}%"))
 
     # filtros dinámicos por cualquier propiedad
     # filters puede contener claves como 'nombre', 'correo', 'telefono', etc.

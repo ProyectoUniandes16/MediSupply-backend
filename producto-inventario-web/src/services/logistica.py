@@ -45,6 +45,40 @@ def listar_zonas() -> dict:
         )
 
 
+def listar_bodegas() -> dict:
+    """
+    Obtiene la lista de todas las bodegas disponibles.
+    
+    Returns:
+        dict: Diccionario con 'data' (lista de bodegas) y 'total' (cantidad)
+        
+    Raises:
+        LogisticaServiceError: Si hay error al consultar el servicio
+    """
+    logistica_url = Config.LOGISTICA_URL
+    
+    try:
+        response = requests.get(
+            f"{logistica_url}/bodega",
+            headers={'Content-Type': 'application/json'},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise LogisticaServiceError(
+                f"Error al obtener las bodegas: {response.text}",
+                response.status_code
+            )
+            
+    except requests.exceptions.RequestException as e:
+        raise LogisticaServiceError(
+            f"Error de conexión con el servicio de logística: {str(e)}",
+            500
+        )
+
+
 def listar_zonas_con_bodegas() -> dict:
     """
     Obtiene la lista de todas las zonas con sus bodegas asociadas.

@@ -19,6 +19,14 @@ class CSVImportError(Exception):
 class CSVProductoService:
     """Servicio para importación masiva de productos desde CSV"""
     
+    # Ubicaciones de bodegas válidas (Latitud, Longitud) y sus nombres
+    BODEGAS_VALIDAS = {
+        "19.4326,-99.1332": "Bodega Central CDMX",
+        "4.636767,-74.140675": "Bodega Kennedy (Bogotá)",
+        "-0.1807,-78.4678": "Bodega Central Quito",
+        "-12.0464,-77.0428": "Bodega Central Lima"
+    }
+
     # Columnas requeridas en el CSV
     COLUMNAS_REQUERIDAS = [
         'nombre',
@@ -308,6 +316,21 @@ class CSVProductoService:
                 # Si no se proporciona fecha, usar la misma del producto
                 producto_data['fecha_vencimiento_cert'] = producto_data['fecha_vencimiento']
         
+        # Validar ubicación de bodega si está presente (para creación de inventario)
+        ubicacion = producto_data.get('ubicacion')
+        if ubicacion:
+            ubicacion = ubicacion.strip()
+            if ubicacion not in CSVProductoService.BODEGAS_VALIDAS:
+                # Crear lista legible de bodegas válidas con sus nombres
+                lista_bodegas = [f"{nombre} ({coord})" for coord, nombre in CSVProductoService.BODEGAS_VALIDAS.items()]
+                raise ValueError({
+                    "error": f"Ubicación de bodega inválida: '{ubicacion}'. Debe corresponder a una de las bodegas autorizadas.",
+                    "codigo": "UBICACION_INVALIDA",
+                    "fila": fila,
+                    "ubicaciones_validas": lista_bodegas
+                })
+            producto_data['ubicacion'] = ubicacion
+
         return producto_data
     
     @staticmethod
