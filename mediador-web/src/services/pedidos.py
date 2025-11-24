@@ -104,7 +104,7 @@ def obtener_pedidos_vendedor(vendedor_id, mes=None, anio=None):
             'detalle': str(e)
         }, 500)
 
-def listar_pedidos(vendedor_id=None, cliente_id=None, zona=None, headers=None):
+def listar_pedidos(vendedor_id=None, cliente_id=None, zona=None, estado=None, headers=None):
     """
     Obtiene la lista de pedidos del microservicio externo.
     Si se especifica zona, filtra los pedidos por la zona del cliente.
@@ -113,6 +113,7 @@ def listar_pedidos(vendedor_id=None, cliente_id=None, zona=None, headers=None):
         vendedor_id (str, optional): Filtro por ID de vendedor.
         cliente_id (str, optional): Filtro por ID de cliente.
         zona (str, optional): Filtro por zona del cliente.
+        estado (str, optional): Filtro por estado del pedido.
         headers (dict, optional): Encabezados HTTP adicionales para la petición.
 
     Returns:
@@ -130,6 +131,8 @@ def listar_pedidos(vendedor_id=None, cliente_id=None, zona=None, headers=None):
         params['vendedor_id'] = vendedor_id
     if cliente_id:
         params['cliente_id'] = cliente_id
+    if estado:  # ← AGREGAR ESTADO A LOS PARÁMETROS
+        params['estado'] = estado
     
     # Preparar encabezados
     request_headers = {'Content-Type': 'application/json'}

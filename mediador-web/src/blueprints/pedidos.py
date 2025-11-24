@@ -10,18 +10,20 @@ pedidos_bp = Blueprint('pedidos', __name__)
 def listar_pedidos_endpoint():
     """
     Endpoint del BFF para listar pedidos.
-    Soporta filtros opcionales por vendedor, cliente y zona.
+    Soporta filtros opcionales por vendedor, cliente, zona y ESTADO.
     
     Query params:
         - vendedor_id (str, optional): Filtrar por ID de vendedor
         - cliente_id (str, optional): Filtrar por ID de cliente
         - zona (str, optional): Filtrar por zona del cliente
+        - estado (str, optional): Filtrar por estado del pedido
     """
     try:
         # Obtener parámetros de consulta
         vendedor_id = request.args.get('vendedor_id')
         cliente_id = request.args.get('cliente_id')
         zona = request.args.get('zona')
+        estado = request.args.get('estado')  # ← NUEVO PARÁMETRO
         
         # Obtener el token de autorización del request
         headers = {}
@@ -34,6 +36,7 @@ def listar_pedidos_endpoint():
             vendedor_id=vendedor_id,
             cliente_id=cliente_id,
             zona=zona,
+            estado=estado,  # ← PASAR ESTADO
             headers=headers
         )
         
