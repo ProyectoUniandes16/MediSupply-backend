@@ -12,8 +12,8 @@ class TestCSVProductoServiceCoverage:
     def test_procesar_csv_desde_contenido_exitoso_con_inventario(self, app):
         """Test: procesar CSV desde contenido string creando inventarios"""
         csv_content = """nombre,codigo_sku,categoria,precio_unitario,condiciones_almacenamiento,fecha_vencimiento,proveedor_id,cantidad,ubicacion
-Producto 1,SKU-COV-001,medicamento,10.50,Ambiente,31/12/2025,1,100,"19.4326,-99.1332"
-Producto 2,SKU-COV-002,insumo,5.00,Refrigerado,30/06/2026,2,50,"4.636767,-74.140675" """
+Producto 1,SKU-COV-001,medicamento,10.50,Ambiente,31/12/2025,1,100,"Bodega Central CDMX"
+Producto 2,SKU-COV-002,insumo,5.00,Refrigerado,30/06/2026,2,50,"Bodega Kennedy" """
         
         with app.app_context():
             # Mock requests.post para inventarios
@@ -42,13 +42,13 @@ Producto 2,SKU-COV-002,insumo,5.00,Refrigerado,30/06/2026,2,50,"4.636767,-74.140
                 
                 assert '/api/inventarios' in url
                 assert kwargs['json']['cantidad'] == 100
-                assert kwargs['json']['ubicacion'] == '19.4326,-99.1332'
+                assert kwargs['json']['ubicacion'] == 'Bodega Central CDMX'
                 assert kwargs['json']['usuario'] == 'test_user'
 
     def test_procesar_csv_desde_contenido_fallo_inventario(self, app):
         """Test: procesar CSV cuando falla la creación de inventario (no debe fallar el producto)"""
         csv_content = """nombre,codigo_sku,categoria,precio_unitario,condiciones_almacenamiento,fecha_vencimiento,proveedor_id,cantidad,ubicacion
-Producto 1,SKU-COV-003,medicamento,10.50,Ambiente,31/12/2025,1,100,"19.4326,-99.1332" """
+Producto 1,SKU-COV-003,medicamento,10.50,Ambiente,31/12/2025,1,100,"Bodega Central CDMX" """
         
         with app.app_context():
             # Mock requests.post para simular error 500
@@ -75,7 +75,7 @@ Producto 1,SKU-COV-003,medicamento,10.50,Ambiente,31/12/2025,1,100,"19.4326,-99.
     def test_procesar_csv_desde_contenido_error_conexion_inventario(self, app):
         """Test: procesar CSV cuando hay excepción de conexión con inventario"""
         csv_content = """nombre,codigo_sku,categoria,precio_unitario,condiciones_almacenamiento,fecha_vencimiento,proveedor_id,cantidad,ubicacion
-Producto 1,SKU-COV-004,medicamento,10.50,Ambiente,31/12/2025,1,100,"19.4326,-99.1332" """
+Producto 1,SKU-COV-004,medicamento,10.50,Ambiente,31/12/2025,1,100,"Bodega Central CDMX" """
         
         with app.app_context():
             # Mock requests.post para lanzar excepción
