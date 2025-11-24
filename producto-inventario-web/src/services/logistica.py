@@ -186,7 +186,10 @@ def crear_ruta_entrega(data: dict) -> dict:
         )
         
         if response.status_code == 201:
-            return response.json()
+            ruta_creada = response.json()
+            # Actualizar estado de pedidos a "en_proceso"
+            _actualizar_estados_pedidos(data.get('ruta', []))
+            return ruta_creada
         elif response.status_code == 400:
             error_data = response.json()
             raise LogisticaServiceError(
@@ -210,6 +213,32 @@ def crear_ruta_entrega(data: dict) -> dict:
             f"Error de conexión con el servicio de logística: {str(e)}",
             500
         )
+
+
+def _actualizar_estados_pedidos(ruta: list):
+    """
+    Actualiza el estado de los pedidos en la ruta a "en_proceso".
+    
+    Args:
+        ruta (list): Lista de puntos de entrega con pedido_id
+    """
+    pedidos_url = Config.PEDIDOS_URL
+    for punto in ruta:
+        pedido_id = punto.get('pedido_id')
+        if pedido_id:
+            try:
+                response = requests.patch(
+                    f"{pedidos_url}/pedido/{pedido_id}/estado",
+                    json={'estado': 'en_proceso'},
+                    headers={'Content-Type': 'application/json'},
+                    timeout=10
+                )
+                if response.status_code != 200:
+                    # Log error but don't fail the whole operation
+                    print(f"Error al actualizar estado del pedido {pedido_id}: {response.text}")
+            except requests.exceptions.RequestException as e:
+                # Log error but don't fail
+                print(f"Error de conexión al actualizar pedido {pedido_id}: {str(e)}")
 
 
 def listar_rutas_logistica(filtros=None) -> dict:

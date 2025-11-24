@@ -3,7 +3,7 @@ import pytest
 from src.services.pedidos import registrar_pedido, PedidoServiceError
 from src.models.pedios import Pedido
 from src.models.pedidos_productos import PedidoProducto
-from src.services.pedidos import listar_pedidos
+from src.services.pedidos import listar_pedidos, actualizar_estado_pedido
 
 
 def test_registrar_pedido_none_raises():
@@ -226,3 +226,24 @@ def test_listar_pedidos_orden_desc_por_fecha(session):
     # El primero debe ser el más reciente (newer)
     assert len(data) >= 2
     assert data[0]['fecha_pedido'] >= data[1]['fecha_pedido']
+
+
+def test_actualizar_estado_pedido_success(session):
+    # Crear un pedido
+    p = Pedido(cliente_id=1, estado='pendiente', total=10.0, vendedor_id='v1')
+    session.add(p)
+    session.commit()
+    pedido_id = p.id
+
+    # Actualizar estado
+    result = actualizar_estado_pedido(pedido_id, 'en_proceso')
+    assert result is True
+
+    # Verificar en DB
+    updated = session.query(Pedido).get(pedido_id)
+    assert updated.estado == 'en_proceso'
+
+
+def test_actualizar_estado_pedido_not_found():
+    result = actualizar_estado_pedido(99999, 'en_proceso')
+    assert result is False

@@ -62,3 +62,30 @@ def obtener_detalle_pedido(pedido_id):
             'error': 'Error interno del servidor',
             'codigo': 'ERROR_INTERNO_SERVIDOR',
         }), 500
+
+
+@pedidos_bp.route('/pedido/<int:pedido_id>/estado', methods=['PATCH'])
+def actualizar_estado_pedido(pedido_id):
+    """
+    Endpoint para actualizar el estado de un pedido
+    """
+    try:
+        data = request.get_json()
+        nuevo_estado = data.get('estado')
+        if not nuevo_estado:
+            return jsonify({'error': 'Estado requerido', 'codigo': 'ESTADO_REQUERIDO'}), 400
+        
+        from src.services.pedidos import actualizar_estado_pedido as service_actualizar
+        success = service_actualizar(pedido_id, nuevo_estado)
+        if success:
+            return jsonify({"message": "Estado actualizado"}), 200
+        else:
+            return jsonify({'error': 'Pedido no encontrado', 'codigo': 'PEDIDO_NO_ENCONTRADO'}), 404
+    except PedidoServiceError as e:
+        return jsonify(e.message), e.status_code
+    except Exception as e:
+        current_app.logger.error(f"Error en actualizar estado de pedido: {str(e)}")
+        return jsonify({
+            'error': 'Error interno del servidor',
+            'codigo': 'ERROR_INTERNO_SERVIDOR',
+        }), 500
