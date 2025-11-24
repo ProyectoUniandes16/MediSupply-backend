@@ -119,3 +119,37 @@ def test_obtener_detalle_pedido_service_error(client, monkeypatch):
     resp = client.get('/pedido/999')
     assert resp.status_code == 404
     assert resp.get_json() == {'error': 'No encontrado'}
+
+
+def test_actualizar_estado_pedido_success(client, session):
+    from src.models.pedios import Pedido
+
+    p = Pedido(cliente_id=1, estado='pendiente', total=10.0, vendedor_id='v1')
+    session.add(p)
+    session.commit()
+
+    response = client.patch(f'/pedido/{p.id}/estado', json={'estado': 'en_proceso'})
+    assert response.status_code == 200
+    assert response.get_json() == {"message": "Estado actualizado"}
+
+    # Verificar en DB
+    session.refresh(p)
+    assert p.estado == 'en_proceso'
+
+
+def test_actualizar_estado_pedido_missing_estado(client, session):
+    from src.models.pedios import Pedido
+
+    p = Pedido(cliente_id=1, estado='pendiente', total=10.0, vendedor_id='v1')
+    session.add(p)
+    session.commit()
+
+    response = client.patch(f'/pedido/{p.id}/estado', json={})
+    assert response.status_code == 400
+    assert response.get_json() == {'error': 'Estado requerido', 'codigo': 'ESTADO_REQUERIDO'}
+
+
+def test_actualizar_estado_pedido_not_found(client):
+    response = client.patch('/pedido/99999/estado', json={'estado': 'en_proceso'})
+    assert response.status_code == 404
+    assert response.get_json() == {'error': 'Pedido no encontrado', 'codigo': 'PEDIDO_NO_ENCONTRADO'}

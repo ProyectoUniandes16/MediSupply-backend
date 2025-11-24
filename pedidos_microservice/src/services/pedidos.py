@@ -1,7 +1,7 @@
 
 from flask import current_app
 from src.models.pedidos_productos import PedidoProducto
-from src.models.pedios import Pedido
+from src.models.pedios import Pedido, db
 
 
 class PedidoServiceError(Exception):
@@ -133,4 +133,25 @@ def detalle_pedido(pedido_id):
     except Exception as e:
         current_app.logger.error(f"Error al listar pedidos: {str(e)}")
         raise PedidoServiceError({'error': 'Error al listar pedidos', 'codigo': 'ERROR_LISTAR_PEDIDOS'}, 500)
+
+
+def actualizar_estado_pedido(pedido_id, nuevo_estado):
+    """
+    Actualiza el estado de un pedido.
+    Args:
+        pedido_id (int): ID del pedido
+        nuevo_estado (str): Nuevo estado del pedido
+    Returns:
+        bool: True si se actualizó, False si no se encontró
+    """
+    try:
+        pedido = db.session.get(Pedido, pedido_id)
+        if pedido:
+            pedido.estado = nuevo_estado
+            pedido.save()
+            return True
+        return False
+    except Exception as e:
+        current_app.logger.error(f"Error al actualizar estado del pedido: {str(e)}")
+        raise PedidoServiceError({'error': 'Error al actualizar estado del pedido', 'codigo': 'ERROR_ACTUALIZAR_ESTADO'}, 500)
 
