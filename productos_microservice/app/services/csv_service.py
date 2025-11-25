@@ -1,6 +1,7 @@
 import csv
 import io
 import requests
+import logging
 import os
 from datetime import datetime
 from typing import List, Dict, Any
@@ -9,6 +10,10 @@ from app.models.producto import Producto, CertificacionProducto, CATEGORIAS_VALI
 from app.utils.validators import ProductoValidator
 from app.extensions import db
 from sqlalchemy.exc import IntegrityError
+import logging
+
+# Obtener logger del módulo (heredará la configuración del worker)
+logger = logging.getLogger(__name__)
 
 
 class CSVImportError(Exception):
@@ -348,120 +353,24 @@ class CSVProductoService:
         # Validar formato del archivo
         CSVProductoService.validar_csv_formato(archivo)
         
-        # Leer y validar estructura del CSV
-        productos_data = CSVProductoService.leer_y_validar_csv(archivo)
-        
-        resultados = {
-            "total_filas": len(productos_data),
-            "exitosos": 0,
-            "fallidos": 0,
-            "detalles_exitosos": [],
-            "detalles_errores": []
-        }
-        
-        # Procesar cada producto
-        for producto_data in productos_data:
-            fila = producto_data['_fila']
-            sku = producto_data.get('codigo_sku', 'N/A')
+        try:
+            # Leer contenido del archivo para pasarlo a la función centralizada
+            archivo.stream.seek(0)
+            contenido = archivo.stream.read().decode("utf-8-sig", errors='replace')
             
-            try:
-                # Validar datos del producto
-                datos_validados = CSVProductoService.validar_producto_csv(producto_data)
-                
-                # Sobrescribir usuario_registro si se proporciona
-                if usuario_importacion:
-                    datos_validados['usuario_registro'] = usuario_importacion
-                
-                # Verificar que el SKU no exista
-                if Producto.query.filter_by(codigo_sku=sku).first():
-                    resultados['fallidos'] += 1
-                    resultados['detalles_errores'].append({
-                        "fila": fila,
-                        "sku": sku,
-                        "error": f"Ya existe un producto con el SKU {sku}",
-                        "codigo": "SKU_DUPLICADO"
-                    })
-                    continue
-                
-                # Crear producto
-                producto = Producto(
-                    nombre=datos_validados['nombre'],
-                    codigo_sku=datos_validados['codigo_sku'],
-                    categoria=datos_validados['categoria'],
-                    precio_unitario=datos_validados['precio_unitario'],
-                    condiciones_almacenamiento=datos_validados['condiciones_almacenamiento'],
-                    fecha_vencimiento=datos_validados['fecha_vencimiento'],
-                    proveedor_id=datos_validados['proveedor_id'],
-                    usuario_registro=datos_validados['usuario_registro'],
-                    estado=datos_validados['estado']
-                )
-                
-                db.session.add(producto)
-                db.session.flush()  # Para obtener el ID
-                
-                # Crear certificación desde URL si se proporciona
-                url_certificacion = datos_validados.get('url_certificacion', '').strip()
-                if url_certificacion:
-                    certificacion = CertificacionProducto(
-                        producto_id=producto.id,
-                        tipo_certificacion=datos_validados.get('tipo_certificacion', 'INVIMA'),
-                        nombre_archivo=f"certificacion_url_{producto.codigo_sku}",
-                        ruta_archivo=url_certificacion,  # Guardamos la URL en lugar de ruta local
-                        tamaño_archivo=0,  # No aplica para URLs
-                        fecha_vencimiento_cert=datos_validados['fecha_vencimiento_cert']
-                    )
-                    db.session.add(certificacion)
-                
-                resultados['exitosos'] += 1
-                detalle_exitoso = {
-                    "fila": fila,
-                    "sku": sku,
-                    "nombre": producto.nombre,
-                    "id": producto.id,
-                    "tiene_certificacion": bool(url_certificacion)
-                }
-                
-                # Agregar detalles de certificación si existe
-                if url_certificacion:
-                    detalle_exitoso["certificacion"] = {
-                        "tipo": datos_validados.get('tipo_certificacion', 'INVIMA'),
-                        "url": url_certificacion,
-                        "fecha_vencimiento": datos_validados['fecha_vencimiento_cert'].strftime("%d/%m/%Y")
-                    }
-                
-                resultados['detalles_exitosos'].append(detalle_exitoso)
-                
-            except ValueError as e:
-                resultados['fallidos'] += 1
-                error_data = e.args[0] if e.args and isinstance(e.args[0], dict) else {"error": str(e)}
-                error_data['fila'] = fila
-                error_data['sku'] = sku
-                resultados['detalles_errores'].append(error_data)
-                
-            except Exception as e:
-                resultados['fallidos'] += 1
-                resultados['detalles_errores'].append({
-                    "fila": fila,
-                    "sku": sku,
-                    "error": f"Error inesperado: {str(e)}",
-                    "codigo": "ERROR_INESPERADO"
-                })
-        
-        # Commit si hay al menos un producto exitoso
-        if resultados['exitosos'] > 0:
-            try:
-                db.session.commit()
-            except IntegrityError as e:
-                db.session.rollback()
-                raise CSVImportError({
-                    "error": "Error al guardar los productos en la base de datos",
-                    "codigo": "ERROR_BASE_DATOS",
-                    "detalles": str(e)
-                })
-        else:
-            db.session.rollback()
-        
-        return resultados
+            # Usar la lógica centralizada que SI tiene creación de inventarios y logs
+            return CSVProductoService.procesar_csv_desde_contenido(
+                contenido_csv=contenido,
+                usuario_importacion=usuario_importacion
+            )
+        except Exception as e:
+            if isinstance(e, CSVImportError):
+                raise e
+            raise CSVImportError({
+                "error": "Error leyendo archivo CSV",
+                "codigo": "ERROR_LECTURA",
+                "detalles": str(e)
+            })
     
     @staticmethod
     def procesar_csv_desde_contenido(
@@ -481,6 +390,9 @@ class CSVProductoService:
         Returns:
             Diccionario con el resultado de la importación
         """
+        print(f"Acáaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ************")
+        logger.info(f"✅ Job publicado en Redis import queue")
+
         try:
             # Leer CSV desde string
             stream = io.StringIO(contenido_csv, newline=None)
@@ -585,6 +497,8 @@ class CSVProductoService:
                                 'ubicacion': ubicacion,
                                 'sku': sku
                             })
+                        else:
+                            print(f"DEBUG: Producto {sku} sin cantidad ({cantidad}) o ubicacion ({ubicacion}) para inventario")
 
                         # Crear certificación si hay URL
                         url_certificacion = datos_validados.get('url_certificacion', '').strip()
@@ -639,9 +553,11 @@ class CSVProductoService:
                     total_procesadas = resultados['exitosos']
                     
                     # AHORA crear inventarios (ya que los productos existen en DB)
+                    print(f"DEBUG: Intentando crear inventarios para {len(productos_para_inventario)} productos")
                     for item in productos_para_inventario:
                         try:
                             INVENTARIOS_URL = os.getenv('INVENTARIOS_SERVICE_URL', 'http://inventarios:5009')
+                            print(f"DEBUG: Enviando POST a {INVENTARIOS_URL}/api/inventarios para SKU {item['sku']}")
                             
                             payload = {
                                 "productoId": item['producto'].id,
@@ -651,6 +567,7 @@ class CSVProductoService:
                             }
                             
                             resp = requests.post(f"{INVENTARIOS_URL}/api/inventarios", json=payload, timeout=5)
+                            print(f"DEBUG: Respuesta inventario {resp.status_code} para {item['sku']}")
                             
                             if resp.status_code not in [200, 201]:
                                 print(f"Advertencia: Falló creación de inventario para {item['sku']}: {resp.text}")

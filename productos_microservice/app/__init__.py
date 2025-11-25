@@ -4,9 +4,19 @@ from .config import Config
 from .routes.productos_bp import productos_bp
 from .blueprints.videos_bp import videos_bp
 import os
+import logging
 
 def create_app():
     app = Flask(__name__)
+    
+    # Configurar logging básico
+    logging.basicConfig(level=logging.DEBUG)
+    
+    # Integrar con logger de Gunicorn si está presente
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    if gunicorn_logger.handlers:
+        app.logger.handlers = gunicorn_logger.handlers
+        app.logger.setLevel(logging.DEBUG)
     
     # Usar configuración de testing si está en modo test
     if os.getenv('TESTING') == 'true':

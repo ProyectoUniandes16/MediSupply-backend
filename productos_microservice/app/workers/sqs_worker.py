@@ -17,10 +17,13 @@ from app.models.import_job import ImportJob
 from app.services.csv_service import CSVProductoService, CSVImportError
 from app.services.local_import_service import LocalImportService
 
-# Configurar logging
+# Configurar logging para que salga explícitamente a stdout (Docker logs)
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
 )
 logger = logging.getLogger(__name__)
 
@@ -171,13 +174,14 @@ def _procesar_mensaje_local(app, payload: dict) -> bool:
 
             logger.info(f"🚀 Procesando CSV local: {ruta_archivo}")
             csv_service = CSVProductoService()
-
             try:
                 resultado = csv_service.procesar_csv_desde_contenido(
                     contenido_csv=contenido_csv,
                     usuario_importacion=usuario_registro,
                     callback_progreso=actualizar_progreso
                 )
+                logger.info(f"Paso completo del worker")
+
             except CSVImportError as e:
                 logger.error(f"❌ Error de validación CSV para job {job_id}: {e.args[0]}")
                 job.marcar_como_fallido(_formatear_error_csv(e.args[0] if e.args else 'Error validando CSV'))
