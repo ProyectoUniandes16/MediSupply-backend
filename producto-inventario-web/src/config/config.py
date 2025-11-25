@@ -16,6 +16,7 @@ class Config:
     AUTH_URL = os.environ.get('AUTH_URL', 'http://localhost:5001')
     PRODUCTO_URL = os.environ.get('PRODUCTO_URL', 'http://localhost:5008')
     INVENTARIOS_URL = os.environ.get('INVENTARIOS_URL', 'http://localhost:5009')
+    PEDIDOS_URL = os.environ.get('PEDIDOS_URL', 'http://localhost:5012')
     REDIS_SERVICE_URL = os.environ.get('REDIS_SERVICE_URL', 'http://localhost:5011')
     LOGISTICA_URL = os.environ.get('LOGISTICA_URL', 'http://localhost:5013')
     
